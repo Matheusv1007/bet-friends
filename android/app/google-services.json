@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "5096906221",
+    "project_id": "betfriends-unirv-2026",
+    "storage_bucket": "betfriends-unirv-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:5096906221:android:a5d29dea0e788a15e99be4",
+        "android_client_info": {
+          "package_name": "com.unirv.betfriends"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWk-A3Ivyc4iXh5fx6Zt1azHr6U7nAHks"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
