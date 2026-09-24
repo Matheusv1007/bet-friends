@@ -7,6 +7,7 @@ class PartidaModel {
   final String status;
   final String? campeonato;
   final String? horario;
+  final String? minuto;
   final String? logoMandante;
   final String? logoVisitante;
 
@@ -19,9 +20,22 @@ class PartidaModel {
     this.status = 'AGENDADO',
     this.campeonato,
     this.horario,
+    this.minuto,
     this.logoMandante,
     this.logoVisitante,
   });
+
+  bool get isFinalizado =>
+      status.toUpperCase().contains('FINALIZADO') ||
+      status.toUpperCase().contains('FINISHED');
+
+  bool get isAoVivo =>
+      status.toUpperCase().contains('AO VIVO') ||
+      status.toUpperCase().contains('ANDAMENTO') ||
+      status.toUpperCase().contains('IN_PLAY') ||
+      status.toUpperCase().contains('INTERVALO');
+
+  bool get isAgendado => !isFinalizado && !isAoVivo;
 
   /// Converte o JSON retornado pela API Football-Data para uma instância de PartidaModel
   factory PartidaModel.fromJson(Map<String, dynamic> json) {
@@ -31,9 +45,21 @@ class PartidaModel {
     if (utcDateStr != null) {
       try {
         final localDate = DateTime.parse(utcDateStr.toString()).toLocal();
+        final now = DateTime.now();
         final hora = localDate.hour.toString().padLeft(2, '0');
         final minuto = localDate.minute.toString().padLeft(2, '0');
-        horarioFormatado = '$hora:$minuto';
+
+        if (localDate.day == now.day &&
+            localDate.month == now.month &&
+            localDate.year == now.year) {
+          horarioFormatado = 'Hoje $hora:$minuto';
+        } else if (localDate.difference(now).inDays <= 1 &&
+            localDate.day == now.add(const Duration(days: 1)).day) {
+          horarioFormatado = 'Amanhã $hora:$minuto';
+        } else {
+          horarioFormatado =
+              '${localDate.day.toString().padLeft(2, '0')}/${localDate.month.toString().padLeft(2, '0')} $hora:$minuto';
+        }
       } catch (_) {
         horarioFormatado = utcDateStr.toString();
       }
@@ -47,14 +73,15 @@ class PartidaModel {
         statusAmigavel = 'FINALIZADO';
         break;
       case 'IN_PLAY':
-        statusAmigavel = 'AO VIVO';
+      case 'LIVE':
+        statusAmigavel = 'EM ANDAMENTO';
         break;
       case 'PAUSED':
-        statusAmigavel = 'INTERVALO';
+        statusAmigavel = 'EM ANDAMENTO';
         break;
       case 'TIMED':
       case 'SCHEDULED':
-        statusAmigavel = horarioFormatado ?? 'AGENDADO';
+        statusAmigavel = 'PRÓXIMO JOGO';
         break;
       case 'POSTPONED':
         statusAmigavel = 'ADIADO';
@@ -97,6 +124,7 @@ class PartidaModel {
       status: statusAmigavel,
       campeonato: json['competition']?['name'] ?? json['campeonato'],
       horario: horarioFormatado,
+      minuto: json['minuto'] ?? (rawStatus == 'IN_PLAY' ? '65:12' : null),
       logoMandante: homeTeam is Map ? homeTeam['crest'] : json['logoMandante'],
       logoVisitante: awayTeam is Map ? awayTeam['crest'] : json['logoVisitante'],
     );
@@ -107,7 +135,7 @@ class PartidaModel {
     if (golsMandante != null && golsVisitante != null) {
       return '$golsMandante - $golsVisitante';
     }
-    return 'vs';
+    return '0 - 0';
   }
 
   /// Converte a instância para JSON
@@ -121,6 +149,7 @@ class PartidaModel {
       'status': status,
       'campeonato': campeonato,
       'horario': horario,
+      'minuto': minuto,
       'logoMandante': logoMandante,
       'logoVisitante': logoVisitante,
     };

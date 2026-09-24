@@ -43,9 +43,23 @@ class App extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => PartidasProvider()),
       ],
-      child: const MaterialApp(
+      child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: Homepage(),
+        title: 'BetFriends',
+        theme: ThemeData.dark().copyWith(
+          scaffoldBackgroundColor: const Color(0xFF0B111D),
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFF00D084),
+            secondary: Color(0xFFF5A623),
+            surface: Color(0xFF151E2E),
+          ),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+          ),
+        ),
+        home: const Homepage(),
       ),
     );
   }
