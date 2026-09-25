@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../tela_criar_desafio/tela_criar_desafio.dart';
 
 class Carddedesafio extends StatelessWidget {
   const Carddedesafio({super.key});
@@ -68,7 +69,14 @@ class Carddedesafio extends StatelessWidget {
 
           // Botão Desafiar em amarelo/âmbar
           ElevatedButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CriarDesafioScreen(),
+                ),
+              );
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFF5A623),
               foregroundColor: const Color(0xFF0D131F),

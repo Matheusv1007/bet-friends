@@ -17,45 +17,54 @@ class PartidasService {
 
   ApiClient get client => _client;
 
-  /// Busca as partidas na API com ordenação e limite configurável
-  Future<List<PartidaModel>> getPartidas({int limit = 10}) async {
+  /// Busca as partidas na API com ordenação inteligente e limite configurável
+  Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
     try {
-      final now = DateTime.now();
+      dynamic response;
 
-      // Busca um intervalo de datas (2 dias atrás até 7 dias adiante) para capturar:
-      // 1. Jogos finalizados recentes
-      // 2. Jogos em andamento / ao vivo
-      // 3. Próximos jogos agendados
-      final past = now.subtract(const Duration(days: 2));
-      final dateFrom =
-          '${past.year}-${past.month.toString().padLeft(2, '0')}-${past.day.toString().padLeft(2, '0')}';
-      final future = now.add(const Duration(days: 7));
-      final dateTo =
-          '${future.year}-${future.month.toString().padLeft(2, '0')}-${future.day.toString().padLeft(2, '0')}';
-
-      final response = await _client.get(
-        '/matches?dateFrom=$dateFrom&dateTo=$dateTo',
-      );
+      // 1. Busca as partidas reais do Brasileirão Série A (BSA)
+      try {
+        response = await _client.get('/competitions/BSA/matches');
+      } catch (_) {
+        // Fallback para endpoint geral de partidas caso o endpoint específico falhe
+        response = await _client.get('/matches');
+      }
 
       if (response != null && response['matches'] is List) {
         final List matchesList = response['matches'];
-        final partidas = matchesList
+        final todasPartidas = matchesList
             .map((item) => PartidaModel.fromJson(item as Map<String, dynamic>))
             .toList();
 
-        // Ordenação inteligente:
-        // 1º Jogos Ao Vivo / Em Andamento
-        // 2º Próximos Jogos
-        // 3º Jogos Finalizados
-        partidas.sort((a, b) {
-          if (a.isAoVivo && !b.isAoVivo) return -1;
-          if (!a.isAoVivo && b.isAoVivo) return 1;
-          if (a.isAgendado && b.isFinalizado) return -1;
-          if (a.isFinalizado && b.isAgendado) return 1;
-          return 0;
-        });
+        // Separação em categorias:
+        final aoVivo = <PartidaModel>[];
+        final agendados = <PartidaModel>[];
+        final finalizados = <PartidaModel>[];
 
-        return partidas.take(limit).toList();
+        for (final p in todasPartidas) {
+          if (p.isAoVivo) {
+            aoVivo.add(p);
+          } else if (p.isAgendado) {
+            agendados.add(p);
+          } else if (p.isFinalizado) {
+            finalizados.add(p);
+          }
+        }
+
+        // Ordenação inteligente:
+        // 1º Jogos Ao Vivo
+        // 2º Próximos Jogos Agendados para desafiar/apostar
+        // 3º Jogos Finalizados mais recentes
+        final finalizadosRecentes = finalizados.reversed.take(6).toList();
+        final agendadosProximos = agendados.take(10).toList();
+
+        final resultadoFinal = [
+          ...aoVivo,
+          ...agendadosProximos,
+          ...finalizadosRecentes,
+        ];
+
+        return resultadoFinal.take(limit).toList();
       }
 
       return [];
