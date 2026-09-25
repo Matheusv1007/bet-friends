@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:betfriends/models/partida_model.dart';
 import 'package:betfriends/provider/partidas_provider.dart';
+import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
 import 'package:betfriends/widgets_homePage/appbarDasPartidas.dart';
 import 'package:betfriends/widgets_homePage/cardDeDesafio.dart';
 import 'package:betfriends/widgets_homePage/cardDeDesafiosAtivos.dart';
@@ -215,9 +216,18 @@ class _HomepageState extends State<Homepage> {
         child: BottomNavigationBar(
           currentIndex: _currentNavIndex,
           onTap: (index) {
-            setState(() {
-              _currentNavIndex = index;
-            });
+            if (index == 1) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CriarDesafioScreen(),
+                ),
+              );
+            } else {
+              setState(() {
+                _currentNavIndex = index;
+              });
+            }
           },
           backgroundColor: Colors.transparent,
           elevation: 0,
