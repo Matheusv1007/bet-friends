@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException;
+import 'package:provider/provider.dart';
+
 import 'cadastro_page.dart';
+import '../provider/auth_provider.dart';
 import '../telas_principais/homePage.dart';
 
 class LoginPage extends StatefulWidget {
@@ -12,13 +16,90 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
 
-  void _entrar() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const Homepage()),
-    );
+  bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  Future<void> _entrar() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    // Validação básica antes de chamar o Firebase
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preencha o e-mail e a senha.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await context.read<AuthProvider>().signIn(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Homepage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      String mensagem;
+
+      switch (e.code) {
+        case 'invalid-email':
+          mensagem = 'E-mail inválido.';
+          break;
+
+        case 'user-not-found':
+          mensagem = 'Usuário não encontrado.';
+          break;
+
+        case 'wrong-password':
+        case 'invalid-credential':
+          mensagem = 'E-mail ou senha incorretos.';
+          break;
+
+        case 'user-disabled':
+          mensagem = 'Esta conta foi desativada.';
+          break;
+
+        case 'too-many-requests':
+          mensagem = 'Muitas tentativas. Tente novamente mais tarde.';
+          break;
+
+        case 'network-request-failed':
+          mensagem = 'Erro de conexão. Verifique sua internet.';
+          break;
+
+        default:
+          mensagem = 'Não foi possível entrar. Tente novamente.';
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(mensagem)));
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ocorreu um erro inesperado. Tente novamente.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -43,11 +124,7 @@ class _LoginPageState extends State<LoginPage> {
           gradient: RadialGradient(
             center: Alignment(-0.85, -0.9),
             radius: 1.2,
-            colors: [
-              Color(0xFF0F2624),
-              Color(0xFF0B111D),
-              Color(0xFF0B111D),
-            ],
+            colors: [Color(0xFF0F2624), Color(0xFF0B111D), Color(0xFF0B111D)],
             stops: [0.0, 0.45, 1.0],
           ),
         ),
@@ -66,10 +143,7 @@ class _LoginPageState extends State<LoginPage> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF0B2421),
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: primaryGreen,
-                          width: 2,
-                        ),
+                        border: Border.all(color: primaryGreen, width: 2),
                         boxShadow: [
                           BoxShadow(
                             color: primaryGreen.withValues(alpha: 0.25),
@@ -104,10 +178,7 @@ class _LoginPageState extends State<LoginPage> {
                   const Text(
                     'Aposte e desafie seus amigos',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: textMuted,
-                    ),
+                    style: TextStyle(fontSize: 14, color: textMuted),
                   ),
 
                   const SizedBox(height: 36),
@@ -116,6 +187,7 @@ class _LoginPageState extends State<LoginPage> {
                   TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
+                    enabled: !_isLoading,
                     style: const TextStyle(color: Colors.white, fontSize: 15),
                     cursorColor: primaryGreen,
                     decoration: InputDecoration(
@@ -160,6 +232,7 @@ class _LoginPageState extends State<LoginPage> {
                   TextField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
+                    enabled: !_isLoading,
                     style: const TextStyle(color: Colors.white, fontSize: 15),
                     cursorColor: primaryGreen,
                     decoration: InputDecoration(
@@ -178,11 +251,13 @@ class _LoginPageState extends State<LoginPage> {
                           color: const Color(0xFF64748B),
                           size: 20,
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
                       ),
                       filled: true,
                       fillColor: cardBg,
@@ -218,23 +293,36 @@ class _LoginPageState extends State<LoginPage> {
                   SizedBox(
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: _entrar,
+                      onPressed: _isLoading ? null : _entrar,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryGreen,
+                        disabledBackgroundColor: primaryGreen.withValues(
+                          alpha: 0.65,
+                        ),
                         foregroundColor: const Color(0xFF062319),
+                        disabledForegroundColor: const Color(0xFF062319),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: const Text(
-                        'ENTRAR',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Color(0xFF062319),
+                              ),
+                            )
+                          : const Text(
+                              'ENTRAR',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
                     ),
                   ),
 
@@ -249,14 +337,16 @@ class _LoginPageState extends State<LoginPage> {
                         style: TextStyle(color: textMuted, fontSize: 14),
                       ),
                       GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const CadastroPage(),
-                            ),
-                          );
-                        },
+                        onTap: _isLoading
+                            ? null
+                            : () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const CadastroPage(),
+                                  ),
+                                );
+                              },
                         child: const Text(
                           'Criar conta',
                           style: TextStyle(
