@@ -48,3 +48,8 @@ app.*.map.json
 .widget_preview/
 
 AnaliseTemporaria.md
+
+# Firebase
+firebase-debug.log
+firebase-debug.*.log
+ui-debug.log
