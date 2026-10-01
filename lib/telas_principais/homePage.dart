@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:betfriends/models/partida_model.dart';
 import 'package:betfriends/provider/partidas_provider.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
@@ -21,7 +22,8 @@ class _HomepageState extends State<Homepage> {
   Timer? _realTimeTimer;
   bool _mostrarTodas = false;
 
-  // Lista de fallback com o design original caso a API não retorne partidas no momento
+  // Lista de fallback com o design original (comentada, mantida apenas para testes futuros)
+  /*
   final List<PartidaModel> _mockDesignPartidas = [
     PartidaModel(
       id: 'mock-1',
@@ -48,6 +50,7 @@ class _HomepageState extends State<Homepage> {
       horario: 'Amanhã 19:00',
     ),
   ];
+  */
 
   @override
   void initState() {
@@ -83,11 +86,7 @@ class _HomepageState extends State<Homepage> {
           gradient: RadialGradient(
             center: Alignment(-0.85, -0.9),
             radius: 1.2,
-            colors: [
-              Color(0xFF0F2624),
-              Color(0xFF0B111D),
-              Color(0xFF0B111D),
-            ],
+            colors: [Color(0xFF0F2624), Color(0xFF0B111D), Color(0xFF0B111D)],
             stops: [0.0, 0.45, 1.0],
           ),
         ),
@@ -127,6 +126,7 @@ class _HomepageState extends State<Homepage> {
                   // LISTA DINÂMICA DE PARTIDAS EM TEMPO REAL
                   Consumer<PartidasProvider>(
                     builder: (context, partidasProvider, child) {
+                      // 1. Estado de carregando
                       if (partidasProvider.isLoading &&
                           partidasProvider.partidas.isEmpty) {
                         return const Center(
@@ -139,54 +139,201 @@ class _HomepageState extends State<Homepage> {
                         );
                       }
 
-                      // Partidas reais da API ou fallback
-                      final partidasReais = partidasProvider.partidas;
-                      final baseList = partidasReais.isNotEmpty
-                          ? partidasReais
-                          : _mockDesignPartidas;
+                      // 2. Estado de erro
+                      if (partidasProvider.errorMessage != null &&
+                          partidasProvider.partidas.isEmpty) {
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 24,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF151E2E),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.05),
+                              width: 1,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: Color(0xFFEF4444),
+                                size: 36,
+                              ),
+                              const SizedBox(height: 10),
+                              const Text(
+                                "Erro ao carregar partidas",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                partidasProvider.errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Color(0xFF8E9CAB),
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () => context
+                                    .read<PartidasProvider>()
+                                    .carregarPartidas(),
+                                icon: const Icon(Icons.refresh, size: 16),
+                                label: const Text(
+                                  "TENTAR NOVAMENTE",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF00D084),
+                                  foregroundColor: const Color(0xFF062319),
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
 
-                      // Controla se mostra as primeiras 3 ou expande todas
+                      // 3. Estado vazio (nenhuma partida encontrada)
+                      if (partidasProvider.partidas.isEmpty) {
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 24,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF151E2E),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.05),
+                              width: 1,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.sports_soccer,
+                                color: Color(0xFF64748B),
+                                size: 36,
+                              ),
+                              const SizedBox(height: 10),
+                              const Text(
+                                "Nenhuma partida disponível",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                "Não encontramos partidas disponíveis no momento.",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Color(0xFF8E9CAB),
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () => context
+                                    .read<PartidasProvider>()
+                                    .carregarPartidas(),
+                                icon: const Icon(Icons.refresh, size: 16),
+                                label: const Text(
+                                  "ATUALIZAR",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF00D084),
+                                  foregroundColor: const Color(0xFF062319),
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      // 4. Partidas carregadas com sucesso
+                      final baseList = partidasProvider.partidas;
                       final listaParaExibir = _mostrarTodas
                           ? baseList
                           : baseList.take(3).toList();
 
                       return Column(
-                        children: listaParaExibir.map((partida) {
-                          return Carddepartidas(partida: partida);
-                        }).toList(),
+                        children: [
+                          ...listaParaExibir.map((partida) {
+                            return Carddepartidas(partida: partida);
+                          }),
+                          if (baseList.length > 3) ...[
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _mostrarTodas = !_mostrarTodas;
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF00D084),
+                                  foregroundColor: const Color(0xFF062319),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: Text(
+                                  _mostrarTodas
+                                      ? "MOSTRAR MENOS"
+                                      : "MAIS PARTIDAS",
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       );
                     },
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // BOTÃO "MAIS PARTIDAS" (Verde Esmeralda)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _mostrarTodas = !_mostrarTodas;
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00D084),
-                        foregroundColor: const Color(0xFF062319),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: Text(
-                        _mostrarTodas ? "MOSTRAR MENOS" : "MAIS PARTIDAS",
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ),
                   ),
 
                   const SizedBox(height: 24),
@@ -206,12 +353,7 @@ class _HomepageState extends State<Homepage> {
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: Color(0xFF0E1420),
-          border: Border(
-            top: BorderSide(
-              color: Color(0xFF1B2536),
-              width: 1,
-            ),
-          ),
+          border: Border(top: BorderSide(color: Color(0xFF1B2536), width: 1)),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentNavIndex,
@@ -326,10 +468,7 @@ class _HomepageState extends State<Homepage> {
               decoration: BoxDecoration(
                 color: const Color(0xFF0B2421),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: const Color(0xFF00D084),
-                  width: 1.5,
-                ),
+                border: Border.all(color: const Color(0xFF00D084), width: 1.5),
               ),
               child: const Icon(
                 Icons.sports_soccer,

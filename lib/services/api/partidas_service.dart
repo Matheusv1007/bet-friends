@@ -9,11 +9,12 @@ class PartidasService {
   static const String apiKey = '9294186c0e964542a6661b69665bd315';
 
   PartidasService({ApiClient? client})
-      : _client = client ??
-            ApiClient(
-              baseUrl: 'https://api.football-data.org/v4',
-              defaultHeaders: {'X-Auth-Token': apiKey},
-            );
+    : _client =
+          client ??
+          ApiClient(
+            baseUrl: 'https://api.football-data.org/v4',
+            defaultHeaders: {'X-Auth-Token': apiKey},
+          );
 
   ApiClient get client => _client;
 
