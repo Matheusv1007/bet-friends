@@ -29,13 +29,24 @@ class PartidaModel {
       status.toUpperCase().contains('FINALIZADO') ||
       status.toUpperCase().contains('FINISHED');
 
+  bool get isCancelado =>
+      status.toUpperCase().contains('CANCELADO') ||
+      status.toUpperCase().contains('CANCELLED');
+
+  bool get isAdiado =>
+      status.toUpperCase().contains('ADIADO') ||
+      status.toUpperCase().contains('POSTPONED');
+
   bool get isAoVivo =>
       status.toUpperCase().contains('AO VIVO') ||
       status.toUpperCase().contains('ANDAMENTO') ||
       status.toUpperCase().contains('IN_PLAY') ||
       status.toUpperCase().contains('INTERVALO');
 
-  bool get isAgendado => !isFinalizado && !isAoVivo;
+  bool get isAgendado => !isFinalizado && !isAoVivo && !isCancelado && !isAdiado;
+
+  /// Partidas elegíveis para novo desafio (exclui finalizadas, canceladas e adiadas)
+  bool get podeCriarDesafio => !isFinalizado && !isCancelado && !isAdiado;
 
   /// Converte o JSON retornado pela API Football-Data para uma instância de PartidaModel
   factory PartidaModel.fromJson(Map<String, dynamic> json) {
