@@ -398,9 +398,61 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                           : elegiveis.first.id;
 
                   return Column(
-                    children: elegiveis.map((PartidaModel p) {
-                      final sel = partidaAtivaId == p.id;
-                      final horarioOuStatus = p.horario ?? p.status;
+                    children: [
+                      if (partidasProvider.hasRefreshError) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2A1C14),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: const Color(0xFFF59E0B)
+                                  .withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.sync_problem,
+                                color: Color(0xFFF59E0B),
+                                size: 18,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  partidasProvider.refreshErrorMessage ??
+                                      "Falha ao atualizar dados mais recentes.",
+                                  style: const TextStyle(
+                                    color: Color(0xFFFDE68A),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => partidasProvider.carregarPartidas(),
+                                child: const Text(
+                                  "Recarregar",
+                                  style: TextStyle(
+                                    color: Color(0xFFF59E0B),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      ...elegiveis.map((PartidaModel p) {
+                        final sel = partidaAtivaId == p.id;
+                        final horarioOuStatus = p.horario ?? p.status;
 
                       return GestureDetector(
                         onTap: () => setState(() => partidaId = p.id),
@@ -483,10 +535,11 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                           ),
                         ),
                       );
-                    }).toList(),
-                  );
-                },
-              ),
+                    }),
+                  ],
+                );
+              },
+            ),
               const SizedBox(height: 18),
 
               // Seção Valor do Desafio

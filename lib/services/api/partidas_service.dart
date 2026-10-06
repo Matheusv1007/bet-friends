@@ -1,3 +1,8 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:http/http.dart' as http;
+
 import '../../models/partida_model.dart';
 import 'api_client.dart';
 
@@ -17,6 +22,27 @@ class PartidasService {
           );
 
   ApiClient get client => _client;
+
+  /// Converte exceções técnicas em mensagens amigáveis em português sem corpo JSON cru
+  static String formatErrorMessage(Object error) {
+    if (error is ApiException) {
+      return error.friendlyMessage;
+    }
+    if (error is TimeoutException) {
+      return 'Tempo de conexão esgotado ao buscar partidas. Verifique sua conexão com a internet.';
+    }
+    if (error is SocketException || error is http.ClientException) {
+      return 'Sem conexão com a internet. Verifique sua rede e tente novamente.';
+    }
+    if (error is FormatException) {
+      return 'Erro ao processar os dados recebidos das partidas. Tente novamente.';
+    }
+    final errStr = error.toString();
+    if (errStr.startsWith('Exception: ')) {
+      return errStr.substring(11);
+    }
+    return 'Não foi possível carregar as partidas no momento. Tente novamente.';
+  }
 
   /// Busca as partidas na API com ordenação inteligente e limite configurável
   Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
@@ -70,7 +96,7 @@ class PartidasService {
 
       return [];
     } catch (e) {
-      throw Exception('Falha ao obter partidas da API Football-Data: $e');
+      throw Exception(formatErrorMessage(e));
     }
   }
 }
