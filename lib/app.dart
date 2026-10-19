@@ -3,27 +3,37 @@ import 'package:provider/provider.dart';
 
 import 'provider/auth_provider.dart';
 import 'provider/partidas_provider.dart';
+import 'services/api/partidas_service.dart';
+import 'services/auth_service.dart';
 
-// simon = login
-import 'telas_autenticacao/login_page.dart';
+// simon = login / sessão
+import 'telas_autenticacao/auth_gate.dart';
 
 // kaue = Homepage
 //import 'telas_principais/homePage.dart';
 
 class App extends StatelessWidget {
-  const App({super.key});
+  /// Os serviços são opcionais para permitir fakes em testes.
+  final AuthService? authService;
+  final PartidasService? partidasService;
+
+  const App({super.key, this.authService, this.partidasService});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => PartidasProvider()),
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(authService: authService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => PartidasProvider(partidasService: partidasService),
+        ),
       ],
       child: const MaterialApp(
         debugShowCheckedModeBanner: false,
         //home: Homepage(),
-        home: LoginPage(),
+        home: AuthGate(),
       ),
     );
   }

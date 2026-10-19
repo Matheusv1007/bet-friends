@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import 'cadastro_page.dart';
 import '../provider/auth_provider.dart';
-import '../telas_principais/homePage.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -37,16 +36,11 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+      // Em caso de sucesso, o AuthGate recebe a nova sessão e exibe a Home.
+      // Não navegar aqui para não empilhar uma segunda Home.
       await context.read<AuthProvider>().signIn(
         email: email,
         password: password,
-      );
-
-      if (!mounted) return;
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const Homepage()),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;

@@ -1,7 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseAuth? firebaseAuth;
+
+  AuthService({this.firebaseAuth});
+
+  // Resolvido sob demanda para permitir fakes em testes sem Firebase inicializado
+  FirebaseAuth get _auth => firebaseAuth ?? FirebaseAuth.instance;
 
   User? get currentUser => _auth.currentUser;
 
