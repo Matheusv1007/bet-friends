@@ -1,24 +1,25 @@
 import 'dart:convert';
-
 import 'package:http/http.dart' as http;
 
 /// Cliente base para gerenciar requisições HTTP (GET, POST, etc.)
 class ApiClient {
-  // Altere para a URL base da sua API real
-  // Exemplo: 'https://api.football-data.org/v4' ou sua API própria
   final String baseUrl;
   final Map<String, String>? defaultHeaders;
+  final http.Client? httpClient;
 
   ApiClient({
     this.baseUrl = 'https://api.football-data.org/v4/matches',
     this.defaultHeaders,
+    this.httpClient,
   });
+
+  http.Client get _client => httpClient ?? http.Client();
 
   /// Realiza uma requisição GET genérica
   Future<dynamic> get(String endpoint, {Map<String, String>? headers}) async {
     final uri = Uri.parse('$baseUrl$endpoint');
 
-    final response = await http
+    final response = await _client
         .get(
           uri,
           headers: {
@@ -40,7 +41,7 @@ class ApiClient {
   }) async {
     final uri = Uri.parse('$baseUrl$endpoint');
 
-    final response = await http
+    final response = await _client
         .post(
           uri,
           headers: {
@@ -63,20 +64,49 @@ class ApiClient {
     } else {
       throw ApiException(
         statusCode: response.statusCode,
-        message:
-            'Erro na requisição: ${response.statusCode} - ${response.body}',
+        rawBody: response.body,
       );
     }
   }
 }
 
-/// Exceção personalizada para erros de API
+/// Exceção personalizada para erros de API com mensagens amigáveis em português
 class ApiException implements Exception {
   final int statusCode;
-  final String message;
+  final String? rawBody;
+  final String? customMessage;
 
-  ApiException({required this.statusCode, required this.message});
+  ApiException({
+    required this.statusCode,
+    this.rawBody,
+    this.customMessage,
+  });
+
+  /// Mensagem amigável para exibição ao usuário final (sem dump de JSON/HTTP cru)
+  String get friendlyMessage {
+    if (customMessage != null && customMessage!.isNotEmpty) {
+      return customMessage!;
+    }
+    switch (statusCode) {
+      case 400:
+        return 'Requisição inválida. Verifique os dados e tente novamente.';
+      case 401:
+      case 403:
+        return 'Não foi possível autorizar o acesso ao serviço de partidas.';
+      case 404:
+        return 'Dados de partidas não encontrados no servidor.';
+      case 429:
+        return 'Limite de requisições atingido. Aguarde alguns instantes e tente novamente.';
+      case 500:
+      case 502:
+      case 503:
+      case 504:
+        return 'O servidor de partidas está temporariamente indisponível. Tente novamente mais tarde.';
+      default:
+        return 'Falha na comunicação com o servidor ($statusCode). Tente novamente.';
+    }
+  }
 
   @override
-  String toString() => 'ApiException ($statusCode): $message';
+  String toString() => friendlyMessage;
 }

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:betfriends/models/partida_model.dart';
 import 'package:betfriends/provider/partidas_provider.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
 import 'package:betfriends/widgets_homePage/appbarDasPartidas.dart';
@@ -40,7 +39,6 @@ class _HomepageState extends State<Homepage> {
       golsMandante: 1,
       golsVisitante: 1,
       status: 'EM ANDAMENTO',
-      minuto: '65:12',
     ),
     PartidaModel(
       id: 'mock-3',
@@ -296,6 +294,59 @@ class _HomepageState extends State<Homepage> {
 
                       return Column(
                         children: [
+                          if (partidasProvider.hasRefreshError) ...[
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2A1C14),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: const Color(0xFFF59E0B)
+                                      .withValues(alpha: 0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.sync_problem,
+                                    color: Color(0xFFF59E0B),
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      partidasProvider.refreshErrorMessage ??
+                                          "Falha ao atualizar dados mais recentes.",
+                                      style: const TextStyle(
+                                        color: Color(0xFFFDE68A),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () => context
+                                        .read<PartidasProvider>()
+                                        .carregarPartidas(),
+                                    child: const Text(
+                                      "Recarregar",
+                                      style: TextStyle(
+                                        color: Color(0xFFF59E0B),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        decoration: TextDecoration.underline,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           ...listaParaExibir.map((partida) {
                             return Carddepartidas(partida: partida);
                           }),

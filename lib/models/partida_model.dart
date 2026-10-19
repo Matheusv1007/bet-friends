@@ -135,7 +135,7 @@ class PartidaModel {
       status: statusAmigavel,
       campeonato: json['competition']?['name'] ?? json['campeonato'],
       horario: horarioFormatado,
-      minuto: json['minuto'] ?? (rawStatus == 'IN_PLAY' ? '65:12' : null),
+      minuto: json['minuto']?.toString(),
       logoMandante: homeTeam is Map ? homeTeam['crest'] : json['logoMandante'],
       logoVisitante: awayTeam is Map ? awayTeam['crest'] : json['logoVisitante'],
     );

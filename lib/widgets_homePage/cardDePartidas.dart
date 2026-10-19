@@ -38,13 +38,13 @@ class Carddepartidas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mandante = partida?.timeMandante ?? "Flamengo";
-    final visitante = partida?.timeVisitante ?? "Vasco";
-    final isFinalizado = partida?.isFinalizado ?? true;
+    final mandante = partida?.timeMandante ?? "Mandante";
+    final visitante = partida?.timeVisitante ?? "Visitante";
+    final isFinalizado = partida?.isFinalizado ?? false;
     final isAoVivo = partida?.isAoVivo ?? false;
-    final placar = partida?.placarTexto ?? (isFinalizado ? "2 - 0" : "1 - 1");
-    final minuto = partida?.minuto ?? "65:12";
-    final horario = partida?.horario ?? "Amanhã 19:00";
+    final placar = partida?.placarTexto ?? "0 - 0";
+    final minuto = partida?.minuto;
+    final horario = partida?.horario ?? "A definir";
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -173,7 +173,7 @@ class Carddepartidas extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    minuto,
+                    (minuto != null && minuto.isNotEmpty) ? minuto : "Ao vivo",
                     style: const TextStyle(
                       color: Color(0xFFFFA726),
                       fontSize: 11,
