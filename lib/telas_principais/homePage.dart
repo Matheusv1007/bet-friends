@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:betfriends/provider/auth_provider.dart';
 import 'package:betfriends/provider/partidas_provider.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
 import 'package:betfriends/widgets_homePage/appbarDasPartidas.dart';
@@ -462,26 +463,133 @@ class _HomepageState extends State<Homepage> {
     );
   }
 
+  /// Avatar que abre o menu da conta (por enquanto, apenas "Sair da conta").
+  /// Durante o logout exibe um indicador e fica desabilitado.
+  Widget _buildMenuDaConta() {
+    // Leitura opcional: a Home também é montada isoladamente em widget tests
+    final saindo = context.watch<AuthProvider?>()?.isSigningOut ?? false;
+
+    return PopupMenuButton<String>(
+      key: const Key('menu_conta'),
+      tooltip: 'Menu da conta',
+      enabled: !saindo,
+      color: const Color(0xFF151E2E),
+      offset: const Offset(0, 48),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Color(0xFF1B2536)),
+      ),
+      onSelected: (opcao) {
+        if (opcao == 'sair') _confirmarLogout();
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem<String>(
+          value: 'sair',
+          child: Row(
+            children: [
+              Icon(Icons.logout, color: Color(0xFFF87171), size: 20),
+              SizedBox(width: 10),
+              Text(
+                'Sair da conta',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.15),
+            width: 1.5,
+          ),
+        ),
+        child: CircleAvatar(
+          radius: 19,
+          backgroundColor: const Color(0xFF334155),
+          child: saindo
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF00D084),
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Icon(Icons.person, color: Colors.white70, size: 24),
+        ),
+      ),
+    );
+  }
+
+  /// Pede confirmação e encerra a sessão. O retorno ao Login é feito pelo
+  /// AuthGate; aqui só tratamos o cancelamento e a falha.
+  Future<void> _confirmarLogout() async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF151E2E),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        title: const Text(
+          'Sair da conta?',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Você precisará entrar novamente para acessar o BetFriends.',
+          style: TextStyle(color: Color(0xFF94A3B8)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Color(0xFF94A3B8)),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text(
+              'Sair',
+              style: TextStyle(
+                color: Color(0xFFF87171),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmou != true || !mounted) return;
+
+    try {
+      await context.read<AuthProvider>().signOut();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível sair da conta. Tente novamente.',
+          ),
+        ),
+      );
+    }
+  }
+
   /// Cabeçalho com o Avatar do Pedro, saldo de fichas e logo do BetFriends
   Widget _buildHeader() {
     return Row(
       children: [
-        // Avatar circular do Pedro com anel sutil
-        Container(
-          padding: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.15),
-              width: 1.5,
-            ),
-          ),
-          child: const CircleAvatar(
-            radius: 19,
-            backgroundColor: Color(0xFF334155),
-            child: Icon(Icons.person, color: Colors.white70, size: 24),
-          ),
-        ),
+        // Avatar circular do Pedro com anel sutil; abre o menu da conta
+        _buildMenuDaConta(),
         const SizedBox(width: 12),
 
         // Textos "Olá, Pedro" e "1.500 fichas"

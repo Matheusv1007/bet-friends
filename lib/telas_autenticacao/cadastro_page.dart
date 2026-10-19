@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'login_page.dart';
 
 class CadastroPage extends StatefulWidget {
   const CadastroPage({super.key});
@@ -28,10 +27,9 @@ class _CadastroPageState extends State<CadastroPage> {
   }
 
   void _criarConta() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginPage()),
-    );
+    // Volta ao Login existente (exibido pelo AuthGate) em vez de empilhar outro.
+    // O cadastro real continua fora do escopo (KAN-25).
+    Navigator.pop(context);
   }
 
   void _voltarParaLogin() {
