@@ -199,6 +199,8 @@ Campos opcionais de exibição (se a opção (b) de §3.1.1 for escolhida): `use
 
 Modelo de domínio da partida, alimentado **somente** pela sincronização do backend (RF-008, RN-CACHE-004). Campos conforme o Plano §11.
 
+**Implementação (KAN-46):** `functions/src/partidas/match.ts` (modelo `Match`, enums de status e resultado, validação e ID `{providerKey}_{externalMatchId}`) e `functions/src/partidas/matchFirestore.ts` (`gravarMatchNaTransacao` cria ou atualiza o mesmo documento, preservando `originalStartsAtUtc` e `createdAt`; a leitura recusa status fora do domínio). O `providerKey` não é gravado: é o prefixo do ID.
+
 | Campo | Tipo | Obrigatório | Descrição / regra |
 |---|---|---|---|
 | *(ID)* | string | sim | **[PROPOSTA]** `{providerKey}_{externalMatchId}`, ex.: `footballdata_537123`. Ver nota abaixo |
