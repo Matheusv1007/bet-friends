@@ -47,6 +47,8 @@ const perfil = (displayName, username, email) => ({
 const contas = [
   { uid: "uidAna", email: "ana@example.com", doc: perfil("Ana Lima", "AnaL", "ana@example.com") },
   { uid: "uidBia", email: "bia@example.com", doc: perfil("Bia Rocha", "BiaR", "bia@example.com") },
+  // Usada só pelos testes de edição do nome (KAN-29)
+  { uid: "uidCaio", email: "caio@example.com", doc: perfil("Caio Melo", "CaioM", "caio@example.com") },
   // Conta sem documento em users/{uid}
   { uid: "uidSemPerfil", email: "semperfil@example.com", doc: null },
   // Documento fora do schema: sem username

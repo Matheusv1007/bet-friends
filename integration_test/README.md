@@ -10,12 +10,17 @@ Os dados são criados antes por `support/seed_emulators.mjs` com o Admin SDK, po
 |---|---|
 | `uidAna` / `ana@example.com` | Perfil completo do schema v2.0 (com carteira) |
 | `uidBia` / `bia@example.com` | Perfil completo (usado como "outro usuário") |
+| `uidCaio` / `caio@example.com` | Perfil completo, alterado só pelos testes de edição do nome |
 | `uidSemPerfil` / `semperfil@example.com` | Nenhum |
 | `uidInvalido` / `invalido@example.com` | Documento fora do schema (sem `username`) |
 
 ## `perfil_screen_emulator_test.dart` (KAN-28)
 
 Abre a `PerfilScreen` com o `UserProfileService` real, no mesmo ambiente, e verifica o que a tela exibe: nome e username de `uidBia`, perfil inexistente (`uidSemPerfil`), documento fora do schema (`uidInvalido`), sem sessão e Firestore inacessível.
+
+## `editar_nome_emulator_test.dart` (KAN-29)
+
+Edita o nome de `uidCaio` pela tela e confere no Firestore que só `displayName` e `updatedAt` mudaram. Também verifica que, sem conexão, a gravação falha em tempo finito com `unavailable` e não grava, e que o perfil de outro UID não pode ser alterado.
 
 ## Pré-requisitos
 
@@ -34,7 +39,7 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH="$JAVA_HOME/bin:$PATH" \
    $(command -v flutter) test integration_test/ -d emulator-5554"
 ```
 
-Os dois arquivos rodam em sequência na mesma sessão dos emuladores. O teste da tela usa `uidBia`, que o teste da KAN-32 não altera.
+Os arquivos rodam em sequência na mesma sessão dos emuladores. Cada um altera só a própria conta (`uidAna` na KAN-32, `uidCaio` na KAN-29); a tela da KAN-28 usa `uidBia`, que ninguém altera.
 
 O seed aborta se `FIRESTORE_EMULATOR_HOST`/`FIREBASE_AUTH_EMULATOR_HOST` não estiverem definidos ou se o projeto não começar com `demo-`. O teste Dart verifica que o app usado é `demo-*`.
 

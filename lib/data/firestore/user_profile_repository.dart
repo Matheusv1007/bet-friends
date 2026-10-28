@@ -78,6 +78,8 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
 
   FirestoreUserProfileRepository({this.firestore});
 
+  static const _prazoDaGravacao = Duration(seconds: 15);
+
   // Resolvido sob demanda para permitir testes sem Firebase inicializado
   FirebaseFirestore get _db => firestore ?? FirebaseFirestore.instance;
 
@@ -141,11 +143,18 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
   @override
   Future<void> atualizarDisplayName(String uid, String displayName) async {
     _validarUid(uid);
+    final ref = _doc(uid);
     try {
-      await _doc(uid).update({
-        'displayName': displayName,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // Um update comum sem conexão fica na fila local e o Future não termina.
+      // A transação exige o servidor: sem conexão ela falha (deadline-exceeded
+      // → unavailable) e nada fica pendente para ser gravado depois.
+      await _db.runTransaction((transaction) async {
+        await transaction.get(ref);
+        transaction.update(ref, {
+          'displayName': displayName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }, timeout: _prazoDaGravacao);
     } on FirebaseException catch (e) {
       throw UserProfileException.fromFirebase(e);
     }
