@@ -11,6 +11,7 @@ Os dados são criados antes por `support/seed_emulators.mjs` com o Admin SDK, po
 | `uidAna` / `ana@example.com` | Perfil completo do schema v2.0 (com carteira) |
 | `uidBia` / `bia@example.com` | Perfil completo (usado como "outro usuário") |
 | `uidCaio` / `caio@example.com` | Perfil completo, alterado só pelos testes de edição do nome |
+| `uidDani` / `dani@example.com` | Perfil completo, usado só pelos testes de modo offline |
 | `uidSemPerfil` / `semperfil@example.com` | Nenhum |
 | `uidInvalido` / `invalido@example.com` | Documento fora do schema (sem `username`) |
 
@@ -21,6 +22,20 @@ Abre a `PerfilScreen` com o `UserProfileService` real, no mesmo ambiente, e veri
 ## `editar_nome_emulator_test.dart` (KAN-29)
 
 Edita o nome de `uidCaio` pela tela e confere no Firestore que só `displayName` e `updatedAt` mudaram. Também verifica que, sem conexão, a gravação falha em tempo finito com `unavailable` e não grava, e que o perfil de outro UID não pode ser alterado.
+
+## `modo_offline_emulator_test.dart` (KAN-24)
+
+Derruba e restabelece a conexão entre o app e o Firestore Emulator com `support/proxy_conexao.mjs`, um proxy TCP local (porta 8180, controle HTTP em 8181) que só encaminha para o emulador. O cache persistente fica ligado, como no app. Verifica que:
+
+- sem conexão e sem cache, a leitura informa `unavailable`;
+- sem conexão, com cache, o último perfil conhecido é exibido como "do cache";
+- alterar o perfil offline falha, não toca o cache, não deixa escrita pendente e nada é gravado quando a conexão volta;
+- depois do retorno da conexão, uma nova ação do usuário grava normalmente;
+- a tela de Perfil avisa a falta de conexão, bloqueia a edição e volta ao normal ao reconectar.
+
+Um teste de controle mostra o motivo da política: um `update` direto offline seria enviado sozinho ao reconectar.
+
+`disableNetwork()` não é usado para simular a queda: ele não impede transações de chegarem ao servidor.
 
 ## Pré-requisitos
 
@@ -36,10 +51,13 @@ Na raiz do repositório:
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH="$JAVA_HOME/bin:$PATH" \
   firebase emulators:exec --only auth,firestore --project demo-betfriends \
   "$(command -v node) integration_test/support/seed_emulators.mjs && \
-   $(command -v flutter) test integration_test/ -d emulator-5554"
+   { $(command -v node) integration_test/support/proxy_conexao.mjs & P=\$!; \
+     $(command -v flutter) test integration_test/ -d emulator-5554; R=\$?; kill \$P; exit \$R; }"
 ```
 
-Os arquivos rodam em sequência na mesma sessão dos emuladores. Cada um altera só a própria conta (`uidAna` na KAN-32, `uidCaio` na KAN-29); a tela da KAN-28 usa `uidBia`, que ninguém altera.
+O proxy só é necessário para `modo_offline_emulator_test.dart`; os demais arquivos funcionam com o comando sem ele.
+
+Os arquivos rodam em sequência na mesma sessão dos emuladores. Cada um altera só a própria conta (`uidAna` na KAN-32, `uidCaio` na KAN-29, `uidDani` na KAN-24); a tela da KAN-28 usa `uidBia`, que ninguém altera.
 
 O seed aborta se `FIRESTORE_EMULATOR_HOST`/`FIREBASE_AUTH_EMULATOR_HOST` não estiverem definidos ou se o projeto não começar com `demo-`. O teste Dart verifica que o app usado é `demo-*`.
 

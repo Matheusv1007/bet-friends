@@ -33,10 +33,10 @@ class _RepositorioEmMemoria implements UserProfileRepository {
   }
 
   @override
-  Stream<UserProfile?> observarPorUid(String uid) async* {
+  Stream<PerfilObservado> observarPorUid(String uid) async* {
     uidsConsultados.add(uid);
-    yield perfis[uid];
-    yield* _mudancas.stream.where((u) => u == uid).map((u) => perfis[u]);
+    yield PerfilObservado(perfis[uid]);
+    yield* _mudancas.stream.where((u) => u == uid).map((u) => PerfilObservado(perfis[u]));
   }
 
   @override
@@ -193,7 +193,7 @@ void main() {
     test('observa o perfil do UID atual e recebe a criação', () async {
       final servico = servicoCom(_UsuarioComEmail('uid-g', 'g@example.com'));
       final emissoes = <String?>[];
-      final sub = servico.observarPerfilAtual().listen((p) => emissoes.add(p?.uid));
+      final sub = servico.observarPerfilAtual().listen((p) => emissoes.add(p.perfil?.uid));
 
       await Future<void>.delayed(Duration.zero);
       await servico.criarPerfilDoUsuarioAtual(

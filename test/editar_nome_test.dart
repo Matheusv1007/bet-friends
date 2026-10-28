@@ -24,9 +24,9 @@ class _RepositorioEditavel implements UserProfileRepository {
   UserProfile get perfil => _perfil;
 
   @override
-  Stream<UserProfile?> observarPorUid(String uid) async* {
-    yield _perfil;
-    yield* _stream.stream;
+  Stream<PerfilObservado> observarPorUid(String uid) async* {
+    yield PerfilObservado(_perfil);
+    yield* _stream.stream.map(PerfilObservado.new);
   }
 
   @override

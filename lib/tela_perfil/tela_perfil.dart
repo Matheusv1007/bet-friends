@@ -10,6 +10,9 @@ import '../services/user_profile_service.dart';
 /// Lê somente `users/{uid}` da sessão atual pelo [UserProfileService]: não
 /// recebe UID por parâmetro, então não há como abrir o perfil de terceiros.
 /// Exibe apenas dados públicos do perfil (RN-PROF-002): nome e username.
+///
+/// Sem conexão (KAN-24), continua exibindo o último perfil conhecido neste
+/// aparelho, avisa que ele pode estar desatualizado e não permite editar.
 class PerfilScreen extends StatefulWidget {
   const PerfilScreen({super.key});
 
@@ -18,7 +21,7 @@ class PerfilScreen extends StatefulWidget {
 }
 
 class _PerfilScreenState extends State<PerfilScreen> {
-  late Stream<UserProfile?> _perfil;
+  late Stream<PerfilObservado> _perfil;
 
   @override
   void initState() {
@@ -26,7 +29,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
     _perfil = _observarPerfil();
   }
 
-  Stream<UserProfile?> _observarPerfil() {
+  Stream<PerfilObservado> _observarPerfil() {
     try {
       return context.read<UserProfileService>().observarPerfilAtual();
     } on UserProfileException catch (e) {
@@ -78,7 +81,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
           ),
         ),
         child: SafeArea(
-          child: StreamBuilder<UserProfile?>(
+          child: StreamBuilder<PerfilObservado>(
             stream: _perfil,
             builder: (context, snapshot) {
               // Ao tentar novamente, o snapshot volta a "waiting" mas mantém o
@@ -99,7 +102,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 );
               }
 
-              final perfil = snapshot.data;
+              final perfil = snapshot.data!.perfil;
               if (perfil == null) {
                 return const _AvisoPerfil(
                   icone: Icons.person_off_outlined,
@@ -112,7 +115,10 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 );
               }
 
-              return _DadosDoPerfil(perfil: perfil);
+              return _DadosDoPerfil(
+                perfil: perfil,
+                semConexao: snapshot.data!.doCache,
+              );
             },
           ),
         ),
@@ -143,7 +149,10 @@ class _PerfilScreenState extends State<PerfilScreen> {
 class _DadosDoPerfil extends StatelessWidget {
   final UserProfile perfil;
 
-  const _DadosDoPerfil({required this.perfil});
+  /// O perfil veio do cache: o servidor não confirmou o dado.
+  final bool semConexao;
+
+  const _DadosDoPerfil({required this.perfil, required this.semConexao});
 
   @override
   Widget build(BuildContext context) {
@@ -156,6 +165,10 @@ class _DadosDoPerfil extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       children: [
+        if (semConexao) ...[
+          const _AvisoSemConexao(),
+          const SizedBox(height: 20),
+        ],
         Center(
           child: Container(
             padding: const EdgeInsets.all(3),
@@ -245,6 +258,15 @@ class _DadosDoPerfil extends StatelessWidget {
   /// O novo nome aparece na tela pelo stream do perfil; aqui só se confirma
   /// o sucesso, depois que a gravação terminou.
   Future<void> _editarNome(BuildContext context) async {
+    // Atalho de usabilidade: a garantia de não gravar offline é do repositório
+    if (semConexao) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sem conexão. Conecte-se à internet para alterar o nome.'),
+        ),
+      );
+      return;
+    }
     final salvou = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -421,6 +443,36 @@ class _EditarNomeDialogState extends State<_EditarNomeDialog> {
                     ),
                   )
                 : const Text('Salvar', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AvisoSemConexao extends StatelessWidget {
+  const _AvisoSemConexao();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('perfil_sem_conexao'),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.cloud_off_outlined, color: Color(0xFFF59E0B), size: 20),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Sem conexão. Exibindo os últimos dados salvos neste aparelho; '
+              'alterações ficam indisponíveis até a conexão voltar.',
+              style: TextStyle(color: Color(0xFFF5D08A), fontSize: 12),
+            ),
           ),
         ],
       ),

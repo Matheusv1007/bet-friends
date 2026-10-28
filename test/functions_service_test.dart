@@ -17,4 +17,26 @@ void main() {
     expect(result.region, kFunctionsRegion);
     expect(result.serverTime, DateTime.utc(2026, 10, 1, 12));
   });
+
+  group('FunctionsException sem confirmação do servidor (KAN-24)', () {
+    test('sem conexão e prazo esgotado não confirmam a operação', () {
+      for (final code in ['unavailable', 'deadline-exceeded']) {
+        expect(
+          FunctionsException(code: code, message: 'x').semConfirmacaoDoServidor,
+          isTrue,
+          reason: code,
+        );
+      }
+    });
+
+    test('respostas do backend não são confundidas com falta de conexão', () {
+      for (final code in ['unauthenticated', 'invalid-argument', 'failed-precondition', 'internal']) {
+        expect(
+          FunctionsException(code: code, message: 'x').semConfirmacaoDoServidor,
+          isFalse,
+          reason: code,
+        );
+      }
+    });
+  });
 }

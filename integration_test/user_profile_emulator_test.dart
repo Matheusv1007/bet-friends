@@ -117,7 +117,7 @@ void main() {
     test('observarPerfilAtual emite o próprio perfil', () async {
       await entrar(_anaEmail);
       final perfil = await service.observarPerfilAtual().first.timeout(const Duration(seconds: 15));
-      expect(perfil?.uid, 'uidAna');
+      expect(perfil.perfil?.uid, 'uidAna');
     });
 
     test('ler o perfil de outro UID resulta em permissionDenied', () async {
