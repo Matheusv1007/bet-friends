@@ -201,7 +201,8 @@ void main() {
 
       await abrirAbaPerfil(tester);
       expect(find.byType(PerfilScreen), findsOneWidget);
-      expect(repositorio.uidsObservados, ['uid-ana']);
+      // A Home (saudação) e a tela de Perfil observam só o perfil do usuário logado
+      expect(repositorio.uidsObservados, ['uid-ana', 'uid-ana']);
 
       repositorio.atual.add(_ana);
       await tester.pump();
