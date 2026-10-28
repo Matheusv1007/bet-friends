@@ -96,3 +96,43 @@ export async function registrarPerdaNaTransacao(
   const movimentacoes = await planejarPerdaNaTransacao(transacao, db, userId, challengeId);
   return registrarMovimentacoesNaTransacao(transacao, db, movimentacoes);
 }
+
+/**
+ * Empate estrutural (KAN-78; RN-PRD-003, RN-RES-006/007, D-009): nenhum
+ * participante acertou, então cada um recebe REFUND do valor apostado.
+ * A reserva sai do reservado e o total fica igual ao de antes do desafio,
+ * sem taxa.
+ *
+ * Recusa reserva inexistente (`reserva-inexistente`) ou já encerrada por
+ * RELEASE ou LOSS (`reserva-encerrada`). Se o reembolso já foi registrado,
+ * devolve a mesma movimentação e o ledger não grava de novo.
+ */
+export async function planejarReembolsoNaTransacao(
+  transacao: Transaction,
+  db: Firestore,
+  userId: string,
+  challengeId: string,
+): Promise<Movimentacao[]> {
+  const reserva = await lerReservaNaTransacao(transacao, db, userId, challengeId);
+  if (reserva.encerradaPor === "RELEASE" || reserva.encerradaPor === "LOSS") {
+    throw new ErroDeTransacao("reserva-encerrada", `A reserva já foi encerrada por ${reserva.encerradaPor}.`);
+  }
+  return [{ userId, type: "REFUND", amount: reserva.valor, challengeId }];
+}
+
+/**
+ * Reembolsa os dois participantes do empate numa transação já aberta: ou
+ * os dois recebem, ou nenhum. Repetir não reembolsa de novo.
+ */
+export async function reembolsarEmpateNaTransacao(
+  transacao: Transaction,
+  db: Firestore,
+  challengeId: string,
+  participantes: readonly [string, string],
+): Promise<ResultadoDoRegistro> {
+  const movimentacoes = [
+    ...(await planejarReembolsoNaTransacao(transacao, db, participantes[0], challengeId)),
+    ...(await planejarReembolsoNaTransacao(transacao, db, participantes[1], challengeId)),
+  ];
+  return registrarMovimentacoesNaTransacao(transacao, db, movimentacoes);
+}
