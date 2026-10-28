@@ -1,8 +1,8 @@
 /**
  * Inicialização da carteira (KAN-72) no Firestore Emulator, com o Admin SDK
- * e o ledger SÓ DE TESTE de support/ledgerSaldoInicialDeTeste.ts (a KAN-79
- * ainda não existe). Só roda dentro de `firebase emulators:exec` com um
- * projeto demo-*; fora dele é ignorado. Na raiz do repositório:
+ * e o ledger real da KAN-79 (`ledgerDoSaldoInicial`). Só roda dentro de
+ * `firebase emulators:exec` com um projeto demo-*; fora dele é ignorado.
+ * Na raiz do repositório:
  *
  *   cd functions && npm run build && cd .. && \
  *   firebase emulators:exec --only firestore --project demo-betfriends \
@@ -21,7 +21,7 @@ import {
   inicializarCarteiraNaTransacao,
 } from "../src/betcoins/carteiraInicialTransacao";
 import { ErroDeSaldo, lerSaldos, saldoDisponivel } from "../src/betcoins/saldos";
-import { ledgerDeTeste } from "./support/ledgerSaldoInicialDeTeste";
+import { ledgerDoSaldoInicial } from "../src/betcoins/transacoesTransacao";
 
 const PROJETO = process.env.GCLOUD_PROJECT ?? "";
 const noEmulador = Boolean(process.env.FIRESTORE_EMULATOR_HOST) && PROJETO.startsWith("demo-");
@@ -75,7 +75,7 @@ describe("carteira inicial (Firestore Emulator)", { skip: !noEmulador && "requer
 
   before(() => {
     db = getFirestore(app!);
-    ledger = ledgerDeTeste(db);
+    ledger = ledgerDoSaldoInicial(db);
     usuario = db.doc(`users/${UID}`);
     lancamento = db.doc(`betCoinTransactions/${UID}_INITIAL_BALANCE`);
   });
