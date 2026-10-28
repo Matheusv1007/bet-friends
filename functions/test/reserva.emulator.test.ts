@@ -1,6 +1,6 @@
 /**
- * Reserva atômica de BetCoins (KAN-74) no Firestore Emulator, com o Admin
- * SDK. Só roda dentro de `firebase emulators:exec` com um projeto demo-*;
+ * Reserva (KAN-74) e liberação (KAN-75) de BetCoins no Firestore Emulator,
+ * com o Admin SDK. Só roda dentro de `firebase emulators:exec` com um projeto demo-*;
  * fora dele é ignorado. Na raiz do repositório:
  *
  *   cd functions && npm run build && cd .. && \
@@ -14,10 +14,16 @@ import { deleteApp, initializeApp } from "firebase-admin/app";
 import { Firestore, getFirestore } from "firebase-admin/firestore";
 
 import { inicializarCarteira } from "../src/betcoins/carteiraInicialTransacao";
-import { reservarBetCoins, reservarBetCoinsNaTransacao } from "../src/betcoins/reserva";
+import {
+  lerReservaNaTransacao,
+  liberarReserva,
+  liberarReservaNaTransacao,
+  reservarBetCoins,
+  reservarBetCoinsNaTransacao,
+} from "../src/betcoins/reserva";
 import { ErroDeSaldo, Saldos, lerSaldos, saldoDisponivel } from "../src/betcoins/saldos";
-import { ErroDeTransacao } from "../src/betcoins/transacoes";
-import { ledgerDoSaldoInicial } from "../src/betcoins/transacoesTransacao";
+import { ErroDeTransacao, idDeTransacaoDeDesafio } from "../src/betcoins/transacoes";
+import { ledgerDoSaldoInicial, registrarMovimentacoes } from "../src/betcoins/transacoesTransacao";
 
 const PROJETO = process.env.GCLOUD_PROJECT ?? "";
 const noEmulador = Boolean(process.env.FIRESTORE_EMULATOR_HOST) && PROJETO.startsWith("demo-");
@@ -29,7 +35,7 @@ function erro(classe: typeof ErroDeSaldo | typeof ErroDeTransacao, code: string)
   return (e: unknown) => e instanceof classe && e.code === code;
 }
 
-describe("reserva atômica (Firestore Emulator)", { skip: !noEmulador && "requer Firestore Emulator demo-*" }, () => {
+describe("reserva e liberação (Firestore Emulator)", { skip: !noEmulador && "requer Firestore Emulator demo-*" }, () => {
   const app = noEmulador ? initializeApp({ projectId: PROJETO }, "kan74") : undefined;
   let db: Firestore;
 
@@ -141,5 +147,76 @@ describe("reserva atômica (Firestore Emulator)", { skip: !noEmulador && "requer
     );
     assert.deepEqual(await saldos(), { saldoTotal: 1000, saldoReservado: 100 });
     assert.equal((await reservas()).length, 1);
+  });
+
+  // KAN-75: liberação de reserva
+
+  const liberacoes = async () =>
+    (await db.collection("betCoinTransactions").where("userId", "==", ANA).where("type", "==", "RELEASE").get()).docs;
+
+  test("7. liberação válida: reservado −valor, disponível +valor, total igual e RELEASE registrado", async () => {
+    await reservarBetCoins(db, { userId: ANA, challengeId: "recusado", valor: 150 });
+    const r = await liberarReserva(db, ANA, "recusado");
+    assert.deepEqual(r, {
+      resultado: "liberada",
+      antes: { saldoTotal: 1000, saldoReservado: 150 },
+      depois: { saldoTotal: 1000, saldoReservado: 0 },
+    });
+    const s = await saldos();
+    assert.deepEqual(s, { saldoTotal: 1000, saldoReservado: 0 });
+    assert.equal(saldoDisponivel(s), 1000);
+
+    const [tx] = await liberacoes();
+    assert.equal(tx.id, idDeTransacaoDeDesafio("recusado", ANA, "RELEASE"));
+    assert.equal(tx.data().amount, 150, "valor vem do RESERVE registrado");
+    assert.equal(tx.data().challengeId, "recusado");
+  });
+
+  test("8. libera só a reserva do desafio indicado", async () => {
+    await reservarBetCoins(db, { userId: ANA, challengeId: "mantido", valor: 200 });
+    await reservarBetCoins(db, { userId: ANA, challengeId: "cancelado", valor: 50 });
+    await liberarReserva(db, ANA, "cancelado");
+    assert.deepEqual(await saldos(), { saldoTotal: 1000, saldoReservado: 200 });
+  });
+
+  test("9. a mesma reserva não é liberada duas vezes, nem em paralelo", async () => {
+    await reservarBetCoins(db, { userId: ANA, challengeId: "expirado", valor: 100 });
+    const resultados = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        db.runTransaction((t) => liberarReservaNaTransacao(t, db, ANA, "expirado"), { maxAttempts: 30 }),
+      ),
+    );
+    assert.equal(resultados.filter((r) => r.resultado === "liberada").length, 1);
+    assert.equal(resultados.filter((r) => r.resultado === "ja-liberada").length, 4);
+    assert.equal((await liberarReserva(db, ANA, "expirado")).resultado, "ja-liberada");
+    assert.deepEqual(await saldos(), { saldoTotal: 1000, saldoReservado: 0 });
+    assert.equal((await liberacoes()).length, 1);
+  });
+
+  test("10. sem reserva, ou com reserva já encerrada por LOSS/REFUND, nada é liberado", async () => {
+    await assert.rejects(liberarReserva(db, ANA, "naoExiste"), erro(ErroDeTransacao, "reserva-inexistente"));
+
+    await reservarBetCoins(db, { userId: ANA, challengeId: "perdido", valor: 100 });
+    await registrarMovimentacoes(db, [{ userId: ANA, type: "LOSS", amount: 100, challengeId: "perdido" }]);
+    await assert.rejects(liberarReserva(db, ANA, "perdido"), erro(ErroDeTransacao, "reserva-encerrada"));
+
+    await reservarBetCoins(db, { userId: ANA, challengeId: "empatado", valor: 100 });
+    await registrarMovimentacoes(db, [{ userId: ANA, type: "REFUND", amount: 100, challengeId: "empatado" }]);
+    await assert.rejects(liberarReserva(db, ANA, "empatado"), erro(ErroDeTransacao, "reserva-encerrada"));
+
+    assert.deepEqual(await saldos(), { saldoTotal: 900, saldoReservado: 0 });
+    assert.equal((await liberacoes()).length, 0);
+  });
+
+  test("11. estado da reserva: ativa, encerrada, e erro se encerrada duas vezes", async () => {
+    await reservarBetCoins(db, { userId: ANA, challengeId: "estado", valor: 80 });
+    const ler = () => db.runTransaction((t) => lerReservaNaTransacao(t, db, ANA, "estado"));
+    assert.deepEqual(await ler(), { valor: 80, encerradaPor: null });
+    await liberarReserva(db, ANA, "estado");
+    assert.deepEqual(await ler(), { valor: 80, encerradaPor: "RELEASE" });
+
+    // Dado corrompido: um segundo encerramento gravado por fora do ledger
+    await db.doc(`betCoinTransactions/${idDeTransacaoDeDesafio("estado", ANA, "LOSS")}`).set({ userId: ANA, type: "LOSS" });
+    await assert.rejects(ler(), erro(ErroDeTransacao, "ledger-inconsistente"));
   });
 });
