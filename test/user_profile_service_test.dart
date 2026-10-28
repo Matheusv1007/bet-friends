@@ -51,6 +51,14 @@ class _RepositorioEmMemoria implements UserProfileRepository {
     perfis[perfil.uid] = perfil;
     _mudancas.add(perfil.uid);
   }
+
+  final nomesGravados = <String, String>{};
+
+  @override
+  Future<void> atualizarDisplayName(String uid, String displayName) async {
+    if (erro != null) throw erro!;
+    nomesGravados[uid] = displayName;
+  }
 }
 
 Matcher _erro(UserProfileErrorCode code) =>
@@ -198,6 +206,54 @@ void main() {
 
       expect(emissoes, [null, 'uid-g']);
       expect(repositorio.uidsConsultados, ['uid-g']);
+    });
+  });
+
+  group('atualizarDisplayNameAtual', () {
+    test('grava o nome sem espaços nas pontas no UID da sessão', () async {
+      await servicoCom(_UsuarioComEmail('uid-h', 'h@example.com'))
+          .atualizarDisplayNameAtual('  Helena Dias ');
+
+      expect(repositorio.nomesGravados, {'uid-h': 'Helena Dias'});
+    });
+
+    test('aceita 60 caracteres', () async {
+      await servicoCom(_UsuarioComEmail('uid-h', 'h@example.com'))
+          .atualizarDisplayNameAtual('a' * 60);
+
+      expect(repositorio.nomesGravados['uid-h'], hasLength(60));
+    });
+
+    for (final invalido in ['', '   ', 'a' * 61]) {
+      test('rejeita "${invalido.length > 10 ? '${invalido.length} caracteres' : invalido}" sem gravar', () async {
+        await expectLater(
+          servicoCom(_UsuarioComEmail('uid-h', 'h@example.com'))
+              .atualizarDisplayNameAtual(invalido),
+          _erro(UserProfileErrorCode.invalidData),
+        );
+        expect(repositorio.nomesGravados, isEmpty);
+      });
+    }
+
+    test('exige usuário autenticado', () async {
+      await expectLater(
+        servicoCom(null).atualizarDisplayNameAtual('Nome'),
+        _erro(UserProfileErrorCode.unauthenticated),
+      );
+      expect(repositorio.nomesGravados, isEmpty);
+    });
+
+    test('repassa erro do repositório (ex.: Rules negando acesso)', () async {
+      repositorio.erro = const UserProfileException(
+        UserProfileErrorCode.permissionDenied,
+        'Sem permissão para acessar o perfil.',
+      );
+
+      await expectLater(
+        servicoCom(_UsuarioComEmail('uid-h', 'h@example.com'))
+            .atualizarDisplayNameAtual('Nome'),
+        _erro(UserProfileErrorCode.permissionDenied),
+      );
     });
   });
 }

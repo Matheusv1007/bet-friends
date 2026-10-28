@@ -161,5 +161,9 @@ void main() {
       );
       expect(repository.criar(perfil), throwsA(invalidData));
     });
+
+    test('atualizarDisplayName rejeita UID vazio', () {
+      expect(repository.atualizarDisplayName(' ', 'Nome'), throwsA(invalidData));
+    });
   });
 }

@@ -62,6 +62,20 @@ class UserProfileService {
     return perfil;
   }
 
+  /// Altera o nome de exibição do usuário logado. Segue o schema §3.1:
+  /// 1 a 60 caracteres após `trim`. O UID e as demais referências não mudam.
+  Future<void> atualizarDisplayNameAtual(String displayName) async {
+    final uid = _usuarioAtual().uid;
+    final nome = displayName.trim();
+    if (nome.isEmpty || nome.length > 60) {
+      throw const UserProfileException(
+        UserProfileErrorCode.invalidData,
+        'O nome deve ter entre 1 e 60 caracteres.',
+      );
+    }
+    await _repository.atualizarDisplayName(uid, nome);
+  }
+
   User _usuarioAtual() {
     final usuario = _authService.currentUser;
     if (usuario == null) {
