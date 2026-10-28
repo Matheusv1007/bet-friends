@@ -98,7 +98,17 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
   @override
   Stream<UserProfile?> observarPorUid(String uid) {
     _validarUid(uid);
-    return _doc(uid).snapshots().map(_converter).handleError(
+    return _doc(uid).snapshots().map((snapshot) {
+      // Sem conexão, o listener emite o cache local; a ausência ali não prova
+      // que o perfil não existe no servidor. Ao reconectar, chega o snapshot real.
+      if (!snapshot.exists && snapshot.metadata.isFromCache) {
+        throw const UserProfileException(
+          UserProfileErrorCode.unavailable,
+          'Sem conexão para carregar o perfil.',
+        );
+      }
+      return _converter(snapshot);
+    }).handleError(
       (Object e) => throw UserProfileException.fromFirebase(e as FirebaseException),
       test: (e) => e is FirebaseException,
     );

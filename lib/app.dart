@@ -5,6 +5,7 @@ import 'provider/auth_provider.dart';
 import 'provider/partidas_provider.dart';
 import 'services/api/partidas_service.dart';
 import 'services/auth_service.dart';
+import 'services/user_profile_service.dart';
 
 // simon = login / sessão
 import 'telas_autenticacao/auth_gate.dart';
@@ -16,8 +17,14 @@ class App extends StatelessWidget {
   /// Os serviços são opcionais para permitir fakes em testes.
   final AuthService? authService;
   final PartidasService? partidasService;
+  final UserProfileService? userProfileService;
 
-  const App({super.key, this.authService, this.partidasService});
+  const App({
+    super.key,
+    this.authService,
+    this.partidasService,
+    this.userProfileService,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +35,11 @@ class App extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => PartidasProvider(partidasService: partidasService),
+        ),
+        // Mesma fonte de sessão do AuthProvider: o perfil é sempre o do UID logado
+        Provider(
+          create: (_) =>
+              userProfileService ?? UserProfileService(authService: authService),
         ),
       ],
       child: const MaterialApp(

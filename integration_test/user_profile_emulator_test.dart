@@ -243,10 +243,14 @@ void main() {
       // Porta sem nenhum serviço: simula o backend fora do ar
       dbOffline.useFirestoreEmulator(_hostEmuladores, 1);
 
+      final repositoryOffline = FirestoreUserProfileRepository(firestore: dbOffline);
+      await expectLater(repositoryOffline.buscarPorUid('uidAna'), _erro(UserProfileErrorCode.unavailable));
+
+      // O listener emite o cache vazio; isso não pode virar "perfil inexistente"
       await expectLater(
-        FirestoreUserProfileRepository(firestore: dbOffline).buscarPorUid('uidAna'),
+        repositoryOffline.observarPorUid('uidAna').first.timeout(const Duration(seconds: 60)),
         _erro(UserProfileErrorCode.unavailable),
       );
-    }, timeout: const Timeout(Duration(seconds: 90)));
+    }, timeout: const Timeout(Duration(seconds: 120)));
   });
 }
