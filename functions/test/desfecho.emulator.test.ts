@@ -1,5 +1,5 @@
 /**
- * Desfecho do desafio no ledger de BetCoins (KAN-76) no Firestore Emulator,
+ * Desfecho do desafio no ledger de BetCoins (KAN-76, KAN-77) no Firestore Emulator,
  * com o Admin SDK. Só roda dentro de `firebase emulators:exec` com um
  * projeto demo-*; fora dele é ignorado. Na raiz do repositório:
  *
@@ -14,11 +14,20 @@ import { deleteApp, initializeApp } from "firebase-admin/app";
 import { Firestore, getFirestore } from "firebase-admin/firestore";
 
 import { inicializarCarteira } from "../src/betcoins/carteiraInicialTransacao";
-import { planejarPremiacaoNaTransacao, premiarVencedorNaTransacao } from "../src/betcoins/desfecho";
+import {
+  planejarPerdaNaTransacao,
+  planejarPremiacaoNaTransacao,
+  premiarVencedorNaTransacao,
+  registrarPerdaNaTransacao,
+} from "../src/betcoins/desfecho";
 import { liberarReserva, reservarBetCoins } from "../src/betcoins/reserva";
 import { Saldos, lerSaldos } from "../src/betcoins/saldos";
 import { ErroDeTransacao } from "../src/betcoins/transacoes";
-import { ledgerDoSaldoInicial, registrarMovimentacoes } from "../src/betcoins/transacoesTransacao";
+import {
+  ledgerDoSaldoInicial,
+  registrarMovimentacoes,
+  registrarMovimentacoesNaTransacao,
+} from "../src/betcoins/transacoesTransacao";
 
 const PROJETO = process.env.GCLOUD_PROJECT ?? "";
 const noEmulador = Boolean(process.env.FIRESTORE_EMULATOR_HOST) && PROJETO.startsWith("demo-");
@@ -129,5 +138,70 @@ describe("desfecho do desafio (Firestore Emulator)", { skip: !noEmulador && "req
       { userId: ANA, type: "WIN", amount: 100, challengeId: "planejado" },
     ]);
     assert.deepEqual(await saldos(ANA), { saldoTotal: 1000, saldoReservado: 100 });
+  });
+
+  // KAN-77: perda do participante derrotado
+
+  const perder = (uid: string, challengeId: string) =>
+    db.runTransaction((t) => registrarPerdaNaTransacao(t, db, uid, challengeId));
+
+  test("7. aposta 100: derrotado recebe LOSS 100 e o total cai 100", async () => {
+    await desafioAceito("derrota");
+    const r = await perder(BIA, "derrota");
+    assert.equal(r.resultado, "registradas");
+    assert.deepEqual(await saldos(BIA), { saldoTotal: 900, saldoReservado: 0 });
+
+    const tipos = Object.fromEntries((await doDesafio(BIA, "derrota")).map((d) => [d.data().type, d.data().amount]));
+    assert.deepEqual(tipos, { RESERVE: 100, LOSS: 100 });
+    const [loss] = (await doDesafio(BIA, "derrota")).filter((d) => d.data().type === "LOSS");
+    assert.deepEqual(loss.data().balanceBefore, { saldoTotal: 1000, saldoReservado: 100 });
+    assert.deepEqual(loss.data().balanceAfter, { saldoTotal: 900, saldoReservado: 0 });
+  });
+
+  test("8. perder todo o saldo apostado leva a zero, nunca abaixo", async () => {
+    // BIA aposta os 1.000 em dois desafios de 500 e perde os dois
+    for (const challengeId of ["tudoA", "tudoB"]) {
+      await reservarBetCoins(db, { userId: BIA, challengeId, valor: 500 });
+      await perder(BIA, challengeId);
+    }
+    assert.deepEqual(await saldos(BIA), { saldoTotal: 0, saldoReservado: 0 });
+  });
+
+  test("9. reexecutar a perda, inclusive em paralelo, não desconta de novo", async () => {
+    await desafioAceito("perdaRepetida");
+    const resultados = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        db.runTransaction((t) => registrarPerdaNaTransacao(t, db, BIA, "perdaRepetida"), { maxAttempts: 30 }),
+      ),
+    );
+    assert.equal(resultados.filter((r) => r.resultado === "registradas").length, 1);
+    assert.equal((await perder(BIA, "perdaRepetida")).resultado, "ja-registradas");
+    assert.deepEqual(await saldos(BIA), { saldoTotal: 900, saldoReservado: 0 });
+  });
+
+  test("10. reserva liberada, reembolsada ou inexistente não sofre perda", async () => {
+    await desafioAceito("liberado");
+    await liberarReserva(db, BIA, "liberado");
+    await assert.rejects(perder(BIA, "liberado"), erro("reserva-encerrada"));
+
+    await desafioAceito("empatado");
+    await registrarMovimentacoes(db, [{ userId: BIA, type: "REFUND", amount: 100, challengeId: "empatado" }]);
+    await assert.rejects(perder(BIA, "empatado"), erro("reserva-encerrada"));
+
+    await assert.rejects(perder(BIA, "semReserva"), erro("reserva-inexistente"));
+    assert.deepEqual(await saldos(BIA), { saldoTotal: 1000, saldoReservado: 0 });
+  });
+
+  test("11. planos do vencedor e do derrotado registrados juntos, como a liquidação fará", async () => {
+    await desafioAceito("liquidado");
+    await db.runTransaction(async (t) => {
+      const movimentacoes = [
+        ...(await planejarPremiacaoNaTransacao(t, db, ANA, "liquidado")),
+        ...(await planejarPerdaNaTransacao(t, db, BIA, "liquidado")),
+      ];
+      return registrarMovimentacoesNaTransacao(t, db, movimentacoes);
+    });
+    assert.deepEqual(await saldos(ANA), { saldoTotal: 1100, saldoReservado: 0 });
+    assert.deepEqual(await saldos(BIA), { saldoTotal: 900, saldoReservado: 0 });
   });
 });
