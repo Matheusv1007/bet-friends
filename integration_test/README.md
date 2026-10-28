@@ -13,6 +13,10 @@ Os dados são criados antes por `support/seed_emulators.mjs` com o Admin SDK, po
 | `uidSemPerfil` / `semperfil@example.com` | Nenhum |
 | `uidInvalido` / `invalido@example.com` | Documento fora do schema (sem `username`) |
 
+## `perfil_screen_emulator_test.dart` (KAN-28)
+
+Abre a `PerfilScreen` com o `UserProfileService` real, no mesmo ambiente, e verifica o que a tela exibe: nome e username de `uidBia`, perfil inexistente (`uidSemPerfil`), documento fora do schema (`uidInvalido`), sem sessão e Firestore inacessível.
+
 ## Pré-requisitos
 
 - Emulador Android em execução (`flutter emulators --launch Pixel_10_Pro`). O teste acessa os emuladores do host por `10.0.2.2`.
@@ -27,8 +31,10 @@ Na raiz do repositório:
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH="$JAVA_HOME/bin:$PATH" \
   firebase emulators:exec --only auth,firestore --project demo-betfriends \
   "$(command -v node) integration_test/support/seed_emulators.mjs && \
-   $(command -v flutter) test integration_test/user_profile_emulator_test.dart -d emulator-5554"
+   $(command -v flutter) test integration_test/ -d emulator-5554"
 ```
+
+Os dois arquivos rodam em sequência na mesma sessão dos emuladores. O teste da tela usa `uidBia`, que o teste da KAN-32 não altera.
 
 O seed aborta se `FIRESTORE_EMULATOR_HOST`/`FIREBASE_AUTH_EMULATOR_HOST` não estiverem definidos ou se o projeto não começar com `demo-`. O teste Dart verifica que o app usado é `demo-*`.
 
