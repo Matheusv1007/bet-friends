@@ -1,6 +1,11 @@
 # Testes das Security Rules do Firestore (KAN-22)
 
-Testes de `firestore.rules` contra o **Firestore Emulator local**, usando `node:test` e `fetch` na API REST do emulador. Nenhuma dependência npm é necessária, e nenhum recurso real do Firebase é usado (projeto `demo-betfriends`).
+Testes de `firestore.rules` contra o **Firestore Emulator local**, usando `node:test` e `fetch` na API REST do emulador. Nenhum recurso real do Firebase é usado (projeto `demo-betfriends`).
+
+| Arquivo | O que valida | Testes |
+|---|---|---|
+| `firestore.rules.test.mjs` | Permissões do cliente em todas as coleções, sem dependências npm | 67 |
+| `backend-admin.test.mjs` | Backend privilegiado (Admin SDK) gravando saldo e transação enquanto o cliente continua bloqueado | 10 |
 
 ## Pré-requisitos
 
@@ -8,6 +13,7 @@ Testes de `firestore.rules` contra o **Firestore Emulator local**, usando `node:
 - JDK 21 ou superior para o emulador (no Arch: `/usr/lib/jvm/java-21-openjdk`).
 - Node.js 20 ou superior instalado no sistema.
 - Emulador do Firestore baixado uma vez: `firebase setup:emulators:firestore`.
+- Para `backend-admin.test.mjs`: dependências de `functions/` instaladas (`cd functions && npm ci`). O `firebase-admin` já está declarado em `functions/package.json`.
 
 ## Executar
 
@@ -16,12 +22,20 @@ Na raiz do repositório:
 ```bash
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH="$JAVA_HOME/bin:$PATH" \
   firebase emulators:exec --only firestore --project demo-betfriends \
-  "$(command -v node) --test tests/firestore-rules/"
+  "$(command -v node) --test --test-concurrency=1 tests/firestore-rules/"
 ```
 
-Use o caminho absoluto do Node (`$(command -v node)`): o binário standalone do Firebase CLI usa um Node embutido que não reconhece `--test`.
+- Use o caminho absoluto do Node (`$(command -v node)`): o binário standalone do Firebase CLI usa um Node embutido que não reconhece `--test`.
+- `--test-concurrency=1` é obrigatório: os arquivos limpam o emulador e não podem rodar em paralelo.
+- Os testes abortam antes de qualquer conexão se `FIRESTORE_EMULATOR_HOST` não estiver definido ou se o projeto não começar com `demo-`.
+- O emulador grava `firestore-debug.log` na raiz, que já é ignorado pelo Git.
 
-O emulador grava `firestore-debug.log` na raiz, que já é ignorado pelo Git.
+## Security Rules × autorização das Callable Functions
+
+As Security Rules valem **só para clientes** (SDK Flutter, REST com token de usuário). O Admin SDK usado pelas Callable Functions e pelos jobs **ignora as rules**. Portanto:
+
+- `backend-admin.test.mjs` mostra que o backend tem acesso privilegiado e que o cliente continua restrito. Isso é o que as rules conseguem garantir.
+- **Não** comprova que as operações do backend são seguras. Cada Callable Function terá de verificar autenticação (`requireAuth`), autorização (ex.: só participante aceita um desafio), saldo e estado antes de gravar. Isso só poderá ser testado quando as Functions existirem.
 
 ## Consultas que as regras aceitam
 
