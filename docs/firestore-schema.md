@@ -336,6 +336,8 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 
 Ledger auditável. Uma transação é **criada uma vez e nunca alterada nem apagada**.
 
+**Implementação (KAN-79):** `functions/src/betcoins/transacoes.ts` (tipos, efeitos, IDs e validação) e `functions/src/betcoins/transacoesTransacao.ts` (`registrarMovimentacoesNaTransacao` grava saldos e transações na mesma transação Firestore; `ledgerDoSaldoInicial` registra o `INITIAL_BALANCE` da KAN-72). Reexecutar uma operação já registrada não grava nada; se só parte dela existir, a operação é recusada como `ledger-inconsistente`.
+
 | Campo | Tipo | Obrigatório | Origem / regra |
 |---|---|---|---|
 | *(ID)* | string determinística | sim | **[PROPOSTA]** chave de idempotência (tabela abaixo) |

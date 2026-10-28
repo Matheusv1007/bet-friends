@@ -12,9 +12,9 @@ import { Saldos, VariacaoDeSaldos, aplicarVariacao, lerSaldos, validarSaldos } f
  * transação com o valor novo, então a validação sempre usa o saldo atual.
  * Qualquer `ErroDeSaldo` aborta a transação inteira e nada é gravado.
  *
- * Nenhuma função aqui cria a `betCoinTransactions` correspondente: quem chama
- * (KAN-74 e seguintes) deve criá-la na mesma transação, com os saldos de
- * antes e depois como `balanceBefore`/`balanceAfter` (RN-TRX-001, KAN-79).
+ * Nenhuma função aqui cria a `betCoinTransactions` correspondente. Para
+ * movimentar saldos, use `registrarMovimentacoesNaTransacao` (KAN-79,
+ * transacoesTransacao.ts), que grava saldos e transações juntos (RN-TRX-001).
  */
 
 export async function lerSaldosNaTransacao(

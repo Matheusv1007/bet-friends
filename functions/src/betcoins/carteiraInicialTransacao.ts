@@ -21,12 +21,9 @@ export interface LancamentoDoSaldoInicial {
 }
 
 /**
- * O que a inicialização precisa do ledger, a ser implementado pela KAN-79.
- * Esta tarefa não grava `betCoinTransactions`: sem uma implementação desta
- * interface, a carteira não é criada.
- *
- * Contrato esperado (schema §3.6, [PROPOSTA]): documento
- * `betCoinTransactions/{uid}_INITIAL_BALANCE`, criado uma única vez.
+ * O que a inicialização precisa do ledger. A implementação de produção é
+ * `ledgerDoSaldoInicial` (KAN-79, transacoesTransacao.ts), que cria
+ * `betCoinTransactions/{uid}_INITIAL_BALANCE` uma única vez (schema §3.6).
  */
 export interface LedgerDoSaldoInicial {
   /** Lê, na transação, se o INITIAL_BALANCE do usuário já existe. */
