@@ -54,7 +54,11 @@ export type CodigoErroDeTransacao =
   /** Saldos de antes e depois não correspondem ao efeito do tipo. */
   | "lancamento-incompativel"
   /** Mesma transação repetida numa operação, ou parte da operação já registrada. */
-  | "ledger-inconsistente";
+  | "ledger-inconsistente"
+  /** Não há RESERVE do usuário no desafio. */
+  | "reserva-inexistente"
+  /** A reserva já foi consumida por outro desfecho (ex.: liberar o que já foi LOSS ou REFUND). */
+  | "reserva-encerrada";
 
 export class ErroDeTransacao extends Error {
   constructor(
@@ -188,8 +192,13 @@ export function idDaTransacao(movimentacao: Movimentacao): string {
       // hora UTC da concessão, `yyyyMMddHH`
       return `${m.userId}_RECOVERY_BONUS_${m.concedidoEm!.toISOString().slice(0, 13).replace(/[-T]/g, "")}`;
     default:
-      return `${m.challengeId}_${m.userId}_${m.type}`;
+      return idDeTransacaoDeDesafio(m.challengeId!, m.userId, m.type);
   }
+}
+
+/** ID de uma transação ligada a desafio: `{challengeId}_{uid}_{TYPE}`. */
+export function idDeTransacaoDeDesafio(challengeId: string, userId: string, type: TipoDeTransacao): string {
+  return `${challengeId}_${userId}_${type}`;
 }
 
 /**
