@@ -27,6 +27,7 @@ functions/src/
   core/firebase.ts    firebase-admin + Firestore (db)
   core/auth.ts        requireAuth: exige usuário logado e extrai uid/email
   core/validation.ts  validação do payload (requireObject, requireString, requireInt)
+  core/segredos.ts    segredos do backend (FOOTBALL_DATA_TOKEN) e leitura segura
   core/callable.ts    authedCallable: base de toda função autenticada
   system/ping.ts      systemPing: chamada técnica
 ```
@@ -98,3 +99,51 @@ firebase deploy --only functions
 ```
 
 O deploy de Functions exige o projeto Firebase no plano Blaze.
+
+## 8 - Segredos (KAN-21)
+
+Credenciais de serviços externos ficam **só no backend**, no Google Secret Manager. Nunca no app Flutter, em arquivo versionado, no Jira ou em logs (RN-SEC-003, RN-SEC-005, RNF-004).
+
+| Segredo | Uso |
+|---|---|
+| `FOOTBALL_DATA_TOKEN` | Token da Football-Data.org, usado pelo Adapter do provedor (KAN-44) |
+
+### 8.1 - Usando numa função
+
+A função declara o segredo nas opções e lê o valor só em tempo de execução, com `lerTokenFootballData()`:
+
+```ts
+import { FOOTBALL_DATA_TOKEN, lerTokenFootballData } from "../core/segredos";
+
+export const sincronizarPartidas = onSchedule({ schedule: "...", secrets: [FOOTBALL_DATA_TOKEN] }, async () => {
+  const token = lerTokenFootballData(); // nunca logar nem devolver ao app
+});
+```
+
+Em produção, só as funções que declaram `secrets: [FOOTBALL_DATA_TOKEN]` recebem o valor. `lerTokenFootballData()` lança `ErroDeCredencial` (`credencial-ausente` ou `credencial-invalida`) sem incluir o valor na mensagem.
+
+### 8.2 - Configurando em produção
+
+Exige o plano Blaze (Secret Manager).
+
+```bash
+firebase functions:secrets:set FOOTBALL_DATA_TOKEN   # o CLI pede o valor sem ecoar
+firebase deploy --only functions
+```
+
+### 8.3 - Rotação (ex.: token exposto)
+
+1. Gerar um novo token no painel da Football-Data.org (o anterior deixa de funcionar).
+2. `firebase functions:secrets:set FOOTBALL_DATA_TOKEN` com o novo valor (cria uma nova versão).
+3. `firebase deploy --only functions` para as funções usarem a nova versão.
+4. `firebase functions:secrets:prune` para destruir as versões antigas que não estão em uso.
+
+### 8.4 - No emulador
+
+Criar `functions/.secret.local` (já ignorado pelo git e pelo deploy via `*.local`):
+
+```text
+FOOTBALL_DATA_TOKEN=<token>
+```
+
+Diferente da produção, o emulador entrega os valores de `.secret.local` a todas as funções, mesmo às que não declaram o segredo. Não use isso como prova de isolamento.
