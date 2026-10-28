@@ -66,6 +66,11 @@ abstract interface class UserProfileRepository {
   /// Cria `users/{perfil.uid}`. Falha com [UserProfileErrorCode.alreadyExists]
   /// se o documento já existir: o perfil nunca é sobrescrito.
   Future<void> criar(UserProfile perfil);
+
+  /// Altera somente `displayName` e `updatedAt`, os únicos campos que o app
+  /// pode gravar em `users/{uid}` (firestore.rules). UID, username, e-mail e
+  /// saldos não mudam.
+  Future<void> atualizarDisplayName(String uid, String displayName);
 }
 
 class FirestoreUserProfileRepository implements UserProfileRepository {
@@ -117,6 +122,19 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
+      });
+    } on FirebaseException catch (e) {
+      throw UserProfileException.fromFirebase(e);
+    }
+  }
+
+  @override
+  Future<void> atualizarDisplayName(String uid, String displayName) async {
+    _validarUid(uid);
+    try {
+      await _doc(uid).update({
+        'displayName': displayName,
+        'updatedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
       throw UserProfileException.fromFirebase(e);
