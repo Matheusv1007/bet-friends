@@ -102,7 +102,7 @@ export function aplicarVariacao(saldos: Saldos, variacao: VariacaoDeSaldos): Sal
 /**
  * Efeito de uma reserva (RESERVE, Plano §8.3): reservado +valor, total
  * inalterado. Exige `valor` inteiro positivo e disponível suficiente.
- * Os limites do desafio (10 a 500, RN-BET-002/003) são da KAN-74.
+ * Os limites do desafio (10 a 500, RN-BET-002/003) ficam em reserva.ts (KAN-74).
  */
 export function reservar(saldos: Saldos, valor: number): Saldos {
   if (!Number.isSafeInteger(valor) || valor <= 0) {
