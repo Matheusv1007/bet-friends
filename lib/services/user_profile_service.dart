@@ -21,7 +21,7 @@ class UserProfileService {
     return _repository.buscarPorUid(_usuarioAtual().uid);
   }
 
-  Stream<UserProfile?> observarPerfilAtual() {
+  Stream<PerfilObservado> observarPerfilAtual() {
     return _repository.observarPorUid(_usuarioAtual().uid);
   }
 

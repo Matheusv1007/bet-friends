@@ -19,11 +19,11 @@ class _RepositorioControlado implements UserProfileRepository {
   StreamController<UserProfile?> get atual => _streams.last;
 
   @override
-  Stream<UserProfile?> observarPorUid(String uid) {
+  Stream<PerfilObservado> observarPorUid(String uid) {
     uidsObservados.add(uid);
     final controller = StreamController<UserProfile?>();
     _streams.add(controller);
-    return controller.stream;
+    return controller.stream.map(PerfilObservado.new);
   }
 
   @override

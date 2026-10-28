@@ -89,6 +89,13 @@ class FunctionsException implements Exception {
 
   bool get isUnauthenticated => code == 'unauthenticated';
 
+  /// O servidor não confirmou a chamada: sem conexão (`unavailable`) ou prazo
+  /// esgotado (`deadline-exceeded`). Chamadas não ficam em fila nem são
+  /// repetidas automaticamente; a tela não deve tratar a operação como feita
+  /// e repetir depende de nova ação do usuário (KAN-24, RN-OFF-002/003).
+  bool get semConfirmacaoDoServidor =>
+      code == 'unavailable' || code == 'deadline-exceeded';
+
   @override
   String toString() => 'FunctionsException ($code): $message';
 }
