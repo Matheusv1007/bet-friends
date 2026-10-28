@@ -1,5 +1,5 @@
 /**
- * Desfecho do desafio no ledger de BetCoins (KAN-76, KAN-77) no Firestore Emulator,
+ * Desfecho do desafio no ledger de BetCoins (KAN-76, KAN-77, KAN-78) no Firestore Emulator,
  * com o Admin SDK. Só roda dentro de `firebase emulators:exec` com um
  * projeto demo-*; fora dele é ignorado. Na raiz do repositório:
  *
@@ -18,6 +18,7 @@ import {
   planejarPerdaNaTransacao,
   planejarPremiacaoNaTransacao,
   premiarVencedorNaTransacao,
+  reembolsarEmpateNaTransacao,
   registrarPerdaNaTransacao,
 } from "../src/betcoins/desfecho";
 import { liberarReserva, reservarBetCoins } from "../src/betcoins/reserva";
@@ -203,5 +204,55 @@ describe("desfecho do desafio (Firestore Emulator)", { skip: !noEmulador && "req
     });
     assert.deepEqual(await saldos(ANA), { saldoTotal: 1100, saldoReservado: 0 });
     assert.deepEqual(await saldos(BIA), { saldoTotal: 900, saldoReservado: 0 });
+  });
+
+  // KAN-78: reembolso em empate
+
+  const empatar = (challengeId: string) =>
+    db.runTransaction((t) => reembolsarEmpateNaTransacao(t, db, challengeId, [ANA, BIA]));
+
+  test("12. empate com aposta 100: os dois recebem REFUND 100 e voltam ao saldo anterior", async () => {
+    await desafioAceito("empate");
+    const r = await empatar("empate");
+    assert.equal(r.resultado, "registradas");
+    for (const uid of [ANA, BIA]) {
+      assert.deepEqual(await saldos(uid), { saldoTotal: 1000, saldoReservado: 0 }, uid);
+      const tipos = Object.fromEntries((await doDesafio(uid, "empate")).map((d) => [d.data().type, d.data().amount]));
+      assert.deepEqual(tipos, { RESERVE: 100, REFUND: 100 }, uid);
+    }
+  });
+
+  test("13. o reembolso devolve só o valor do desafio empatado", async () => {
+    await desafioAceito("empate250", 250);
+    await reservarBetCoins(db, { userId: ANA, challengeId: "outro", valor: 40 });
+    await empatar("empate250");
+    assert.deepEqual(await saldos(ANA), { saldoTotal: 1000, saldoReservado: 40 });
+    assert.deepEqual(await saldos(BIA), { saldoTotal: 1000, saldoReservado: 0 });
+  });
+
+  test("14. reexecutar o reembolso, inclusive em paralelo, não devolve de novo", async () => {
+    await desafioAceito("empateRepetido");
+    const resultados = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        db.runTransaction((t) => reembolsarEmpateNaTransacao(t, db, "empateRepetido", [ANA, BIA]), { maxAttempts: 30 }),
+      ),
+    );
+    assert.equal(resultados.filter((r) => r.resultado === "registradas").length, 1);
+    assert.equal((await empatar("empateRepetido")).resultado, "ja-registradas");
+    assert.equal((await doDesafio(ANA, "empateRepetido")).length, 2);
+    assert.deepEqual(await saldos(BIA), { saldoTotal: 1000, saldoReservado: 0 });
+  });
+
+  test("15. se um participante não pode ser reembolsado, nenhum é", async () => {
+    await desafioAceito("meioCancelado");
+    await liberarReserva(db, BIA, "meioCancelado");
+    await assert.rejects(empatar("meioCancelado"), erro("reserva-encerrada"));
+    assert.deepEqual(await saldos(ANA), { saldoTotal: 1000, saldoReservado: 100 }, "ANA continua reservada");
+    assert.equal((await doDesafio(ANA, "meioCancelado")).length, 1);
+
+    await desafioAceito("vencido");
+    await registrarMovimentacoes(db, [{ userId: ANA, type: "LOSS", amount: 100, challengeId: "vencido" }]);
+    await assert.rejects(empatar("vencido"), erro("reserva-encerrada"));
+    await assert.rejects(empatar("semReserva"), erro("reserva-inexistente"));
   });
 });
