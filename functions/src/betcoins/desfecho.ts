@@ -62,3 +62,37 @@ export async function premiarVencedorNaTransacao(
   const movimentacoes = await planejarPremiacaoNaTransacao(transacao, db, userId, challengeId);
   return registrarMovimentacoesNaTransacao(transacao, db, movimentacoes);
 }
+
+/**
+ * Derrotado (KAN-77; RN-RES-004, RNF-007): LOSS do valor apostado, que sai
+ * do reservado e do total. Com aposta de 100: total −100 e reservado −100.
+ * O saldo nunca fica negativo, porque o valor estava reservado; o ledger
+ * recusa qualquer resultado fora das invariantes.
+ *
+ * Recusa reserva inexistente (`reserva-inexistente`) ou já encerrada por
+ * RELEASE ou REFUND (`reserva-encerrada`). Se a perda já foi registrada,
+ * devolve a mesma movimentação e o ledger não grava de novo.
+ */
+export async function planejarPerdaNaTransacao(
+  transacao: Transaction,
+  db: Firestore,
+  userId: string,
+  challengeId: string,
+): Promise<Movimentacao[]> {
+  const reserva = await lerReservaNaTransacao(transacao, db, userId, challengeId);
+  if (reserva.encerradaPor === "RELEASE" || reserva.encerradaPor === "REFUND") {
+    throw new ErroDeTransacao("reserva-encerrada", `A reserva já foi encerrada por ${reserva.encerradaPor}.`);
+  }
+  return [{ userId, type: "LOSS", amount: reserva.valor, challengeId }];
+}
+
+/** Registra a perda do derrotado numa transação já aberta. Repetir não desconta de novo. */
+export async function registrarPerdaNaTransacao(
+  transacao: Transaction,
+  db: Firestore,
+  userId: string,
+  challengeId: string,
+): Promise<ResultadoDoRegistro> {
+  const movimentacoes = await planejarPerdaNaTransacao(transacao, db, userId, challengeId);
+  return registrarMovimentacoesNaTransacao(transacao, db, movimentacoes);
+}
