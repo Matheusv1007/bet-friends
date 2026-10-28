@@ -8,7 +8,7 @@
  * e nomes: nenhum escudo, para o MVP não depender de licença de imagem.
  */
 
-/** Status do domínio (Plano §9.3). O mapeamento a partir do provedor é da KAN-47. */
+/** Status do domínio (Plano §9.3). O mapeamento a partir do provedor fica em `footballData/status.ts` (KAN-47). */
 export const STATUS_DA_PARTIDA = [
   "AGENDADA",
   "EM_ANDAMENTO",
@@ -19,6 +19,32 @@ export const STATUS_DA_PARTIDA = [
   "REVISAO_NECESSARIA",
 ] as const;
 export type StatusDaPartida = (typeof STATUS_DA_PARTIDA)[number];
+
+/**
+ * Se a liquidação automática do desafio pode partir deste status. Só
+ * `FINALIZADA`: `SUSPENSA` (RN-MAT-015) e `REVISAO_NECESSARIA` (RN-MAT-016)
+ * nunca liquidam automaticamente; os demais ainda não têm resultado.
+ */
+export const LIQUIDA_AUTOMATICAMENTE: Readonly<Record<StatusDaPartida, boolean>> = {
+  AGENDADA: false,
+  EM_ANDAMENTO: false,
+  FINALIZADA: true,
+  ADIADA: false,
+  CANCELADA: false,
+  SUSPENSA: false,
+  REVISAO_NECESSARIA: false,
+};
+
+/** Estados excepcionais, mantidos identificáveis para tratamento manual ou regras próprias (RN-MAT-007 a 016). */
+export const STATUS_EXCEPCIONAL: Readonly<Record<StatusDaPartida, boolean>> = {
+  AGENDADA: false,
+  EM_ANDAMENTO: false,
+  FINALIZADA: false,
+  ADIADA: true,
+  CANCELADA: true,
+  SUSPENSA: true,
+  REVISAO_NECESSARIA: true,
+};
 
 /** Resultado do domínio (Plano §9.3). O mapeamento a partir do provedor é da KAN-48. */
 export const RESULTADOS_DA_PARTIDA = ["HOME_WIN", "DRAW", "AWAY_WIN"] as const;
@@ -59,9 +85,16 @@ export interface Match extends PartidaAdaptada {
   readonly originalStartsAtUtc: Date;
 }
 
+export type CodigoErroDePartida =
+  | "partida-invalida"
+  /** Status do provedor sem mapeamento no domínio: nunca é aceito em silêncio. */
+  | "status-desconhecido";
+
 export class ErroDePartida extends Error {
-  readonly code = "partida-invalida";
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly code: CodigoErroDePartida = "partida-invalida",
+  ) {
     super(message);
     this.name = "ErroDePartida";
   }
