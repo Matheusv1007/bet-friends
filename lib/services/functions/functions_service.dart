@@ -6,6 +6,10 @@ const String kFunctionsRegion = 'southamerica-east1';
 /// Nomes das Callable Functions exportadas em functions/src/index.ts.
 abstract final class CallableNames {
   static const String systemPing = 'systemPing';
+
+  /// Cadastro do perfil com username único e carteira inicial (KAN-31).
+  /// Username indisponível: `FunctionsException(code: 'already-exists')`.
+  static const String createUserProfile = 'createUserProfile';
 }
 
 /// Ponto único de acesso às Callable Functions do backend.

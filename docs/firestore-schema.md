@@ -130,6 +130,8 @@ KAN-25 exige "identidade consistente sem perfil parcial", e KAN-72 exige carteir
 4. cria `users/{uid}` com `saldoTotal = 1000`, `saldoReservado = 0`;
 5. cria `betCoinTransactions/{uid}_INITIAL_BALANCE` (§3.6).
 
+**Implementação (KAN-31):** Callable `createUserProfile` (`functions/src/perfil/`), que segue os passos acima numa única transação. UID e e-mail vêm do token do Firebase Authentication. Erros devolvidos ao app: `already-exists` (somente username indisponível), `invalid-argument` (nome ou username fora do formato), `failed-precondition` (usuário já tem perfil com outro username ou não tem e-mail); `details.motivo` traz o código do domínio. Reenviar o mesmo cadastro devolve `criado: false` sem gravar. Ligar a tela de cadastro a esta função é da KAN-25.
+
 Ver incompatibilidade registrada com o repositório da KAN-32 em [§7](#7---compatibilidade-com-o-código-existente).
 
 ---
@@ -144,9 +146,9 @@ O Firestore não tem restrição de unicidade por campo. Uma consulta `where('us
 | `uid` | string | sim | imutável | Dono do username |
 | `createdAt` | Timestamp (servidor) | sim | imutável | — |
 
-**Normalização [PROPOSTA — a confirmar na KAN-31]:**
+**Normalização (decidida na KAN-31):**
 - `usernameNormalized = username.trim().toLowerCase()`, o que atende RN-AUTH-003 (`Simon` = `simon`).
-- Formato sugerido de `username`: 3 a 20 caracteres, apenas `a-z`, `A-Z`, `0-9` e `_`. Isso evita ambiguidades de acentos e de Unicode sem exigir normalização adicional. O Plano não define formato; a KAN-31 decide.
+- Formato de `username`: 3 a 20 caracteres, apenas `a-z`, `A-Z`, `0-9` e `_`. Isso evita ambiguidades de acentos e de Unicode sem exigir normalização adicional.
 - Como o username é imutável (D-011), o documento nunca é movido nem apagado.
 
 Leitura: nenhuma pelo app; a verificação de disponibilidade é feita pela Function.
@@ -463,9 +465,9 @@ O app nunca grava saldo, transação, estado de desafio, resultado ou vencedor (
 |---|---|
 | `UserProfile` (KAN-32): `displayName`, `username`, `usernameNormalized`, `email`, `createdAt`, `updatedAt` | ✅ **Compatível.** Todos os campos foram mantidos com os mesmos nomes e tipos. `fromMap` ignora campos extras (saldos, `lastRecoveryBonusAt`), então documentos completos continuam legíveis. O UID continua sendo o ID do documento e não é gravado nos campos |
 | `UserProfile.toMap()` não grava saldos | ✅ Coerente com §5.1 |
-| `FirestoreUserProfileRepository.criar` cria `users/{uid}` **pelo cliente** e **sem carteira** | ⚠️ **Incompatível com a proposta §3.1.2** (criação atômica no backend com username e saldo inicial). Com a proposta aprovada, `criar` passa a chamar a Callable Function; a interface `UserProfileRepository` e o `UserProfileService` podem permanecer. **Não alterado nesta task** |
-| `UserProfileService.criarPerfilDoUsuarioAtual` recebe `usernameNormalized` do chamador | ⚠️ Pela proposta, a normalização é responsabilidade do backend (KAN-31). Ajuste previsto na KAN-31/KAN-25 |
-| `FirestoreCollections` (5 coleções) | ✅ Compatível; falta a constante `usernames` se a proposta §3.2 for aprovada (KAN-31) |
+| `FirestoreUserProfileRepository.criar` cria `users/{uid}` **pelo cliente** e **sem carteira** | ⚠️ Bloqueado pelas rules (KAN-22). O backend já cria perfil, username e carteira pela Callable `createUserProfile` (KAN-31); trocar `criar` por essa chamada fica na KAN-25 |
+| `UserProfileService.criarPerfilDoUsuarioAtual` recebe `usernameNormalized` do chamador | ⚠️ A normalização agora é do backend (KAN-31). Remover o parâmetro fica na KAN-25, junto com a troca acima |
+| `FirestoreCollections` (5 coleções) | ✅ Compatível; `usernames` não é lida pelo app (§3.2), então não precisa de constante no Flutter |
 | `PartidaModel` (Flutter) | ⚠️ Usa o formato do provedor; será substituído por um modelo baseado em `matches` (KAN-46/KAN-52). Fora do escopo |
 | `firestore.rules` (*deny-all*) | ✅ Compatível; as regras de §5.1 serão escritas na KAN-22 |
 
