@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:betfriends/data/firestore/user_profile_repository.dart';
 import 'package:betfriends/provider/auth_provider.dart';
 import 'package:betfriends/provider/partidas_provider.dart';
+import 'package:betfriends/services/user_profile_service.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
 import 'package:betfriends/tela_perfil/tela_perfil.dart';
 import 'package:betfriends/widgets_homePage/appbarDasPartidas.dart';
@@ -22,6 +24,9 @@ class _HomepageState extends State<Homepage> {
   int _currentNavIndex = 0;
   Timer? _realTimeTimer;
   bool _mostrarTodas = false;
+
+  /// Perfil do usuário logado, usado só na saudação; `null` se indisponível.
+  Stream<PerfilObservado>? _perfil;
 
   // Lista de fallback com o design original (comentada, mantida apenas para testes futuros)
   /*
@@ -55,6 +60,7 @@ class _HomepageState extends State<Homepage> {
   @override
   void initState() {
     super.initState();
+    _perfil = _observarPerfil();
 
     // 1. Dispara a primeira busca na API logo que a tela é montada
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -67,6 +73,17 @@ class _HomepageState extends State<Homepage> {
         context.read<PartidasProvider>().carregarPartidas(silencioso: true);
       }
     });
+  }
+
+  Stream<PerfilObservado>? _observarPerfil() {
+    // Leitura opcional, como no menu da conta: a Home também é montada sem o serviço
+    final service = context.read<UserProfileService?>();
+    try {
+      return service?.observarPerfilAtual();
+    } catch (_) {
+      // Sem sessão ou sem Firebase: a saudação fica neutra
+      return null;
+    }
   }
 
   @override
@@ -410,6 +427,7 @@ class _HomepageState extends State<Homepage> {
         ),
         child: BottomNavigationBar(
           currentIndex: _currentNavIndex,
+          // Ranking é pós-MVP (D-002, RN-RNK-001): Home, Desafios e Perfil
           onTap: (index) {
             if (index == 1) {
               Navigator.push(
@@ -418,7 +436,7 @@ class _HomepageState extends State<Homepage> {
                   builder: (context) => const CriarDesafioScreen(),
                 ),
               );
-            } else if (index == 3) {
+            } else if (index == 2) {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const PerfilScreen()),
@@ -452,11 +470,6 @@ class _HomepageState extends State<Homepage> {
               icon: Icon(Icons.sports_kabaddi_outlined),
               activeIcon: Icon(Icons.sports_kabaddi),
               label: "Desafios",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.military_tech_outlined),
-              activeIcon: Icon(Icons.military_tech),
-              label: "Ranking",
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
@@ -590,39 +603,53 @@ class _HomepageState extends State<Homepage> {
     }
   }
 
-  /// Cabeçalho com o Avatar do Pedro, saldo de fichas e logo do BetFriends
+  /// Cabeçalho com o avatar (menu da conta), saudação, saldo e logo do BetFriends
   Widget _buildHeader() {
     return Row(
       children: [
-        // Avatar circular do Pedro com anel sutil; abre o menu da conta
+        // Avatar circular com anel sutil; abre o menu da conta
         _buildMenuDaConta(),
         const SizedBox(width: 12),
 
-        // Textos "Olá, Pedro" e "1.500 fichas"
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              "Olá, Pedro",
-              style: TextStyle(
-                color: Color(0xFF94A3B8),
-                fontSize: 12.5,
-                fontWeight: FontWeight.w500,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Nome do perfil quando disponível; sem perfil, sem conexão ou
+              // com erro, uma saudação neutra
+              StreamBuilder<PerfilObservado>(
+                stream: _perfil,
+                builder: (context, snapshot) {
+                  final nome = snapshot.hasError ? null : snapshot.data?.perfil?.displayName;
+                  return Text(
+                    nome == null ? "Olá!" : "Olá, $nome",
+                    key: const Key('home_saudacao'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  );
+                },
               ),
-            ),
-            SizedBox(height: 2),
-            Text(
-              "1.500 fichas",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 15.5,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 2),
+              // A carteira real ainda não é exibida (KAN-69); nenhum valor fictício
+              const Text(
+                "Saldo indisponível",
+                key: Key('home_saldo'),
+                style: TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
 
-        const Spacer(),
+        const SizedBox(width: 12),
 
         // Logo BetFriends com escudo estilizado verde
         Row(
