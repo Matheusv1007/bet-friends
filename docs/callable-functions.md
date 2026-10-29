@@ -10,7 +10,7 @@ Regras de negócio que mexem em saldo, desafios ou dados de outros usuários dev
 
 Código:
 
-`functions/` (TypeScript, Node 22, firebase-functions v7)
+`functions/` (TypeScript, Node 22, firebase-functions v7). A versão major do Node está em `functions/.nvmrc`; como usá-la junto com o Firebase CLI está na seção 9.
 
 Região:
 
@@ -73,6 +73,8 @@ Erros do backend chegam como `FunctionsException` com `code` (ex.: `unauthentica
 
 ## 6 - Rodando localmente
 
+Com o Node 22 no PATH (seção 9):
+
 ```bash
 cd functions
 npm install
@@ -94,11 +96,13 @@ O emulador responde em HTTP sem TLS, que o Android bloqueia por padrão. Por iss
 
 ## 7 - Deploy
 
+Com o Node 22 no PATH (seção 9):
+
 ```bash
-firebase deploy --only functions
+npx firebase-tools@15.32.1 deploy --only functions --project betfriends-unirv-2026
 ```
 
-O deploy de Functions exige o projeto Firebase no plano Blaze.
+O deploy de Functions exige o projeto Firebase no plano Blaze. Informe sempre `--project` e `--only`: o `.firebaserc` só tem o projeto de produção.
 
 ## 8 - Segredos (KAN-21)
 
@@ -147,3 +151,59 @@ FOOTBALL_DATA_TOKEN=<token>
 ```
 
 Diferente da produção, o emulador entrega os valores de `.secret.local` a todas as funções, mesmo às que não declaram o segredo. Não use isso como prova de isolamento.
+
+## 9 - Ambiente: Node 22 e Firebase CLI
+
+As Functions rodam em Node 22 (`engines.node` em `functions/package.json`; `functions/.nvmrc`). O `firebase-admin` 14 exige Node 22 ou superior, e o Firebase CLI analisa o código com o próprio Node antes de emular ou implantar. Por isso:
+
+- **Não use o binário standalone** do Firebase CLI (`/usr/local/bin/firebase`) para Functions: ele traz um Node 20 embutido e falha com `ERR_REQUIRE_ESM` (`jose`), deixando o emulador sem funções e impedindo o deploy.
+- Use o **Firebase CLI 15.32.1 pelo npm** (`npx firebase-tools@15.32.1`), rodando sobre um **Node 22 isolado**, sem trocar o Node do sistema.
+
+### 9.1 - Instalar o Node 22 isolado (uma vez)
+
+Com `nvm` ou `fnm`, basta `nvm use` / `fnm use` dentro de `functions/` (lê o `.nvmrc`). Sem gerenciador de versões, usar o tarball oficial numa pasta do usuário (validado com a 22.23.4):
+
+```bash
+V=v22.23.4
+mkdir -p ~/.local/opt /tmp/node22 && cd /tmp/node22
+curl -fO https://nodejs.org/dist/$V/node-$V-linux-x64.tar.xz
+curl -fO https://nodejs.org/dist/$V/SHASUMS256.txt
+grep " node-$V-linux-x64.tar.xz\$" SHASUMS256.txt | sha256sum -c -   # deve imprimir OK/SUCESSO
+tar -xJf node-$V-linux-x64.tar.xz -C ~/.local/opt
+```
+
+Opcional: conferir também a assinatura de `SHASUMS256.txt` (`SHASUMS256.txt.sig`) com as chaves de [nodejs/release-keys](https://github.com/nodejs/release-keys).
+
+Nada é instalado com `sudo` e o `/usr/bin/node` continua o mesmo. Para remover: `rm -rf ~/.local/opt/node-v22.23.4-linux-x64`.
+
+### 9.2 - Usar no terminal
+
+O PATH muda **só no terminal atual**:
+
+```bash
+export PATH="$HOME/.local/opt/node-v22.23.4-linux-x64/bin:$PATH"
+node -v                                # v22.23.4
+npx firebase-tools@15.32.1 --version   # 15.32.1
+```
+
+Para os emuladores, acrescentar o JDK 21: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH="$JAVA_HOME/bin:$PATH"`.
+
+### 9.3 - Comandos
+
+Na raiz do repositório, com o Node 22 no PATH:
+
+```bash
+(cd functions && npm ci && npm test)   # build + testes unitários
+
+# Backend no Firestore Emulator + Security Rules (padrões entre aspas: o Node 22 não aceita pasta em --test)
+npx firebase-tools@15.32.1 emulators:exec --only firestore --project demo-betfriends \
+  "node --test --test-concurrency=1 'functions/lib/test/**/*.test.js' 'tests/firestore-rules/*.test.mjs'"
+
+# Emuladores de Auth + Firestore + Functions (deve mostrar "Using node@22 from host")
+npx firebase-tools@15.32.1 emulators:start --only auth,firestore,functions --project demo-betfriends
+
+# Deploy (seção 7): sempre com --project e --only
+npx firebase-tools@15.32.1 deploy --only functions --project betfriends-unirv-2026
+```
+
+Para testes locais, use sempre um projeto `demo-*`: o emulador não acessa o Firebase real e os testes recusam rodar fora dele.

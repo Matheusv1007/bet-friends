@@ -76,15 +76,15 @@ Chama a Callable `claimRecoveryBonus` pelo `FunctionsService` (HTTP do Functions
 - JDK 21+, Firebase CLI e Firestore Emulator, como em `tests/firestore-rules/README.md`.
 - `cd functions && npm ci`, para o `firebase-admin` usado pelo seed.
 - Para `criar_perfil_emulator_test.dart`, `cadastro_emulator_test.dart` e `recuperacao_emulator_test.dart`: `cd functions && npm run build`, para o Functions Emulator carregar `functions/lib/`.
-- O Functions Emulator precisa rodar o Firebase CLI com o Node do sistema (22 ou superior). O binário standalone (`/usr/local/bin/firebase`) usa um Node 20 embutido, que não carrega o `firebase-admin` 14 (`ERR_REQUIRE_ESM` em `jose`) e deixa o emulador sem funções (`not-found`). O comando abaixo chama o mesmo CLI já instalado em `~/.cache/firebase/tools` com o Node do sistema.
+- Node 22 no PATH e Firebase CLI 15.32.1 pelo npm (`npx firebase-tools@15.32.1`), conforme [`docs/callable-functions.md`](../docs/callable-functions.md) §9. O binário standalone (`/usr/local/bin/firebase`) usa um Node 20 embutido, que não carrega o `firebase-admin` 14 (`ERR_REQUIRE_ESM` em `jose`) e deixa o Functions Emulator sem funções (`not-found`).
 
 ## Executar
 
-Na raiz do repositório:
+Na raiz do repositório, com o Node 22 no PATH (`docs/callable-functions.md` §9.2):
 
 ```bash
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH="$JAVA_HOME/bin:$PATH" \
-  node ~/.cache/firebase/tools/lib/node_modules/firebase-tools/lib/bin/firebase.js \
+  npx firebase-tools@15.32.1 \
   emulators:exec --only auth,firestore,functions --project demo-betfriends \
   "$(command -v node) integration_test/support/seed_emulators.mjs && \
    { $(command -v node) integration_test/support/proxy_conexao.mjs & P=\$!; \
