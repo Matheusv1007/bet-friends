@@ -29,14 +29,19 @@ class _AuthGateState extends State<AuthGate> {
 
   /// Ao entrar, sair ou trocar de usuário, descarta as telas empilhadas acima
   /// do AuthGate (ex.: Criar Desafio, Cadastro) para não sobrar tela da sessão anterior.
+  /// Exceção: a conta criada pelo Cadastro em andamento.
   void _sincronizarPilha(String? uid) {
     if (_sessaoResolvida && uid == _uidAtual) return;
 
     final houveTroca = _sessaoResolvida;
+    final contaRecemCriada = _uidAtual == null && uid != null &&
+        context.read<AuthProvider>().cadastroEmAndamento;
     _uidAtual = uid;
     _sessaoResolvida = true;
 
-    if (!houveTroca) return;
+    // A conta acabou de ser criada no Cadastro, que continua aberto até
+    // criar o perfil; a Home já fica por baixo (KAN-25)
+    if (!houveTroca || contaRecemCriada) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       Navigator.of(context).popUntil((route) => route.isFirst);

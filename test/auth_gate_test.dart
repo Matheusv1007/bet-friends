@@ -101,15 +101,23 @@ void main() {
       await encerrarApp(tester);
     });
 
-    testWidgets('"CADASTRAR" volta ao Login existente sem empilhar outro', (tester) async {
-      await abrirApp(tester, FakeAuthService());
+    testWidgets('"Entrar" no Cadastro volta ao Login existente sem empilhar outro', (tester) async {
+      final auth = FakeAuthService();
+      await abrirApp(tester, auth);
 
       await tester.tap(find.text('Criar conta'));
       await tester.pumpAndSettle();
       expect(find.byType(CadastroPage), findsOneWidget);
 
+      // CADASTRAR com o formulário vazio não cria conta nem sai da tela (KAN-25)
       await tester.ensureVisible(find.text('CADASTRAR'));
       await tester.tap(find.text('CADASTRAR'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CadastroPage), findsOneWidget);
+      expect(auth.signUpCalls, 0);
+
+      await tester.ensureVisible(find.text('Entrar'));
+      await tester.tap(find.text('Entrar'));
       await tester.pumpAndSettle();
 
       expect(find.byType(CadastroPage), findsNothing);

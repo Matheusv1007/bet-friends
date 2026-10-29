@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../data/firestore/user_profile_repository.dart';
 import '../models/user_profile.dart';
 import '../services/user_profile_service.dart';
+import '../telas_autenticacao/cadastro_page.dart';
 
 /// Perfil do usuário autenticado (KAN-28).
 ///
@@ -104,14 +105,22 @@ class _PerfilScreenState extends State<PerfilScreen> {
 
               final perfil = snapshot.data!.perfil;
               if (perfil == null) {
-                return const _AvisoPerfil(
+                // Conta criada no Auth sem perfil (cadastro interrompido): o
+                // perfil é concluído pela própria tela de cadastro (KAN-25)
+                return _AvisoPerfil(
                   icone: Icons.person_off_outlined,
-                  corIcone: Color(0xFF64748B),
+                  corIcone: const Color(0xFF64748B),
                   titulo: 'Perfil ainda não criado',
                   mensagem:
-                      'Sua conta está ativa, mas o perfil do BetFriends ainda não '
-                      'foi criado. O perfil é criado no cadastro, que ainda '
-                      'está em desenvolvimento.',
+                      'Sua conta está ativa, mas o cadastro não foi concluído. '
+                      'Escolha seu nome e username para criar o perfil.',
+                  rotuloDaAcao: 'CONCLUIR CADASTRO',
+                  iconeDaAcao: Icons.person_add_alt_1,
+                  onTentarNovamente: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const CadastroPage.concluirPerfil(),
+                    ),
+                  ),
                 );
               }
 
@@ -519,6 +528,8 @@ class _AvisoPerfil extends StatelessWidget {
   final String titulo;
   final String mensagem;
   final VoidCallback? onTentarNovamente;
+  final String rotuloDaAcao;
+  final IconData iconeDaAcao;
 
   const _AvisoPerfil({
     required this.icone,
@@ -526,6 +537,8 @@ class _AvisoPerfil extends StatelessWidget {
     required this.titulo,
     required this.mensagem,
     this.onTentarNovamente,
+    this.rotuloDaAcao = 'TENTAR NOVAMENTE',
+    this.iconeDaAcao = Icons.refresh,
   });
 
   @override
@@ -564,10 +577,10 @@ class _AvisoPerfil extends StatelessWidget {
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
                   onPressed: onTentarNovamente,
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text(
-                    'TENTAR NOVAMENTE',
-                    style: TextStyle(
+                  icon: Icon(iconeDaAcao, size: 16),
+                  label: Text(
+                    rotuloDaAcao,
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                       letterSpacing: 0.5,

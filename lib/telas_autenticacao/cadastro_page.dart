@@ -1,7 +1,27 @@
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../data/firestore/user_profile_repository.dart';
+import '../provider/auth_provider.dart';
+import '../services/user_profile_service.dart';
+import 'validacao_cadastro.dart';
+
+/// Cadastro de usuário (KAN-25): cria a conta no Firebase Auth e, em seguida,
+/// o perfil e a carteira pelo backend (`UserProfileService` → Callable
+/// `createUserProfile`). O app não grava `users/{uid}`.
+///
+/// Se a conta for criada e o perfil não, a sessão é mantida e a tela passa a
+/// repetir só a criação do perfil, que é idempotente no backend. A conta
+/// nunca é apagada automaticamente. Com [somentePerfil], a tela conclui o
+/// perfil de uma conta já logada (aberta pelo Perfil, para contas criadas
+/// sem perfil).
 class CadastroPage extends StatefulWidget {
-  const CadastroPage({super.key});
+  final bool somentePerfil;
+
+  const CadastroPage({super.key}) : somentePerfil = false;
+
+  const CadastroPage.concluirPerfil({super.key}) : somentePerfil = true;
 
   @override
   State<CadastroPage> createState() => _CadastroPageState();
@@ -16,8 +36,21 @@ class _CadastroPageState extends State<CadastroPage> {
   bool _obscureSenha = true;
   bool _obscureConfirmarSenha = true;
 
+  late final AuthProvider _auth;
+  late bool _contaCriada;
+  bool _enviando = false;
+  String? _erro;
+
+  @override
+  void initState() {
+    super.initState();
+    _auth = context.read<AuthProvider>();
+    _contaCriada = widget.somentePerfil;
+  }
+
   @override
   void dispose() {
+    _auth.encerrarCadastro();
     _nomeController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
@@ -26,10 +59,109 @@ class _CadastroPageState extends State<CadastroPage> {
     super.dispose();
   }
 
-  void _criarConta() {
-    // Volta ao Login existente (exibido pelo AuthGate) em vez de empilhar outro.
-    // O cadastro real continua fora do escopo (KAN-25).
-    Navigator.pop(context);
+  Future<void> _criarConta() async {
+    if (_enviando) return;
+
+    final nome = _nomeController.text;
+    final username = _usernameController.text;
+    final problema = _contaCriada
+        ? validarPerfil(nome: nome, username: username)
+        : validarCadastro(
+            nome: nome,
+            username: username,
+            email: _emailController.text,
+            senha: _senhaController.text,
+            confirmacao: _confirmarSenhaController.text,
+          );
+    if (problema != null) {
+      setState(() => _erro = problema);
+      return;
+    }
+
+    setState(() {
+      _enviando = true;
+      _erro = null;
+    });
+    final perfis = context.read<UserProfileService>();
+
+    try {
+      if (!_contaCriada) {
+        try {
+          await _auth.signUp(
+            email: _emailController.text,
+            password: _senhaController.text,
+          );
+        } on FirebaseAuthException catch (e) {
+          _mostrarErro(_mensagemDoAuth(e.code));
+          return;
+        }
+        _contaCriada = true;
+      }
+
+      await perfis.criarPerfilDoUsuarioAtual(
+        displayName: nome,
+        username: username,
+      );
+      if (!mounted) return;
+      // Sucesso: volta para a Home (ou para o Perfil, ao concluir o perfil)
+      if (widget.somentePerfil) {
+        Navigator.of(context).pop();
+      } else {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } on UserProfileException catch (e) {
+      _mostrarErro(_mensagemDoPerfil(e));
+    } catch (_) {
+      _mostrarErro(_contaCriada
+          ? 'Sua conta foi criada, mas o perfil não foi concluído. Tente novamente.'
+          : 'Ocorreu um erro inesperado. Tente novamente.');
+    } finally {
+      if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  void _mostrarErro(String mensagem) {
+    if (mounted) setState(() => _erro = mensagem);
+  }
+
+  static String _mensagemDoAuth(String code) {
+    switch (code) {
+      case 'email-already-in-use':
+        return 'Este e-mail já está cadastrado. Entre com ele; se o cadastro '
+            'não foi concluído, conclua-o pela aba Perfil.';
+      case 'invalid-email':
+        return 'E-mail inválido.';
+      case 'weak-password':
+        return 'Senha fraca. Use pelo menos $senhaMinima caracteres.';
+      case 'network-request-failed':
+        return 'Erro de conexão. Verifique sua internet. A conta não foi criada.';
+      case 'too-many-requests':
+        return 'Muitas tentativas. Tente novamente mais tarde.';
+      default:
+        return 'Não foi possível criar a conta. Tente novamente.';
+    }
+  }
+
+  String _mensagemDoPerfil(UserProfileException e) {
+    // A conta já existe: deixar claro que só falta o perfil
+    final prefixo = widget.somentePerfil ? '' : 'Sua conta foi criada, mas o perfil não. ';
+    switch (e.code) {
+      case UserProfileErrorCode.usernameUnavailable:
+        return '${prefixo}Este username já está em uso. Escolha outro.';
+      case UserProfileErrorCode.invalidData:
+        return '$prefixo${e.message}';
+      case UserProfileErrorCode.unavailable:
+        return '${prefixo}Sem confirmação do servidor. Verifique sua conexão e '
+            'toque em CONCLUIR CADASTRO.';
+      case UserProfileErrorCode.alreadyExists:
+        return 'Esta conta já possui um perfil.';
+      case UserProfileErrorCode.unauthenticated:
+        return 'Sua sessão expirou. Entre novamente para concluir o cadastro.';
+      case UserProfileErrorCode.permissionDenied:
+      case UserProfileErrorCode.unknown:
+        return '${prefixo}O serviço de cadastro está indisponível agora. '
+            'Tente novamente mais tarde.';
+    }
   }
 
   void _voltarParaLogin() {
@@ -37,6 +169,7 @@ class _CadastroPageState extends State<CadastroPage> {
   }
 
   Widget _buildTextField({
+    required Key key,
     required TextEditingController controller,
     required String label,
     required IconData prefixIcon,
@@ -44,13 +177,16 @@ class _CadastroPageState extends State<CadastroPage> {
     Widget? suffixIcon,
     TextInputType keyboardType = TextInputType.text,
     TextCapitalization textCapitalization = TextCapitalization.none,
+    bool enabled = true,
   }) {
     const cardBg = Color(0xFF151E2E);
     const primaryGreen = Color(0xFF00D084);
     const textMuted = Color(0xFF8E9CAB);
 
     return TextField(
+      key: key,
       controller: controller,
+      enabled: enabled && !_enviando,
       obscureText: obscureText,
       keyboardType: keyboardType,
       textCapitalization: textCapitalization,
@@ -122,10 +258,10 @@ class _CadastroPageState extends State<CadastroPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Criar Conta',
+                  Text(
+                    widget.somentePerfil ? 'Concluir Cadastro' : 'Criar Conta',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -133,14 +269,26 @@ class _CadastroPageState extends State<CadastroPage> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Junte-se ao BetFriends e comece a jogar',
+                  Text(
+                    widget.somentePerfil
+                        ? 'Escolha seu nome e username para começar a jogar'
+                        : 'Junte-se ao BetFriends e comece a jogar',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: textMuted),
+                    style: const TextStyle(fontSize: 14, color: textMuted),
                   ),
                   const SizedBox(height: 30),
 
+                  if (_contaCriada && !widget.somentePerfil) ...[
+                    const _Aviso(
+                      key: Key('cadastro_conta_criada'),
+                      texto: 'Conta criada. Falta concluir o perfil: confira o '
+                          'nome e o username e toque em CONCLUIR CADASTRO.',
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
                   _buildTextField(
+                    key: const Key('cadastro_nome'),
                     controller: _nomeController,
                     label: 'Nome Completo',
                     prefixIcon: Icons.badge_outlined,
@@ -149,64 +297,85 @@ class _CadastroPageState extends State<CadastroPage> {
                   const SizedBox(height: 14),
 
                   _buildTextField(
+                    key: const Key('cadastro_username'),
                     controller: _usernameController,
                     label: 'Nome de usuário (Username)',
                     prefixIcon: Icons.alternate_email,
                   ),
                   const SizedBox(height: 14),
 
-                  _buildTextField(
-                    controller: _emailController,
-                    label: 'E-mail',
-                    prefixIcon: Icons.email_outlined,
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 14),
-
-                  _buildTextField(
-                    controller: _senhaController,
-                    label: 'Senha',
-                    prefixIcon: Icons.lock_outline,
-                    obscureText: _obscureSenha,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureSenha
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: const Color(0xFF64748B),
-                        size: 20,
-                      ),
-                      onPressed: () =>
-                          setState(() => _obscureSenha = !_obscureSenha),
+                  if (!widget.somentePerfil) ...[
+                    _buildTextField(
+                      key: const Key('cadastro_email'),
+                      controller: _emailController,
+                      label: 'E-mail',
+                      prefixIcon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
+                      enabled: !_contaCriada,
                     ),
-                  ),
-                  const SizedBox(height: 14),
+                    const SizedBox(height: 14),
 
-                  _buildTextField(
-                    controller: _confirmarSenhaController,
-                    label: 'Confirmar Senha',
-                    prefixIcon: Icons.lock_outline,
-                    obscureText: _obscureConfirmarSenha,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmarSenha
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: const Color(0xFF64748B),
-                        size: 20,
-                      ),
-                      onPressed: () => setState(
-                        () =>
-                            _obscureConfirmarSenha = !_obscureConfirmarSenha,
+                    _buildTextField(
+                      key: const Key('cadastro_senha'),
+                      enabled: !_contaCriada,
+                      controller: _senhaController,
+                      label: 'Senha',
+                      prefixIcon: Icons.lock_outline,
+                      obscureText: _obscureSenha,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureSenha
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: const Color(0xFF64748B),
+                          size: 20,
+                        ),
+                        onPressed: () =>
+                            setState(() => _obscureSenha = !_obscureSenha),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 14),
+
+                    _buildTextField(
+                      key: const Key('cadastro_confirmar_senha'),
+                      enabled: !_contaCriada,
+                      controller: _confirmarSenhaController,
+                      label: 'Confirmar Senha',
+                      prefixIcon: Icons.lock_outline,
+                      obscureText: _obscureConfirmarSenha,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmarSenha
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: const Color(0xFF64748B),
+                          size: 20,
+                        ),
+                        onPressed: () => setState(
+                          () =>
+                              _obscureConfirmarSenha = !_obscureConfirmarSenha,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
+                  if (_erro != null) ...[
+                    Text(
+                      _erro!,
+                      key: const Key('cadastro_erro'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                  const SizedBox(height: 10),
 
                   SizedBox(
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: _criarConta,
+                      key: const Key('cadastro_enviar'),
+                      onPressed: _enviando ? null : _criarConta,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryGreen,
                         foregroundColor: const Color(0xFF062319),
@@ -215,19 +384,28 @@ class _CadastroPageState extends State<CadastroPage> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: const Text(
-                        'CADASTRAR',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
+                      child: _enviando
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Color(0xFF062319),
+                              ),
+                            )
+                          : Text(
+                              _contaCriada ? 'CONCLUIR CADASTRO' : 'CADASTRAR',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  Row(
+                  if (!_contaCriada) Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
@@ -252,6 +430,28 @@ class _CadastroPageState extends State<CadastroPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _Aviso extends StatelessWidget {
+  final String texto;
+
+  const _Aviso({super.key, required this.texto});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B2421),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF00D084).withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        texto,
+        style: const TextStyle(color: Colors.white, fontSize: 13),
       ),
     );
   }

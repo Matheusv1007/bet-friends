@@ -9,8 +9,10 @@ import 'package:flutter_test/flutter_test.dart';
 class FakeUser extends Fake implements User {
   @override
   final String uid;
+  @override
+  final String? email;
 
-  FakeUser(this.uid);
+  FakeUser(this.uid, {this.email});
 }
 
 /// Simula o Firebase Auth sem rede: `authStateChanges` emite o estado atual
@@ -28,6 +30,9 @@ class FakeAuthService extends AuthService {
 
   int signInCalls = 0;
   int signOutCalls = 0;
+
+  Object? signUpError;
+  int signUpCalls = 0;
 
   FakeAuthService({User? usuarioInicial, this.sessaoPendente = false})
       : _usuario = usuarioInicial;
@@ -61,6 +66,19 @@ class FakeAuthService extends AuthService {
     signInCalls++;
     if (signInError != null) throw signInError!;
     _usuario = FakeUser('uid-$email');
+    _mudancas.add(_usuario);
+    return _FakeUserCredential(_usuario!);
+  }
+
+  /// Como o Firebase: cria a conta e já entra com ela.
+  @override
+  Future<UserCredential> signUp({
+    required String email,
+    required String password,
+  }) async {
+    signUpCalls++;
+    if (signUpError != null) throw signUpError!;
+    _usuario = FakeUser('uid-$email', email: email);
     _mudancas.add(_usuario);
     return _FakeUserCredential(_usuario!);
   }

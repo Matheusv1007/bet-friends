@@ -49,4 +49,29 @@ void main() {
       expect(auth.currentUser, isNotNull);
     });
   });
+
+  group('AuthProvider - signUp (KAN-25)', () {
+    test('cria a conta e marca o cadastro em andamento até a tela encerrar', () async {
+      final auth = FakeAuthService();
+      final provider = AuthProvider(authService: auth);
+
+      await provider.signUp(email: 'a@example.com', password: 'segredo1');
+
+      expect(auth.signUpCalls, 1);
+      expect(auth.currentUser?.email, 'a@example.com');
+      expect(provider.cadastroEmAndamento, isTrue);
+
+      provider.encerrarCadastro();
+      expect(provider.cadastroEmAndamento, isFalse);
+      expect(auth.currentUser, isNotNull, reason: 'encerrar o cadastro não sai da conta');
+    });
+
+    test('erro do Auth é repassado e não deixa o cadastro marcado', () async {
+      final auth = FakeAuthService()..signUpError = StateError('email-already-in-use');
+      final provider = AuthProvider(authService: auth);
+
+      await expectLater(provider.signUp(email: 'a@example.com', password: 'x'), throwsStateError);
+      expect(provider.cadastroEmAndamento, isFalse);
+    });
+  });
 }
