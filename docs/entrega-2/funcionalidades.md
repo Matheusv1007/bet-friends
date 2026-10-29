@@ -1,6 +1,8 @@
 # Funcionalidades — situação real na Segunda Entrega
 
-Legenda: ✅ real e testado · 🟡 parcial · 🎭 demonstrativo (interface sem efeito real) · ⏳ pendente
+Atualizado em 29/10/2026 (`qas` em `5ed4796`).
+
+Legenda: ✅ funciona no app com o Firebase real · 🧪 implementado e testado só nos emuladores, sem deploy · 🟡 parcial · 🎭 demonstrativo (interface sem efeito real) · ⏳ pendente
 
 ## Conta e sessão
 
@@ -9,18 +11,34 @@ Legenda: ✅ real e testado · 🟡 parcial · 🎭 demonstrativo (interface sem
 | Login com e-mail e senha | ✅ | Firebase Authentication; mensagens de erro traduzidas (KAN-26) |
 | Restauração de sessão | ✅ | `AuthGate` abre direto na Home se já houver sessão (KAN-27) |
 | Logout | ✅ | Menu do avatar, com confirmação; Voltar não retorna às telas protegidas (KAN-27) |
-| Cadastro | 🎭 | Formulário sem ação: "CADASTRAR" só volta ao Login (KAN-25) |
-| Perfil vinculado ao UID | 🟡 | Modelo, repositório e serviço testados; sem gravação real até as regras do Firestore (KAN-32) |
-| Tela de perfil | ⏳ | Aba "Perfil" sem destino (KAN-28) |
+| Cadastro pela tela | 🎭 | "CADASTRAR" só volta ao Login (KAN-25, não iniciada na interface) |
+| Cadastro no backend (`createUserProfile`) | 🧪 | Perfil, username único e carteira de 1.000 BetCoins numa só transação (KAN-31, KAN-72). Exportada, mas sem deploy e sem chamada pelo app |
+| Perfil vinculado ao UID | 🧪 | Leitura e edição testadas no Android contra os emuladores (KAN-32). A criação ainda deve passar a usar `createUserProfile` |
+| Tela de Perfil | 🧪 | Aba "Perfil" abre a tela (KAN-28). No Firebase real, depende das Security Rules publicadas e de um perfil existente; não verificado |
+| Editar nome de exibição | 🧪 | KAN-29 |
+| Comportamento sem conexão | 🧪 | Escritas falham com aviso em vez de ficarem pendentes no cache (KAN-24) |
+
+## Home
+
+Alterações do PR #25, cobertas por 11 testes de widget (`test/home_mvp_test.dart`); ainda não vistas no emulador com o Firebase real (reensaio pendente).
+
+| Funcionalidade | Situação | Observação |
+|---|---|---|
+| Barra inferior Home / Desafios / Perfil | ✅ | Ranking removido por ser pós-MVP (D-002, RN-RNK-001) |
+| Saudação | ✅ | "Olá!" ou "Olá, {nome}" quando há perfil; não mostra mais nome fixo |
+| Saldo no cabeçalho | ✅ | "Saldo indisponível" até existir a carteira na interface (KAN-69) |
+| Desafios Ativos | 🎭 | Exemplos fixos com o selo "DEMONSTRATIVO"; "Detalhes do Desafio" sem ação |
 
 ## Partidas (API football-data.org)
 
 | Funcionalidade | Situação | Observação |
 |---|---|---|
-| Listar partidas do Brasileirão | ✅ | Ao vivo, próximas e finalizadas recentes (BSA) |
+| Listar partidas do Brasileirão | ✅ | Ao vivo, próximas e finalizadas recentes (BSA), com chamada direta do app |
 | Estados de carregamento, erro e vazio | ✅ | Com "Tentar novamente" e mensagens amigáveis |
 | Puxar para atualizar e atualização a cada 30 s | ✅ | Mantém os dados anteriores com aviso se a atualização falhar |
-| Sincronização pelo backend e cache no Firestore | ⏳ | Hoje o app chama a API diretamente (KAN-44 a KAN-50) |
+| Modelo `Match`, status e resultado no backend | 🧪 | KAN-46 a KAN-48; ainda não usados pelo app |
+| Token guardado como segredo no backend | 🟡 | Estrutura pronta (KAN-21); nenhuma função usa o token e o app ainda o carrega |
+| Sincronização pelo backend e cache no Firestore | ⏳ | KAN-44, KAN-45, KAN-49, KAN-50 |
 | Detalhes da partida | ⏳ | KAN-43 |
 | Créditos "Data provided by football-data.org" | ⏳ | Só no README por enquanto (KAN-54) |
 
@@ -28,19 +46,23 @@ Legenda: ✅ real e testado · 🟡 parcial · 🎭 demonstrativo (interface sem
 
 | Funcionalidade | Situação | Observação |
 |---|---|---|
-| Tela Criar Desafio | 🟡 / 🎭 | Partidas reais e elegíveis (sem finalizadas, canceladas ou adiadas); saldo e amigos fixos; envio sem gravação, com aviso "Modo demonstrativo" |
-| Desafios Ativos na Home | 🎭 | Exemplos fixos |
-| Saldo exibido ("1.500 fichas") | 🎭 | Valor fixo; a regra oficial é saldo inicial de 1.000 BetCoins |
-| Amizades, aceite e recusa, estados do desafio | ⏳ | KAN-33 a KAN-41 e KAN-55 a KAN-68 |
-| Reserva, premiação, extrato e recuperação de BetCoins | ⏳ | KAN-69 a KAN-81 |
+| Tela Criar Desafio | 🟡 / 🎭 | Partidas reais (sem finalizadas, canceladas ou adiadas); amigos fixos; envio sem gravação, com aviso "Modo demonstrativo" |
+| Saldo na Criar Desafio ("1.500 fichas") | 🎭 | Valor fixo e sem selo; a regra oficial é saldo inicial de 1.000 BetCoins. Não apresentar como saldo real |
+| Invariantes de saldo e transações auditáveis | 🧪 | KAN-73, KAN-79 |
+| Reserva e liberação de BetCoins | 🧪 | KAN-74, KAN-75; funções internas, sem Callable |
+| Premiação, perda e reembolso em empate | 🧪 | KAN-76 a KAN-78; funções internas, ainda sem ligação com desafios |
+| Saldo, extrato e recuperação na interface | ⏳ | KAN-69 a KAN-71, KAN-80, KAN-81 |
+| Amizades | ⏳ | KAN-33 a KAN-41 |
+| Desafios persistidos e estados | ⏳ | KAN-55 a KAN-68 (KAN-62 ainda não iniciada) |
 | Liquidação automática e histórico | ⏳ | KAN-82 a KAN-91 |
-| Ranking | — | Fora do MVP; a aba existe, mas não abre tela |
+| Ranking | — | Fora do MVP; removido da navegação |
 
 ## Infraestrutura
 
 | Item | Situação |
 |---|---|
 | Firebase (Auth, Firestore, configuração Android) | ✅ configurado |
-| Estrutura de Callable Functions com testes (7) | 🟡 pronta, **não implantada** |
-| Regras do Firestore | 🟡 bloqueiam todo acesso até a KAN-22 |
-| Testes automatizados Flutter | ✅ 65 |
+| Schema do Firestore v2.0 | 🟡 documentado (`docs/firestore-schema.md`); decisões ainda marcadas como proposta |
+| Security Rules por coleção | 🧪 77 testes no emulador; **não publicadas** |
+| Cloud Functions (`systemPing`, `createUserProfile` e módulos internos) | 🧪 131 testes; **sem deploy** (depende do plano Blaze) |
+| Testes Flutter | ✅ 128 de unidade e widget; 33 de integração no Android (última execução em 28/10) |
