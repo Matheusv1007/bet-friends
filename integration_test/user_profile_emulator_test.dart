@@ -199,16 +199,22 @@ void main() {
   });
 
   group('D - Criação', () {
-    test('criarPerfilDoUsuarioAtual é bloqueado pelas rules e nada é gravado', () async {
+    // A criação pelo app passa pela Callable createUserProfile
+    // (criar_perfil_emulator_test.dart). Aqui: o SDK direto continua bloqueado.
+    test('o cliente não cria users/{uid} direto pelo SDK e nada é gravado', () async {
       await entrar(_semPerfilEmail);
+      final uid = auth.currentUser!.uid;
 
       await expectLater(
-        service.criarPerfilDoUsuarioAtual(
-          displayName: 'Sem Perfil',
-          username: 'semperfil',
-          usernameNormalized: 'semperfil',
-        ),
-        _erro(UserProfileErrorCode.permissionDenied),
+        db.doc('users/$uid').set({
+          'displayName': 'Sem Perfil',
+          'username': 'semperfil',
+          'usernameNormalized': 'semperfil',
+          'email': _semPerfilEmail,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }),
+        throwsA(isA<FirebaseException>().having((e) => e.code, 'code', 'permission-denied')),
       );
       expect(await service.carregarPerfilAtual(), isNull);
     });

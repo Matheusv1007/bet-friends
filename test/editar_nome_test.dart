@@ -46,9 +46,6 @@ class _RepositorioEditavel implements UserProfileRepository {
 
   @override
   Future<UserProfile?> buscarPorUid(String uid) => throw UnimplementedError();
-
-  @override
-  Future<void> criar(UserProfile perfil) => throw UnimplementedError();
 }
 
 const _ana = UserProfile(

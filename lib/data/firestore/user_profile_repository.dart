@@ -7,6 +7,9 @@ import 'gravacao_no_servidor.dart';
 enum UserProfileErrorCode {
   unauthenticated,
   alreadyExists,
+
+  /// Outro usuário já usa o username (sem diferenciar maiúsculas).
+  usernameUnavailable,
   permissionDenied,
   unavailable,
   invalidData,
@@ -77,9 +80,8 @@ abstract interface class UserProfileRepository {
   /// a ser confirmado pelo servidor.
   Stream<PerfilObservado> observarPorUid(String uid);
 
-  /// Cria `users/{perfil.uid}`. Falha com [UserProfileErrorCode.alreadyExists]
-  /// se o documento já existir: o perfil nunca é sobrescrito.
-  Future<void> criar(UserProfile perfil);
+  // Não há criação aqui: `users/{uid}` é criado só pelo backend, junto com o
+  // username e a carteira (createUserProfile; ver UserProfileService).
 
   /// Altera somente `displayName` e `updatedAt`, os únicos campos que o app
   /// pode gravar em `users/{uid}` (firestore.rules). UID, username, e-mail e
@@ -130,30 +132,6 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
       (Object e) => throw UserProfileException.fromFirebase(e as FirebaseException),
       test: (e) => e is FirebaseException,
     );
-  }
-
-  @override
-  Future<void> criar(UserProfile perfil) async {
-    _validarUid(perfil.uid);
-    final ref = _doc(perfil.uid);
-    try {
-      await gravarNoServidor(_db, (transaction) async {
-        final atual = await transaction.get(ref);
-        if (atual.exists) {
-          throw const UserProfileException(
-            UserProfileErrorCode.alreadyExists,
-            'O perfil deste usuário já existe.',
-          );
-        }
-        transaction.set(ref, {
-          ...perfil.toMap(),
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      });
-    } on FirebaseException catch (e) {
-      throw UserProfileException.fromFirebase(e);
-    }
   }
 
   @override
