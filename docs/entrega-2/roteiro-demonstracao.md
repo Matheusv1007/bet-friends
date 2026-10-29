@@ -33,7 +33,7 @@ O backend novo (cadastro com username único, carteira e movimentações de BetC
 ## Evitar durante a demo
 
 - Botão **CADASTRAR**: volta ao Login sem criar conta.
-- Aba **Perfil**: no Firebase real, as Security Rules ainda não foram publicadas e a conta de demonstração pode não ter perfil. Mostrar só se o teste prévio exibir os dados corretamente; senão, explicar que ela foi validada nos emuladores.
+- Aba **Perfil**: no Firebase real, as Security Rules já foram publicadas (29/10), mas a conta de demonstração não tem perfil, porque a `createUserProfile` ainda não foi implantada. Mostrar só se o teste prévio exibir os dados corretamente; senão, explicar que ela foi validada nos emuladores.
 - Botões **"Detalhes do Desafio"** em "Desafios Ativos": sem ação.
 - O card **"SALDO DISPONÍVEL — 1.500 fichas"** da Criar Desafio é fixo: não apresentá-lo como saldo da conta.
 - Escudo da **Chapecoense** aparece como quadrado branco na Home (observado em 28/10); se o jogo estiver na lista, não chamar atenção para ele.

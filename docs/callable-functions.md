@@ -104,6 +104,14 @@ npx firebase-tools@15.32.1 deploy --only functions --project betfriends-unirv-20
 
 O deploy de Functions exige o projeto Firebase no plano Blaze. Informe sempre `--project` e `--only`: o `.firebaserc` só tem o projeto de produção.
 
+**Situação em 29/10/2026:** o projeto está no plano **Spark**, a Cloud Functions API não está ativa e **nenhuma função está publicada**. Antes do primeiro deploy:
+
+1. Ativar o plano Blaze, com alerta de orçamento (decisão do Proprietário do projeto).
+2. Garantir a permissão de deploy. As Callables gen 2 rodam no Cloud Run, e o deploy libera a invocação pública do serviço, o que exige `run.services.setIamPolicy`. O papel Editor não tem essa permissão. O deploy deve ser feito pelo Proprietário, ou por uma conta com um papel que a inclua (ex.: Cloud Run Admin ou Cloud Functions Admin).
+3. Aceitar, no primeiro deploy, a política de limpeza de imagens do Artifact Registry.
+
+As Security Rules são publicadas separadamente e não exigem o Blaze (`npx firebase-tools@15.32.1 deploy --only firestore:rules --project betfriends-unirv-2026`). Foram publicadas em 29/10/2026, depois de 67/67 testes unitários e 226/226 do backend + rules no emulador.
+
 ## 8 - Segredos (KAN-21)
 
 Credenciais de serviços externos ficam **só no backend**, no Google Secret Manager. Nunca no app Flutter, em arquivo versionado, no Jira ou em logs (RN-SEC-003, RN-SEC-005, RNF-004).

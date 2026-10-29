@@ -4,7 +4,7 @@ Aplicativo Android, feito em Flutter, para desafios 1x1 entre amigos sobre parti
 
 Projeto Final da disciplina de Desenvolvimento Mobile.
 
-> **Estado atual (Segunda Entrega, 05/11/2026):** protótipo navegável com autenticação real e listagem de partidas reais. A tela de Perfil, as Security Rules e boa parte do backend (cadastro com username único, carteira e movimentações de BetCoins) estão implementadas e testadas **apenas nos emuladores do Firebase**: as Cloud Functions e as regras ainda **não foram implantadas** no projeto real. Amizades, desafios persistidos e liquidação ainda não foram iniciados. Veja [O que está pronto](#o-que-está-pronto).
+> **Estado atual (Segunda Entrega, 05/11/2026):** protótipo navegável com autenticação real e listagem de partidas reais. A tela de Perfil e boa parte do backend (cadastro com username único, carteira e movimentações de BetCoins) estão implementadas e testadas **apenas nos emuladores do Firebase**. As Security Rules da KAN-22 foram **publicadas no projeto real em 29/10/2026**; as Cloud Functions ainda **não foram implantadas** (projeto no plano Spark). Amizades, desafios persistidos e liquidação ainda não foram iniciados. Veja [O que está pronto](#o-que-está-pronto).
 
 ## Tecnologias
 
@@ -14,7 +14,7 @@ Projeto Final da disciplina de Desenvolvimento Mobile.
 | Estado | Provider |
 | Navegação | Navigator (com `AuthGate` baseado na sessão) |
 | Autenticação | Firebase Authentication (e-mail e senha) |
-| Banco de dados | Cloud Firestore (schema v2.0 e Security Rules no repositório, ainda não publicadas) |
+| Banco de dados | Cloud Firestore (schema v2.0; Security Rules da KAN-22 publicadas em 29/10/2026) |
 | Backend | Cloud Functions em TypeScript, Node 22 (implementadas e testadas no emulador, sem deploy) |
 | Dados de futebol | [football-data.org](https://www.football-data.org) API v4, competição BSA |
 | HTTP | `package:http` |
@@ -109,14 +109,14 @@ Os padrões de arquivos ficam entre aspas simples: o `node --test` do Node 22 n�
 
 Os testes de integração do app no Android contra os emuladores estão descritos em [`integration_test/README.md`](integration_test/README.md).
 
-As Cloud Functions **ainda não estão implantadas** no projeto Firebase (o deploy depende do plano Blaze e da habilitação da Cloud Functions API). Não é preciso executar o backend para rodar o app.
+As Cloud Functions **ainda não estão implantadas** no projeto Firebase: o projeto está no plano **Spark** e a Cloud Functions API não está ativa. O deploy depende do plano Blaze e de uma conta com permissão para liberar a invocação das Callables (ver [`docs/callable-functions.md`](docs/callable-functions.md) §7). Não é preciso executar o backend para rodar o app.
 
 ## Configuração do Firebase
 
 O repositório já inclui a configuração **de cliente** do Firebase para Android (`android/app/google-services.json` e `lib/firebase_options.dart`). Esses arquivos identificam o projeto, mas não são credenciais administrativas. Não é preciso configurar nada para rodar o app.
 
 - Para entrar no projeto real, use uma conta já cadastrada no Firebase Authentication (peça uma conta de teste à equipe). A tela de cadastro cria a conta no Auth, mas o perfil depende da `createUserProfile`, que ainda não foi implantada: no projeto real, a conta fica criada sem perfil.
-- As Security Rules por coleção (`firestore.rules`, KAN-22) estão no repositório e passam nos testes do emulador, mas **ainda não foram publicadas** no projeto real. Por isso, a tela de Perfil só foi validada nos emuladores.
+- As Security Rules por coleção (`firestore.rules`, KAN-22) foram **publicadas no projeto real em 29/10/2026**, idênticas às do repositório. Elas permitem ao usuário ler o próprio perfil e alterar só o nome de exibição; o resto continua negado ao app. Como ainda não há perfis no projeto real (a criação depende da `createUserProfile`), a tela de Perfil só foi validada nos emuladores.
 - Nunca versione credenciais administrativas, arquivos `.env`, `.secret.local` ou chaves de serviço.
 
 > **Aviso de segurança conhecido:** hoje o token da football-data.org está no código do app. Isso contraria a arquitetura planejada, em que só o backend acessa o provedor. O backend já tem a estrutura para guardar o token como segredo (KAN-21), mas nenhuma função o utiliza ainda; a troca do token (KAN-102) e o Adapter no backend (KAN-44) estão pendentes. Até lá, **não distribua APKs** gerados a partir deste código e não reproduza o token em issues, prints ou documentos.
@@ -154,12 +154,12 @@ android/                         # projeto Android
 - **Sessão:** ao abrir, o app restaura a sessão e vai direto para a Home.
 - **Logout** pelo menu do avatar, com confirmação. Depois de sair, o botão Voltar não retorna às telas protegidas.
 - **Partidas reais** do Brasileirão (ao vivo, próximas e finalizadas recentes) na Home e na tela Criar Desafio, com carregamento, mensagem de erro, estado vazio, "Tentar novamente", puxar para atualizar e atualização automática a cada 30 s. Hoje o app chama a API diretamente.
+- **Security Rules** por coleção (KAN-22): testadas no emulador e publicadas no projeto real em 29/10/2026.
 - **Falha de atualização:** se a API falhar depois de já ter carregado, os dados anteriores continuam na tela com um aviso.
 - **Home sem dados fictícios no cabeçalho:** saudação "Olá!" (ou "Olá, {nome}" quando há perfil) e "Saldo indisponível". A barra inferior tem Home, Desafios e Perfil; o Ranking foi removido por ser pós-MVP.
 
 ### Implementado e testado só nos emuladores do Firebase
-- **Perfil** (`users/{uid}`, vinculado ao UID): tela de Perfil, edição do nome de exibição e comportamento seguro sem conexão (KAN-24, KAN-28, KAN-29, KAN-32). No projeto real, depende da publicação das Security Rules e da existência de perfis.
-- **Security Rules** por coleção (KAN-22).
+- **Perfil** (`users/{uid}`, vinculado ao UID): tela de Perfil, edição do nome de exibição e comportamento seguro sem conexão (KAN-24, KAN-28, KAN-29, KAN-32). No projeto real, as Security Rules já estão publicadas, mas ainda não há perfis: a criação depende da `createUserProfile`, sem deploy.
 - **Cadastro** (KAN-25, KAN-31, KAN-32 e KAN-72): a tela cria a conta no Firebase Auth e chama a `createUserProfile`, que cria perfil, username único e carteira com 1.000 BetCoins em uma única transação. Se o perfil falhar, a sessão é mantida e o cadastro pode ser concluído na mesma tela ou depois, pela aba Perfil.
 - **BetCoins no backend:** invariantes de saldo (KAN-73), registro auditável de transações (KAN-79), reserva e liberação (KAN-74, KAN-75), premiação, perda e reembolso em empate (KAN-76 a KAN-78). São funções internas: nenhuma tela nem Callable as usa ainda.
 - **Partidas no backend:** modelo `Match`, mapeamento de status e de resultado da Football-Data (KAN-46 a KAN-48), ainda sem Adapter nem sincronização.
@@ -169,7 +169,7 @@ android/                         # projeto Android
 - **Criar Desafio:** a escolha da partida usa dados reais, mas amigos ("DEMONSTRATIVO") e saldo ("1.500 fichas", valor fixo) não são reais, e o envio mostra "Modo demonstrativo: nenhum desafio foi salvo no banco."
 
 ### Pendente para o MVP
-Deploy das Functions e das regras, amizades, desafios persistidos com palpites e estados, saldo e extrato na interface, bônus de recuperação, sincronização das partidas pelo backend, liquidação automática, histórico e tela de créditos ("Data provided by football-data.org").
+Deploy das Functions (as regras já foram publicadas), amizades, desafios persistidos com palpites e estados, saldo e extrato na interface, bônus de recuperação, sincronização das partidas pelo backend, liquidação automática, histórico e tela de créditos ("Data provided by football-data.org").
 
 ## Testes
 
@@ -182,6 +182,13 @@ Deploy das Functions e das regras, amizades, desafios persistidos com palpites e
 | Backend (`functions/`): testes puros + Firestore Emulator | 131/131 (58 puros + 73 no emulador) |
 | Security Rules no Firestore Emulator | 77/77 |
 | `integration_test/` no Android contra os emuladores | 33/33 na última execução, em 28/10/2026; não reexecutados depois (o app só ganhou uma constante desde então) |
+
+Validação antes da publicação das Security Rules (29/10/2026, `qas` em `74a9bcf`, Node 22.23.4, projeto `demo-betfriends`):
+
+| Suíte | Resultado |
+|---|---|
+| Backend (`functions/`): `npm test`, testes puros | 67/67 |
+| Backend + Security Rules no Firestore Emulator | 226/226 (149 do backend + 77 das rules) |
 
 Nenhum teste usa o Firebase de produção.
 

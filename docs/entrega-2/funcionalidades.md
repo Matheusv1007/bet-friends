@@ -14,7 +14,7 @@ Legenda: ✅ funciona no app com o Firebase real · 🧪 implementado e testado 
 | Cadastro pela tela | 🎭 | "CADASTRAR" só volta ao Login (KAN-25, não iniciada na interface) |
 | Cadastro no backend (`createUserProfile`) | 🧪 | Perfil, username único e carteira de 1.000 BetCoins numa só transação (KAN-31, KAN-72). Exportada, mas sem deploy e sem chamada pelo app |
 | Perfil vinculado ao UID | 🧪 | Leitura e edição testadas no Android contra os emuladores (KAN-32). A criação ainda deve passar a usar `createUserProfile` |
-| Tela de Perfil | 🧪 | Aba "Perfil" abre a tela (KAN-28). No Firebase real, depende das Security Rules publicadas e de um perfil existente; não verificado |
+| Tela de Perfil | 🧪 | Aba "Perfil" abre a tela (KAN-28). No Firebase real, as Security Rules já foram publicadas (29/10), mas ainda não há perfis: a criação depende da `createUserProfile`, sem deploy; não verificado |
 | Editar nome de exibição | 🧪 | KAN-29 |
 | Comportamento sem conexão | 🧪 | Escritas falham com aviso em vez de ficarem pendentes no cache (KAN-24) |
 
@@ -63,6 +63,6 @@ Alterações do PR #25, cobertas por 11 testes de widget (`test/home_mvp_test.da
 |---|---|
 | Firebase (Auth, Firestore, configuração Android) | ✅ configurado |
 | Schema do Firestore v2.0 | 🟡 documentado (`docs/firestore-schema.md`); decisões ainda marcadas como proposta |
-| Security Rules por coleção | 🧪 77 testes no emulador; **não publicadas** |
-| Cloud Functions (`systemPing`, `createUserProfile` e módulos internos) | 🧪 131 testes; **sem deploy** (depende do plano Blaze) |
+| Security Rules por coleção | ✅ **publicadas no projeto real em 29/10/2026**; 77 testes no emulador |
+| Cloud Functions (`systemPing`, `createUserProfile` e módulos internos) | 🧪 131 testes; **sem deploy** (projeto no plano Spark; depende do Blaze e de permissão IAM do Proprietário) |
 | Testes Flutter | ✅ 128 de unidade e widget; 33 de integração no Android (última execução em 28/10) |

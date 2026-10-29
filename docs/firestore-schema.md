@@ -473,7 +473,7 @@ O app nunca grava saldo, transação, estado de desafio, resultado ou vencedor (
 | `UserProfileService.criarPerfilDoUsuarioAtual` recebia `usernameNormalized` do chamador | ✅ **Resolvido na KAN-32.** O parâmetro foi removido; a normalização é só do backend. Ligar a tela de cadastro ao serviço fica na KAN-25 |
 | `FirestoreCollections` (5 coleções) | ✅ Compatível; `usernames` não é lida pelo app (§3.2), então não precisa de constante no Flutter |
 | `PartidaModel` (Flutter) | ⚠️ Usa o formato do provedor; será substituído por um modelo baseado em `matches` (KAN-46/KAN-52). Fora do escopo |
-| `firestore.rules` (*deny-all*) | ✅ Compatível; as regras de §5.1 serão escritas na KAN-22 |
+| `firestore.rules` | ✅ Regras da KAN-22, conforme §5.1; publicadas no projeto real em 29/10/2026 (substituíram o *deny-all* da KAN-17) |
 
 ---
 
@@ -578,6 +578,8 @@ lib/data/firestore/
 ```
 
 ### A.4 - Regras atuais (sem alteração)
+
+> Histórico: estas regras ficaram publicadas até 29/10/2026, quando foram substituídas pelas da KAN-22.
 
 ```text
 rules_version = '2';

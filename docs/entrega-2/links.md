@@ -20,7 +20,8 @@ Promover `qas → main` **não foi feito**. Antes, a equipe precisa decidir:
 Usar "concluída" só para o que funciona no produto. O que está implementado e testado apenas nos emuladores deve ficar em revisão/QA, ou com a nota "sem deploy".
 
 - [ ] Concluídas (Done) coerentes com o código e o app real: KAN-26, KAN-27, KAN-99, KAN-100, KAN-101 (verificar critérios), além das já concluídas KAN-14, 15, 16, 19, 20, 23 e KAN-93 a KAN-96.
-- [ ] Implementadas sem deploy (revisão/QA, **não** Done): KAN-18, 22, 28, 29, 31, 32, 46, 47, 48, 72, 73, 74, 75, 76, 77, 78, 79.
+- [ ] KAN-22: Security Rules publicadas no projeto real em 29/10/2026; pode ir para Done após conferência da equipe.
+- [ ] Implementadas sem deploy (revisão/QA, **não** Done): KAN-18, 28, 29, 31, 32, 46, 47, 48, 72, 73, 74, 75, 76, 77, 78, 79.
 - [ ] Parciais (em andamento): KAN-21 (segredo sem uso), KAN-24, KAN-25 (só o backend existe).
 - [ ] KAN-31: implementada por Matheus Vasco; atualizar o responsável, se ainda estiver com outro integrante.
 - [ ] KAN-75: entrou pelo PR #30, sem PR próprio; registrar no card.

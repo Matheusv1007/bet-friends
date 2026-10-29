@@ -19,9 +19,28 @@
 |---|---|---|
 | `integration_test/` no Android contra os emuladores | Nenhum dispositivo Android ativo | ✅ **33/33** em 28/10 (17 perfil, 5 tela de Perfil, 3 edição de nome, 8 modo offline). Desde então o app só ganhou uma constante (`CallableNames.createUserProfile`) |
 | Chamada da `createUserProfile` pelo Functions Emulator (HTTP) | Não existe suíte para isso; a Callable foi testada só pela execução direta da função no emulador do Firestore | — |
-| Deploy das Functions e das Security Rules | Fora do escopo; exige autorização da equipe | Em 28/10, a Cloud Functions API estava desabilitada no projeto (HTTP 403). Não há registro de deploy depois disso |
+| Deploy das Functions e das Security Rules | Fora do escopo; exige autorização da equipe | Em 28/10, a Cloud Functions API estava desabilitada no projeto (HTTP 403). As Security Rules foram publicadas depois, em 29/10 (ver [Publicação das Security Rules](#publicação-das-security-rules-29102026)); as Functions continuam sem deploy |
 
 Os PRs #26 a #35 foram integrados sem descrição e sem revisão formal registrada. Esta execução é a primeira registrada da suíte completa do backend depois deles.
+
+## Publicação das Security Rules (29/10/2026)
+
+**Código:** `qas` em `74a9bcf` (merge do PR #40) · **Ambiente:** Node 22.23.4 isolado e Firebase CLI 15.32.1 ([`docs/callable-functions.md`](../callable-functions.md) §9), Firestore Emulator com JDK 21, projeto `demo-betfriends`.
+
+| Verificação | Resultado |
+|---|---|
+| `firestore.rules` | Idêntico ao da KAN-22 (`28ddc33`) |
+| `npm test` em `functions/` | ✅ **67/67** |
+| Backend + Security Rules no Firestore Emulator | ✅ **226/226** (149 do backend + 77 das rules) |
+| `deploy --only firestore:rules --project betfriends-unirv-2026` | ✅ Regras compiladas e publicadas; a versão publicada é idêntica ao arquivo do repositório (SHA-256 conferido) |
+
+Situação do projeto real depois da publicação (auditoria somente leitura):
+
+- **Plano Spark** (sem faturamento); a Cloud Functions API não está ativa e **nenhuma Cloud Function está publicada**.
+- Firestore `(default)` em `southamerica-east1`, sem documentos e sem índices compostos.
+- Authentication com e-mail e senha ativo.
+
+Pendências para publicar as Functions: decisão sobre o plano Blaze (com alerta de orçamento); permissão de deploy, porque a conta usada na auditoria não pode definir a política IAM do Cloud Run (`run.services.setIamPolicy`), necessária para liberar a invocação das Callables, e o Proprietário deve fazer o deploy ou conceder esse papel; depois, o deploy das Functions e um teste em produção.
 
 ## Ensaio no emulador (28/10/2026)
 
