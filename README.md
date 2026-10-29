@@ -85,6 +85,8 @@ flutter build apk --debug       # gera build/app/outputs/flutter-apk/app-debug.a
 
 ### Backend (opcional)
 
+Com o Node 22 no PATH, sem trocar o Node do sistema (ver [`docs/callable-functions.md`](docs/callable-functions.md) §9):
+
 ```bash
 cd functions
 npm ci
@@ -96,12 +98,14 @@ Os testes que usam o Firestore Emulator (backend e Security Rules) rodam na raiz
 ```bash
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH="$JAVA_HOME/bin:$PATH" \
   firebase emulators:exec --only firestore --project demo-betfriends \
-  "$(command -v node) --test --test-concurrency=1 functions/lib/test/"        # backend (após npm test)
+  "$(command -v node) --test --test-concurrency=1 'functions/lib/test/**/*.test.js'"   # backend (após npm test)
 
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH="$JAVA_HOME/bin:$PATH" \
   firebase emulators:exec --only firestore --project demo-betfriends \
-  "$(command -v node) --test --test-concurrency=1 tests/firestore-rules/"     # Security Rules
+  "$(command -v node) --test --test-concurrency=1 'tests/firestore-rules/*.test.mjs'"  # Security Rules
 ```
+
+Os padrões de arquivos ficam entre aspas simples: o `node --test` do Node 22 não aceita pasta como argumento.
 
 Os testes de integração do app no Android contra os emuladores estão descritos em [`integration_test/README.md`](integration_test/README.md).
 

@@ -11,7 +11,7 @@ Testes de `firestore.rules` contra o **Firestore Emulator local**, usando `node:
 
 - Firebase CLI.
 - JDK 21 ou superior para o emulador (no Arch: `/usr/lib/jvm/java-21-openjdk`).
-- Node.js 20 ou superior instalado no sistema.
+- Node.js 22, a mesma versão major do runtime das Functions (`functions/.nvmrc`). Para usá-lo sem trocar o Node do sistema, ver `docs/callable-functions.md` §9.
 - Emulador do Firestore baixado uma vez: `firebase setup:emulators:firestore`.
 - Para `backend-admin.test.mjs`: dependências de `functions/` instaladas (`cd functions && npm ci`). O `firebase-admin` já está declarado em `functions/package.json`.
 
@@ -22,10 +22,11 @@ Na raiz do repositório:
 ```bash
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH="$JAVA_HOME/bin:$PATH" \
   firebase emulators:exec --only firestore --project demo-betfriends \
-  "$(command -v node) --test --test-concurrency=1 tests/firestore-rules/"
+  "$(command -v node) --test --test-concurrency=1 'tests/firestore-rules/*.test.mjs'"
 ```
 
 - Use o caminho absoluto do Node (`$(command -v node)`): o binário standalone do Firebase CLI usa um Node embutido que não reconhece `--test`.
+- Passe o padrão de arquivos entre aspas simples, não a pasta: o `node --test` do Node 22 não aceita diretório como argumento (`Cannot find module …/tests/firestore-rules`), ao contrário de versões mais novas, como o Node 26.
 - `--test-concurrency=1` é obrigatório: os arquivos limpam o emulador e não podem rodar em paralelo.
 - Os testes abortam antes de qualquer conexão se `FIRESTORE_EMULATOR_HOST` não estiver definido ou se o projeto não começar com `demo-`.
 - O emulador grava `firestore-debug.log` na raiz, que já é ignorado pelo Git.
