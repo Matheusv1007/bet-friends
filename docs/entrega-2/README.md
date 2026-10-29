@@ -2,6 +2,8 @@
 
 **Prazo:** 05/11/2026, 21h · **Task:** KAN-104 · **Responsável:** Pedro Simon · **Atualizado em:** 29/10/2026 (`qas` em `5ed4796`, após os PRs #15 a #35)
 
+> **Atualização 29/10/2026 (após o PR #40):** as Security Rules da KAN-22 foram publicadas no projeto real. O projeto continua no plano Spark e as Cloud Functions continuam sem deploy. Detalhes em [validacao-tecnica.md](validacao-tecnica.md#publicação-das-security-rules-29102026).
+
 Material de preparação da Segunda Entrega. Cada documento separa o que foi **executado e verificado** do que ainda **depende de ação manual** da equipe.
 
 | Documento | Conteúdo |
@@ -30,6 +32,6 @@ A Segunda Entrega pede um **protótipo** navegável com integração inicial da 
 |---|---|---|
 | Situação | Quase pronta: faltam ações de gestão (links, Jira, `main`) e o ensaio | Em construção: o backend avançou, mas nada além de login e partidas chegou ao app real |
 | Avanço | — | ≈ 35 % do MVP implementado e testado em código; ≈ 12 % utilizável no app real (estimativa por módulo de 29/10) |
-| Maior bloqueio | Nenhum técnico | Deploy das Cloud Functions e das Security Rules (plano Blaze); desafios (KAN-62) ainda não iniciados |
+| Maior bloqueio | Nenhum técnico | Deploy das Cloud Functions (plano Blaze e permissão IAM do Proprietário; as Security Rules já foram publicadas em 29/10); desafios (KAN-62) ainda não iniciados |
 
 **Não apresentar como funcionalidades do app** o cadastro, as operações com BetCoins nem os desafios: existem só no código e nos emuladores, ou só como interface demonstrativa.
