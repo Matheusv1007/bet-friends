@@ -53,12 +53,24 @@ Os testes do arquivo rodam em ordem: os grupos B a D usam a conta criada no grup
 
 O `FirebaseApp` deste arquivo usa uma API key fictícia no formato do Firebase, porque o SDK de Functions no Android recusa chaves como `demo-api-key`. Não é uma credencial.
 
+## `cadastro_emulator_test.dart` (KAN-25)
+
+Usa o app inteiro (`App` com AuthGate, Login, Cadastro, Home e Perfil) contra Auth, Firestore e Functions Emulator, com partidas locais em vez da Football-Data. Preenche a tela de cadastro e verifica:
+
+- cadastro válido → Home com o nome, `users/{uid}` com username, e-mail e carteira de 1.000 e um único `INITIAL_BALANCE`;
+- logout, login com a conta criada e reabertura do app com a sessão restaurada;
+- e-mail já cadastrado → mensagem, sem conta nova;
+- username de outro usuário → a conta fica criada, a tela repete só o perfil com outro username, sem criar outra conta nem duplicar a carteira;
+- Functions fora do ar depois de criar a conta → mensagem; com o app reaberto, a aba Perfil oferece "CONCLUIR CADASTRO", que cria o perfil.
+
+Usa e-mails e usernames com o prefixo `cad`, para não colidir com `criar_perfil_emulator_test.dart` na mesma sessão dos emuladores. Os testes rodam em ordem (B usa a conta de A).
+
 ## Pré-requisitos
 
 - Emulador Android em execução (`flutter emulators --launch Pixel_10_Pro`). O teste acessa os emuladores do host por `10.0.2.2`.
 - JDK 21+, Firebase CLI e Firestore Emulator, como em `tests/firestore-rules/README.md`.
 - `cd functions && npm ci`, para o `firebase-admin` usado pelo seed.
-- Para `criar_perfil_emulator_test.dart`: `cd functions && npm run build`, para o Functions Emulator carregar `functions/lib/`.
+- Para `criar_perfil_emulator_test.dart` e `cadastro_emulator_test.dart`: `cd functions && npm run build`, para o Functions Emulator carregar `functions/lib/`.
 - O Functions Emulator precisa rodar o Firebase CLI com o Node do sistema (22 ou superior). O binário standalone (`/usr/local/bin/firebase`) usa um Node 20 embutido, que não carrega o `firebase-admin` 14 (`ERR_REQUIRE_ESM` em `jose`) e deixa o emulador sem funções (`not-found`). O comando abaixo chama o mesmo CLI já instalado em `~/.cache/firebase/tools` com o Node do sistema.
 
 ## Executar
@@ -74,7 +86,7 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH="$JAVA_HOME/bin:$PATH" \
      $(command -v flutter) test integration_test/ -d emulator-5554; R=\$?; kill \$P; exit \$R; }"
 ```
 
-O proxy só é necessário para `modo_offline_emulator_test.dart`; os demais arquivos funcionam com o comando sem ele. O Functions Emulator só é necessário para `criar_perfil_emulator_test.dart`.
+O proxy só é necessário para `modo_offline_emulator_test.dart`; os demais arquivos funcionam com o comando sem ele. O Functions Emulator só é necessário para `criar_perfil_emulator_test.dart` e `cadastro_emulator_test.dart`.
 
 Os arquivos rodam em sequência na mesma sessão dos emuladores. Cada um altera só a própria conta (`uidAna` na KAN-32, `uidCaio` na KAN-29, `uidDani` na KAN-24); a tela da KAN-28 usa `uidBia`, que ninguém altera.
 

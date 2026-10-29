@@ -111,7 +111,7 @@ As Cloud Functions **ainda não estão implantadas** no projeto Firebase (o depl
 
 O repositório já inclui a configuração **de cliente** do Firebase para Android (`android/app/google-services.json` e `lib/firebase_options.dart`). Esses arquivos identificam o projeto, mas não são credenciais administrativas. Não é preciso configurar nada para rodar o app.
 
-- Para entrar, é necessária uma conta já cadastrada no Firebase Authentication do projeto, já que o cadastro pelo app ainda não está ativo. Peça uma conta de teste à equipe.
+- Para entrar no projeto real, use uma conta já cadastrada no Firebase Authentication (peça uma conta de teste à equipe). A tela de cadastro cria a conta no Auth, mas o perfil depende da `createUserProfile`, que ainda não foi implantada: no projeto real, a conta fica criada sem perfil.
 - As Security Rules por coleção (`firestore.rules`, KAN-22) estão no repositório e passam nos testes do emulador, mas **ainda não foram publicadas** no projeto real. Por isso, a tela de Perfil só foi validada nos emuladores.
 - Nunca versione credenciais administrativas, arquivos `.env`, `.secret.local` ou chaves de serviço.
 
@@ -156,17 +156,16 @@ android/                         # projeto Android
 ### Implementado e testado só nos emuladores do Firebase
 - **Perfil** (`users/{uid}`, vinculado ao UID): tela de Perfil, edição do nome de exibição e comportamento seguro sem conexão (KAN-24, KAN-28, KAN-29, KAN-32). No projeto real, depende da publicação das Security Rules e da existência de perfis.
 - **Security Rules** por coleção (KAN-22).
-- **Cadastro no backend** (`createUserProfile`, KAN-31 e KAN-72): cria perfil, username único e carteira com 1.000 BetCoins em uma única transação. Ainda não é chamado pelo app.
+- **Cadastro** (KAN-25, KAN-31, KAN-32 e KAN-72): a tela cria a conta no Firebase Auth e chama a `createUserProfile`, que cria perfil, username único e carteira com 1.000 BetCoins em uma única transação. Se o perfil falhar, a sessão é mantida e o cadastro pode ser concluído na mesma tela ou depois, pela aba Perfil.
 - **BetCoins no backend:** invariantes de saldo (KAN-73), registro auditável de transações (KAN-79), reserva e liberação (KAN-74, KAN-75), premiação, perda e reembolso em empate (KAN-76 a KAN-78). São funções internas: nenhuma tela nem Callable as usa ainda.
 - **Partidas no backend:** modelo `Match`, mapeamento de status e de resultado da Football-Data (KAN-46 a KAN-48), ainda sem Adapter nem sincronização.
 
 ### Apenas demonstrativo (interface sem funcionalidade real)
-- **Cadastro:** o formulário existe, mas o botão "CADASTRAR" não cria conta e apenas volta ao Login.
 - **Desafios Ativos** na Home: exemplos fixos, com o selo "DEMONSTRATIVO".
 - **Criar Desafio:** a escolha da partida usa dados reais, mas amigos ("DEMONSTRATIVO") e saldo ("1.500 fichas", valor fixo) não são reais, e o envio mostra "Modo demonstrativo: nenhum desafio foi salvo no banco."
 
 ### Pendente para o MVP
-Deploy das Functions e das regras, cadastro pela tela, amizades, desafios persistidos com palpites e estados, saldo e extrato na interface, bônus de recuperação, sincronização das partidas pelo backend, liquidação automática, histórico e tela de créditos ("Data provided by football-data.org").
+Deploy das Functions e das regras, amizades, desafios persistidos com palpites e estados, saldo e extrato na interface, bônus de recuperação, sincronização das partidas pelo backend, liquidação automática, histórico e tela de créditos ("Data provided by football-data.org").
 
 ## Testes
 
