@@ -140,6 +140,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
       case UserProfileErrorCode.invalidData:
         return 'Os dados do perfil estão incompletos.';
       case UserProfileErrorCode.alreadyExists:
+      case UserProfileErrorCode.usernameUnavailable:
       case UserProfileErrorCode.unknown:
         return 'Não foi possível acessar o perfil. Tente novamente.';
     }
@@ -351,6 +352,7 @@ class _EditarNomeDialogState extends State<_EditarNomeDialog> {
       case UserProfileErrorCode.invalidData:
         return erro.message;
       case UserProfileErrorCode.alreadyExists:
+      case UserProfileErrorCode.usernameUnavailable:
       case UserProfileErrorCode.unknown:
         return 'Não foi possível salvar. O nome não foi alterado.';
     }

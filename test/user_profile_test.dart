@@ -151,17 +151,6 @@ void main() {
       expect(() => repository.observarPorUid(' '), throwsA(invalidData));
     });
 
-    test('criar rejeita perfil sem UID', () {
-      const perfil = UserProfile(
-        uid: '',
-        displayName: 'Pedro',
-        username: 'pedro',
-        usernameNormalized: 'pedro',
-        email: 'pedro@example.com',
-      );
-      expect(repository.criar(perfil), throwsA(invalidData));
-    });
-
     test('atualizarDisplayName rejeita UID vazio', () {
       expect(repository.atualizarDisplayName(' ', 'Nome'), throwsA(invalidData));
     });

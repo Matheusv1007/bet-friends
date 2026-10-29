@@ -32,9 +32,6 @@ class _RepositorioControlado implements UserProfileRepository {
   Future<UserProfile?> buscarPorUid(String uid) => throw UnimplementedError();
 
   @override
-  Future<void> criar(UserProfile perfil) => throw UnimplementedError();
-
-  @override
   Future<void> atualizarDisplayName(String uid, String displayName) =>
       throw UnimplementedError();
 }

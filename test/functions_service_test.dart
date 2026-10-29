@@ -39,4 +39,16 @@ void main() {
       }
     });
   });
+
+  group('FunctionsException.motivo (KAN-32)', () {
+    test('lê details.motivo enviado pelo backend', () {
+      expect(FunctionsException.motivoDe({'motivo': 'perfil-existente'}), 'perfil-existente');
+    });
+
+    test('details ausente ou fora do formato não tem motivo', () {
+      for (final details in [null, 'texto', 42, <String, Object>{}, {'motivo': 1}]) {
+        expect(FunctionsException.motivoDe(details), isNull, reason: '$details');
+      }
+    });
+  });
 }

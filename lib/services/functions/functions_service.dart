@@ -9,6 +9,7 @@ abstract final class CallableNames {
 
   /// Cadastro do perfil com username único e carteira inicial (KAN-31).
   /// Username indisponível: `FunctionsException(code: 'already-exists')`.
+  /// Chamada por `UserProfileService.criarPerfilDoUsuarioAtual` (KAN-32).
   static const String createUserProfile = 'createUserProfile';
 }
 
@@ -40,11 +41,18 @@ class FunctionsService {
       final result = await _functions.httpsCallable(name).call<Object?>(data);
       final response = result.data;
       if (response == null) return {};
-      return Map<String, dynamic>.from(response as Map);
+      if (response is! Map) {
+        throw FunctionsException(
+          code: 'internal',
+          message: 'Resposta inesperada de $name',
+        );
+      }
+      return Map<String, dynamic>.from(response);
     } on FirebaseFunctionsException catch (e) {
       throw FunctionsException(
         code: e.code,
         message: e.message ?? 'Erro ao chamar $name',
+        motivo: FunctionsException.motivoDe(e.details),
       );
     }
   }
@@ -89,7 +97,17 @@ class FunctionsException implements Exception {
   final String code;
   final String message;
 
-  FunctionsException({required this.code, required this.message});
+  /// Código do domínio em `details.motivo` (ex.: `perfil-existente`), quando
+  /// o backend o envia. Distingue erros que chegam com o mesmo [code].
+  final String? motivo;
+
+  FunctionsException({required this.code, required this.message, this.motivo});
+
+  static String? motivoDe(Object? details) {
+    if (details is! Map) return null;
+    final motivo = details['motivo'];
+    return motivo is String ? motivo : null;
+  }
 
   bool get isUnauthenticated => code == 'unauthenticated';
 
