@@ -46,7 +46,7 @@ export const STATUS_EXCEPCIONAL: Readonly<Record<StatusDaPartida, boolean>> = {
   REVISAO_NECESSARIA: true,
 };
 
-/** Resultado do domínio (Plano §9.3). O mapeamento a partir do provedor é da KAN-48. */
+/** Resultado do domínio (Plano §9.3). O mapeamento a partir do provedor fica em `footballData/resultado.ts` (KAN-48). */
 export const RESULTADOS_DA_PARTIDA = ["HOME_WIN", "DRAW", "AWAY_WIN"] as const;
 export type ResultadoDaPartida = (typeof RESULTADOS_DA_PARTIDA)[number];
 
