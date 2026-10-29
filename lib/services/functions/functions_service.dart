@@ -11,6 +11,12 @@ abstract final class CallableNames {
   /// Username indisponível: `FunctionsException(code: 'already-exists')`.
   /// Chamada por `UserProfileService.criarPerfilDoUsuarioAtual` (KAN-32).
   static const String createUserProfile = 'createUserProfile';
+
+  /// Bônus de recuperação de +100 BetCoins do usuário logado (KAN-80), sem
+  /// parâmetros. Não elegível: `FunctionsException(code: 'failed-precondition')`
+  /// com `motivo` `saldo-reservado`, `saldo-suficiente`,
+  /// `intervalo-nao-cumprido` ou `perfil-inexistente`. A tela é da KAN-71.
+  static const String claimRecoveryBonus = 'claimRecoveryBonus';
 }
 
 /// Ponto único de acesso às Callable Functions do backend.

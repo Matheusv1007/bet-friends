@@ -378,6 +378,8 @@ Verificação: vitória = `RELEASE` + `WIN` → reservado −valor, total +valor
 | Reserva / liberação / vitória / derrota / reembolso | `{challengeId}_{uid}_{TYPE}` |
 | Bônus de recuperação | `{uid}_RECOVERY_BONUS_{yyyyMMddHH}`, hora UTC da concessão; a regra de 24 h (RN-BET-008) é validada por `users.lastRecoveryBonusAt` |
 
+**Implementação da recuperação (KAN-80):** Callable `claimRecoveryBonus` (`functions/src/betcoins/`), sem parâmetros (UID do token). Numa única transação, lê `users/{uid}`, exige `saldoReservado = 0`, `saldoDisponivel < 10` e 24 horas desde `lastRecoveryBonusAt` (exatamente 24 h já é permitido), registra o `RECOVERY_BONUS` pelo ledger e grava `lastRecoveryBonusAt` com o horário da concessão. Não elegível → `failed-precondition` com `details.motivo` (`saldo-reservado`, `saldo-suficiente`, `intervalo-nao-cumprido` com `disponivelEm`, `perfil-inexistente`). Chamadas simultâneas disputam `users/{uid}`: só uma concede.
+
 Um usuário tem no máximo um `RESERVE` e uma liquidação por desafio, então `{challengeId}_{uid}_{TYPE}` é único. Na reexecução de um job (KAN-65, KAN-85), a transação Firestore lê esse ID: se já existir, a operação não é repetida.
 
 ```json

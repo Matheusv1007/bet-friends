@@ -51,6 +51,8 @@ const contas = [
   { uid: "uidCaio", email: "caio@example.com", doc: perfil("Caio Melo", "CaioM", "caio@example.com") },
   // Usada só pelos testes de modo offline (KAN-24)
   { uid: "uidDani", email: "dani@example.com", doc: perfil("Dani Souza", "DaniS", "dani@example.com") },
+  // Usada só pelos testes de recuperação de BetCoins (KAN-80): sem saldo e sem reserva
+  { uid: "uidEva", email: "eva@example.com", doc: { ...perfil("Eva Nunes", "EvaN", "eva@example.com"), saldoTotal: 5 } },
   // Conta sem documento em users/{uid}
   { uid: "uidSemPerfil", email: "semperfil@example.com", doc: null },
   // Documento fora do schema: sem username
