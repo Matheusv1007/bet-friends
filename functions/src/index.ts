@@ -4,3 +4,4 @@ import "./core/firebase";
 
 export { systemPing } from "./system/ping";
 export { createUserProfile } from "./perfil/createUserProfile";
+export { claimRecoveryBonus } from "./betcoins/claimRecoveryBonus";

@@ -12,6 +12,7 @@ Os dados são criados antes por `support/seed_emulators.mjs` com o Admin SDK, po
 | `uidBia` / `bia@example.com` | Perfil completo (usado como "outro usuário") |
 | `uidCaio` / `caio@example.com` | Perfil completo, alterado só pelos testes de edição do nome |
 | `uidDani` / `dani@example.com` | Perfil completo, usado só pelos testes de modo offline |
+| `uidEva` / `eva@example.com` | Perfil completo com 5 BetCoins e nada reservado, usado só pela recuperação (KAN-80) |
 | `uidSemPerfil` / `semperfil@example.com` | Nenhum |
 | `uidInvalido` / `invalido@example.com` | Documento fora do schema (sem `username`) |
 
@@ -65,12 +66,16 @@ Usa o app inteiro (`App` com AuthGate, Login, Cadastro, Home e Perfil) contra Au
 
 Usa e-mails e usernames com o prefixo `cad`, para não colidir com `criar_perfil_emulator_test.dart` na mesma sessão dos emuladores. Os testes rodam em ordem (B usa a conta de A).
 
+## `recuperacao_emulator_test.dart` (KAN-80)
+
+Chama a Callable `claimRecoveryBonus` pelo `FunctionsService` (HTTP do Functions Emulator), sem tela (a interface é da KAN-71). Verifica: sem sessão → `unauthenticated`; `uidEva` (5 BetCoins) recebe +100 com a transação `RECOVERY_BONUS` e `lastRecoveryBonusAt`, ignorando `userId`/`amount` do payload; o cliente não altera saldo, `lastRecoveryBonusAt` nem o ledger; repetir é negado (`saldo-suficiente`); conta com 1.000 e conta sem perfil são negadas com o motivo.
+
 ## Pré-requisitos
 
 - Emulador Android em execução (`flutter emulators --launch Pixel_10_Pro`). O teste acessa os emuladores do host por `10.0.2.2`.
 - JDK 21+, Firebase CLI e Firestore Emulator, como em `tests/firestore-rules/README.md`.
 - `cd functions && npm ci`, para o `firebase-admin` usado pelo seed.
-- Para `criar_perfil_emulator_test.dart` e `cadastro_emulator_test.dart`: `cd functions && npm run build`, para o Functions Emulator carregar `functions/lib/`.
+- Para `criar_perfil_emulator_test.dart`, `cadastro_emulator_test.dart` e `recuperacao_emulator_test.dart`: `cd functions && npm run build`, para o Functions Emulator carregar `functions/lib/`.
 - O Functions Emulator precisa rodar o Firebase CLI com o Node do sistema (22 ou superior). O binário standalone (`/usr/local/bin/firebase`) usa um Node 20 embutido, que não carrega o `firebase-admin` 14 (`ERR_REQUIRE_ESM` em `jose`) e deixa o emulador sem funções (`not-found`). O comando abaixo chama o mesmo CLI já instalado em `~/.cache/firebase/tools` com o Node do sistema.
 
 ## Executar
@@ -86,7 +91,7 @@ JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH="$JAVA_HOME/bin:$PATH" \
      $(command -v flutter) test integration_test/ -d emulator-5554; R=\$?; kill \$P; exit \$R; }"
 ```
 
-O proxy só é necessário para `modo_offline_emulator_test.dart`; os demais arquivos funcionam com o comando sem ele. O Functions Emulator só é necessário para `criar_perfil_emulator_test.dart` e `cadastro_emulator_test.dart`.
+O proxy só é necessário para `modo_offline_emulator_test.dart`; os demais arquivos funcionam com o comando sem ele. O Functions Emulator só é necessário para `criar_perfil_emulator_test.dart`, `cadastro_emulator_test.dart` e `recuperacao_emulator_test.dart`.
 
 Os arquivos rodam em sequência na mesma sessão dos emuladores. Cada um altera só a própria conta (`uidAna` na KAN-32, `uidCaio` na KAN-29, `uidDani` na KAN-24); a tela da KAN-28 usa `uidBia`, que ninguém altera.
 
