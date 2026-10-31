@@ -312,6 +312,8 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 
 **Casos excepcionais (KAN-87):** cada desafio que continua aguardando volta com o motivo (`partida-suspensa`, `partida-em-revisao`, `sem-resultado`, `partida-nao-finalizada`, `partida-inexistente`). Partida suspensa ou em revisão (`AWARDED` do provedor) nunca é liquidada automaticamente: o vencedor informado pelo provedor não é usado, nenhuma movimentação `RELEASE`, `WIN`, `LOSS` ou `REFUND` acontece e as reservas ficam como estão. Esses desafios aparecem no log a cada execução (`Desafios em caso excepcional, sem liquidação automática`) para acompanhamento técnico. Se a partida voltar a `FINALIZADA` com resultado, o desafio passa a ser apto normalmente.
 
+**Vencedor ou empate (KAN-83):** `functions/src/desafios/vencedor.ts`. `determinarDesfecho(desafio, partida)` usa só o resultado oficial da partida em `matches` (via `resultadoParaLiquidar`) e devolve `VITORIA` (vencedor e perdedor) ou `EMPATE_ESTRUTURAL` (ninguém acertou). Sem resultado oficial confiável, ou desafio fora de `WAITING_RESULT`, lança `resultado-indisponivel`. A regra de vencedor é uma só, `vencedorDoResultado` (`challenge.ts`), usada também pelo evento `FINALIZAR` e pela validação do desafio. Nenhuma função recebe resultado informado por participante, e o app não grava em `challenges`.
+
 "Desafio ativo" (RN-CHL-010/011, KAN-64) = estados **não terminais**.
 
 **Integridade:**

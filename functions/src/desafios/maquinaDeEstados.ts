@@ -1,5 +1,13 @@
 import { ResultadoDaPartida } from "../partidas/match";
-import { Challenge, ErroDeDesafio, MotivoDeCancelamento, Palpite, StatusDoDesafio, validarDesafio } from "./challenge";
+import {
+  Challenge,
+  ErroDeDesafio,
+  MotivoDeCancelamento,
+  Palpite,
+  StatusDoDesafio,
+  validarDesafio,
+  vencedorDoResultado,
+} from "./challenge";
 
 /**
  * Máquina de estados do desafio (KAN-63; RN-CHL-013 a 015, RN-CHL-023,
@@ -107,12 +115,7 @@ export function aplicarEvento(desafio: Challenge, evento: EventoDoDesafio, agora
       return validarAlteracao(desafio, { ...depois, cancelReason: evento.motivo, finishedAt: agora });
     case "FINALIZAR": {
       const { settledResult } = evento;
-      const winnerId =
-        settledResult === desafio.challengerPrediction
-          ? desafio.challengerId
-          : settledResult === desafio.challengedPrediction
-            ? desafio.challengedId
-            : null;
+      const winnerId = vencedorDoResultado(desafio, settledResult);
       return validarAlteracao(desafio, { ...depois, settledResult, winnerId, finishedAt: agora });
     }
     case "RECUSAR":

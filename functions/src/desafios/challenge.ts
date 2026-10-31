@@ -91,7 +91,9 @@ export type CodigoErroDeDesafio =
   | "transicao-invalida"
   /** Tentativa de mudar participantes, partida, valor, palpites ou datas já definidas (RN-CHL-024). */
   | "campo-imutavel"
-  | "desafio-inexistente";
+  | "desafio-inexistente"
+  /** Desafio ou partida sem resultado oficial confiável para decidir o desfecho (KAN-83). */
+  | "resultado-indisponivel";
 
 export class ErroDeDesafio extends Error {
   constructor(
@@ -143,6 +145,21 @@ export function validarNovoDesafio(d: NovoDesafio): NovoDesafio {
 }
 
 /**
+ * Vencedor do desafio para um resultado da partida (RN-RES-002, RN-RES-006):
+ * quem palpitou esse resultado. Como os palpites são sempre diferentes
+ * (RN-PRD-003), no máximo um acerta; se ninguém acertou, `null` (empate
+ * estrutural, D-009). Única regra de vencedor do backend.
+ */
+export function vencedorDoResultado(
+  desafio: Pick<Challenge, "challengerId" | "challengedId" | "challengerPrediction" | "challengedPrediction">,
+  resultado: ResultadoDaPartida,
+): string | null {
+  if (resultado === desafio.challengerPrediction) return desafio.challengerId;
+  if (resultado === desafio.challengedPrediction) return desafio.challengedId;
+  return null;
+}
+
+/**
  * Valida um desafio completo, em qualquer estado, e devolve uma cópia.
  * Além de enums, IDs e valor, confere a coerência com o estado:
  * - palpite do desafiado e `acceptedAt` existem juntos, só depois do aceite;
@@ -179,8 +196,7 @@ export function validarDesafio(c: Challenge): Challenge {
 
   const finalizado = c.status === "FINISHED";
   exigir(c.settledResult === null ? !finalizado : finalizado && RESULTADOS_DA_PARTIDA.includes(c.settledResult), "settledResult");
-  const acertou =
-    c.settledResult === c.challengerPrediction ? c.challengerId : c.settledResult === c.challengedPrediction ? c.challengedId : null;
+  const acertou = c.settledResult === null ? null : vencedorDoResultado(c, c.settledResult);
   exigir(c.winnerId === (finalizado ? acertou : null), "winnerId");
 
   const cancelado = c.status === "CANCELLED";
