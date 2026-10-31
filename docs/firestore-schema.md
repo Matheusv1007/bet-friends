@@ -201,6 +201,8 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 
 **Implementação (KAN-46):** `functions/src/partidas/match.ts` (modelo `Match`, enums de status e resultado, validação e ID `{providerKey}_{externalMatchId}`) e `functions/src/partidas/matchFirestore.ts` (`gravarMatchNaTransacao` cria ou atualiza o mesmo documento, preservando `originalStartsAtUtc` e `createdAt`; a leitura recusa status fora do domínio). O `providerKey` não é gravado: é o prefixo do ID.
 
+**Sincronização (KAN-49):** `functions/src/partidas/sincronizacao.ts` (`sincronizarPartidas`) busca as partidas pelo FootballService e grava cada uma com `gravarMatch`. Repetir a sincronização atualiza os mesmos documentos; falha do provedor não grava nada (fica o último dado conhecido) e partida ausente da resposta não é apagada. Documento existente fora do schema não é sobrescrito: volta em `recusadas` para revisão.
+
 | Campo | Tipo | Obrigatório | Descrição / regra |
 |---|---|---|---|
 | *(ID)* | string | sim | **[PROPOSTA]** `{providerKey}_{externalMatchId}`, ex.: `footballdata_537123`. Ver nota abaixo |
