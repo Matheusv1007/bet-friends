@@ -102,6 +102,9 @@ export class ErroDePartida extends Error {
 
 const ID_EXTERNO = /^[A-Za-z0-9_-]{1,100}$/;
 
+/** Formato do ID de `matches/{id}`: `{providerKey}_{externalMatchId}` (schema §3.4). É o que os desafios referenciam. */
+export const ID_DA_PARTIDA = /^[a-z0-9]{1,30}_[A-Za-z0-9_-]{1,100}$/;
+
 function exigir(condicao: boolean, campo: string): void {
   if (!condicao) throw new ErroDePartida(`Campo "${campo}" inválido.`);
 }

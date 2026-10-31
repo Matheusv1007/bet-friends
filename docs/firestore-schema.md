@@ -267,6 +267,8 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 
 ### 3.5 - `challenges/{challengeId}`
 
+**Implementação (KAN-62):** `functions/src/desafios/challenge.ts` (modelo `Challenge`, os oito estados, motivos de cancelamento e validação da coerência de cada estado: palpite do desafiado e `acceptedAt` só após o aceite, `finishedAt` em todo estado terminal, `winnerId` igual a quem acertou o `settledResult`) e `functions/src/desafios/challengeFirestore.ts` (`criarDesafioNaTransacao` cria o desafio `PENDING` com ID automático e devolve o ID, para a reserva da mesma transação; a leitura recusa documento incoerente). Não há exclusão.
+
 | Campo | Tipo | Obrigatório | Mutabilidade | Origem / regra |
 |---|---|---|---|---|
 | *(ID)* | string (automático) | sim | imutável | [PLANO] |
