@@ -119,7 +119,7 @@ O repositório já inclui a configuração **de cliente** do Firebase para Andro
 - As Security Rules por coleção (`firestore.rules`, KAN-22) foram **publicadas no projeto real em 29/10/2026**, idênticas às do repositório. Elas permitem ao usuário ler o próprio perfil e alterar só o nome de exibição; o resto continua negado ao app. Como ainda não há perfis no projeto real (a criação depende da `createUserProfile`), a tela de Perfil só foi validada nos emuladores.
 - Nunca versione credenciais administrativas, arquivos `.env`, `.secret.local` ou chaves de serviço.
 
-> **Aviso de segurança conhecido:** hoje o token da football-data.org está no código do app. Isso contraria a arquitetura planejada, em que só o backend acessa o provedor. O backend já guarda o token como segredo (KAN-21) e tem o Adapter do provedor (KAN-44), mas nenhuma função o utiliza ainda; a sincronização pelo backend (KAN-45, KAN-49, KAN-50) e a troca do token (KAN-102) estão pendentes. Até lá, **não distribua APKs** gerados a partir deste código e não reproduza o token em issues, prints ou documentos.
+> **Aviso de segurança conhecido:** hoje o token da football-data.org está no código do app. Isso contraria a arquitetura planejada, em que só o backend acessa o provedor. O backend já guarda o token como segredo (KAN-21) e tem o Adapter do provedor e o FootballService (KAN-44, KAN-45), mas nenhuma função os utiliza ainda; a sincronização pelo backend (KAN-49, KAN-50) e a troca do token (KAN-102) estão pendentes. Até lá, **não distribua APKs** gerados a partir deste código e não reproduza o token em issues, prints ou documentos.
 
 ## Estrutura do projeto
 
@@ -139,7 +139,7 @@ functions/src/                   # Cloud Functions (TypeScript)
 ├── core/                        # autenticação, validação, Callable base, segredos
 ├── perfil/                      # createUserProfile e username único
 ├── betcoins/                    # saldos, carteira inicial, ledger, reserva, desfecho
-└── partidas/                    # modelo Match, status e resultado da Football-Data
+└── partidas/                    # modelo Match, Adapter da Football-Data (status e resultado) e FootballService
 test/                            # testes Flutter (unidade e widget)
 integration_test/                # testes no Android contra os emuladores do Firebase
 tests/firestore-rules/           # testes das Security Rules
@@ -162,7 +162,7 @@ android/                         # projeto Android
 - **Perfil** (`users/{uid}`, vinculado ao UID): tela de Perfil, edição do nome de exibição e comportamento seguro sem conexão (KAN-24, KAN-28, KAN-29, KAN-32). No projeto real, as Security Rules já estão publicadas, mas ainda não há perfis: a criação depende da `createUserProfile`, sem deploy.
 - **Cadastro** (KAN-25, KAN-31, KAN-32 e KAN-72): a tela cria a conta no Firebase Auth e chama a `createUserProfile`, que cria perfil, username único e carteira com 1.000 BetCoins em uma única transação. Se o perfil falhar, a sessão é mantida e o cadastro pode ser concluído na mesma tela ou depois, pela aba Perfil.
 - **BetCoins no backend:** invariantes de saldo (KAN-73), registro auditável de transações (KAN-79), reserva e liberação (KAN-74, KAN-75), premiação, perda e reembolso em empate (KAN-76 a KAN-78). São funções internas: nenhuma tela nem Callable as usa ainda.
-- **Partidas no backend:** modelo `Match`, mapeamento de status e de resultado da Football-Data (KAN-46 a KAN-48), ainda sem Adapter nem sincronização.
+- **Partidas no backend:** modelo `Match`, mapeamento de status e de resultado (KAN-46 a KAN-48), Adapter da Football-Data (KAN-44) e FootballService (KAN-45), ainda sem sincronização com o Firestore.
 
 ### Apenas demonstrativo (interface sem funcionalidade real)
 - **Desafios Ativos** na Home: exemplos fixos, com o selo "DEMONSTRATIVO".
