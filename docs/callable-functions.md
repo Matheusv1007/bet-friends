@@ -30,6 +30,7 @@ functions/src/
   core/segredos.ts    segredos do backend (FOOTBALL_DATA_TOKEN) e leitura segura
   core/callable.ts    authedCallable: base de toda função autenticada
   system/ping.ts      systemPing: chamada técnica
+  partidas/syncMatches.ts  syncMatches: sincronização agendada das partidas (KAN-50, seção 10)
 ```
 
 ## 4 - Criando uma nova função
@@ -118,16 +119,16 @@ Credenciais de serviços externos ficam **só no backend**, no Google Secret Man
 
 | Segredo | Uso |
 |---|---|
-| `FOOTBALL_DATA_TOKEN` | Token da Football-Data.org, usado pelo Adapter do provedor (KAN-44) |
+| `FOOTBALL_DATA_TOKEN` | Token da Football-Data.org, usado pelo Adapter do provedor (KAN-44) na função agendada `syncMatches` (KAN-50) |
 
 ### 8.1 - Usando numa função
 
-A função declara o segredo nas opções e lê o valor só em tempo de execução, com `lerTokenFootballData()`:
+A função declara o segredo nas opções e lê o valor só em tempo de execução, com `lerTokenFootballData()` (o Adapter já faz essa leitura; exemplo real em `functions/src/partidas/syncMatches.ts`):
 
 ```ts
 import { FOOTBALL_DATA_TOKEN, lerTokenFootballData } from "../core/segredos";
 
-export const sincronizarPartidas = onSchedule({ schedule: "...", secrets: [FOOTBALL_DATA_TOKEN] }, async () => {
+export const minhaFuncao = onSchedule({ schedule: "...", secrets: [FOOTBALL_DATA_TOKEN] }, async () => {
   const token = lerTokenFootballData(); // nunca logar nem devolver ao app
 });
 ```
@@ -215,3 +216,19 @@ npx firebase-tools@15.32.1 deploy --only functions --project betfriends-unirv-20
 ```
 
 Para testes locais, use sempre um projeto `demo-*`: o emulador não acessa o Firebase real e os testes recusam rodar fora dele.
+
+## 10 - Sincronização periódica de partidas (KAN-50)
+
+`syncMatches` é uma função agendada (Cloud Scheduler) que chama `sincronizarPartidas` (KAN-49) para o Brasileirão (`BSA`). Cada execução faz **uma** chamada à Football-Data, só para a janela em volta do horário da execução, e grava em `matches`. O app só lê `matches`; não chama o provedor.
+
+| Variável | Padrão | Uso |
+|---|---|---|
+| `PARTIDAS_SYNC_AGENDA` | `every 5 minutes` | Frequência, em sintaxe cron ou App Engine. Fuso: `America/Sao_Paulo` |
+| `PARTIDAS_SYNC_DIAS_ANTES` | `3` | Dias antes de agora (placar e resultado das partidas recentes). Inteiro de 0 a 60 |
+| `PARTIDAS_SYNC_DIAS_DEPOIS` | `14` | Dias depois de agora (partidas futuras). Inteiro de 0 a 60 |
+
+- **Limite do plano Free (10 chamadas/min):** uma chamada por execução; mesmo `every 1 minutes` fica abaixo do limite.
+- **Ajustar sem mudar código** (por exemplo, depois da medição de atraso da KAN-53): definir as variáveis em `functions/.env.betfriends-unirv-2026` (não é segredo; o Firebase CLI lê o arquivo no deploy) e refazer o deploy. Valor inválido faz o deploy falhar, em vez de publicar uma agenda errada.
+- **Falha do provedor:** a execução termina sem erro, o motivo fica no log (`Falha ao buscar partidas no provedor de futebol`) e `matches` mantém o último dado. A próxima execução tenta de novo (`retryCount: 0`, uma instância por vez).
+- **Requisitos para rodar em produção:** plano Blaze, `FOOTBALL_DATA_TOKEN` configurado (seção 8.2) e deploy das Functions (seção 7).
+- **No emulador:** sem o emulador de Pub/Sub, o Functions Emulator só carrega a definição e não dispara a agenda.
