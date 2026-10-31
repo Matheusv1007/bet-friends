@@ -314,6 +314,8 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 
 **Vencedor ou empate (KAN-83):** `functions/src/desafios/vencedor.ts`. `determinarDesfecho(desafio, partida)` usa só o resultado oficial da partida em `matches` (via `resultadoParaLiquidar`) e devolve `VITORIA` (vencedor e perdedor) ou `EMPATE_ESTRUTURAL` (ninguém acertou). Sem resultado oficial confiável, ou desafio fora de `WAITING_RESULT`, lança `resultado-indisponivel`. A regra de vencedor é uma só, `vencedorDoResultado` (`challenge.ts`), usada também pelo evento `FINALIZAR` e pela validação do desafio. Nenhuma função recebe resultado informado por participante, e o app não grava em `challenges`.
 
+**Movimentações da liquidação (KAN-84):** `functions/src/desafios/liquidacaoFinanceira.ts`. `registrarLiquidacaoNaTransacao(transacao, db, desafio, partida)` decide o desfecho (KAN-83) e registra numa única chamada ao ledger, dentro da transação de quem chama: vitória = `RELEASE` + `WIN` do vencedor e `LOSS` do perdedor; empate estrutural = `REFUND` dos dois. Cada reserva precisa ter o valor do desafio (pot = 2× `amount`, sem taxa); caso contrário, `ledger-inconsistente`. Qualquer falha aborta a transação sem gravar nada; repetir uma liquidação já registrada devolve `ja-registradas`. Não muda o estado do desafio: a finalização é a KAN-85.
+
 "Desafio ativo" (RN-CHL-010/011, KAN-64) = estados **não terminais**.
 
 **Integridade:**
