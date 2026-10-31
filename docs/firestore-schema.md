@@ -310,6 +310,8 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 
 **Aptos para liquidação (KAN-82):** `functions/src/desafios/aptosParaLiquidacao.ts`. `resultadoParaLiquidar(desafio, partida)` devolve o resultado com que o desafio pode ser liquidado, ou `null`: só `WAITING_RESULT` com partida `FINALIZADA` e `result` definido; suspensa, em revisão, sem resultado ou inexistente continua aguardando, e `FINISHED` nunca é candidato. `identificarDesafiosAptos` consulta os desafios `WAITING_RESULT`, lê cada partida uma vez e separa `aptos`, `aguardando` e `ignorados` (fora do schema), sem gravar nada. A liquidação (KAN-85) repete a checagem dentro da própria transação.
 
+**Casos excepcionais (KAN-87):** cada desafio que continua aguardando volta com o motivo (`partida-suspensa`, `partida-em-revisao`, `sem-resultado`, `partida-nao-finalizada`, `partida-inexistente`). Partida suspensa ou em revisão (`AWARDED` do provedor) nunca é liquidada automaticamente: o vencedor informado pelo provedor não é usado, nenhuma movimentação `RELEASE`, `WIN`, `LOSS` ou `REFUND` acontece e as reservas ficam como estão. Esses desafios aparecem no log a cada execução (`Desafios em caso excepcional, sem liquidação automática`) para acompanhamento técnico. Se a partida voltar a `FINALIZADA` com resultado, o desafio passa a ser apto normalmente.
+
 "Desafio ativo" (RN-CHL-010/011, KAN-64) = estados **não terminais**.
 
 **Integridade:**
