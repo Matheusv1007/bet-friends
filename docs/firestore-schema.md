@@ -308,6 +308,8 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 
 **Aguardando resultado (KAN-67):** `functions/src/desafios/aguardarResultado.ts`. `moverDesafiosParaAguardandoResultado` consulta os desafios `IN_PROGRESS` (só `status ==`, sem índice composto) e passa para `WAITING_RESULT` os de partida `FINALIZADA`, `SUSPENSA` ou `REVISAO_NECESSARIA`, conferindo partida e desafio de novo na transação. `WAITING_RESULT` não é erro: a liquidação só parte dele com partida `FINALIZADA` e resultado definido (`LIQUIDA_AUTOMATICAMENTE`); suspensa e em revisão continuam aguardando. `CANCELADA` e `ADIADA` ficam para o cancelamento (KAN-68).
 
+**Aptos para liquidação (KAN-82):** `functions/src/desafios/aptosParaLiquidacao.ts`. `resultadoParaLiquidar(desafio, partida)` devolve o resultado com que o desafio pode ser liquidado, ou `null`: só `WAITING_RESULT` com partida `FINALIZADA` e `result` definido; suspensa, em revisão, sem resultado ou inexistente continua aguardando, e `FINISHED` nunca é candidato. `identificarDesafiosAptos` consulta os desafios `WAITING_RESULT`, lê cada partida uma vez e separa `aptos`, `aguardando` e `ignorados` (fora do schema), sem gravar nada. A liquidação (KAN-85) repete a checagem dentro da própria transação.
+
 "Desafio ativo" (RN-CHL-010/011, KAN-64) = estados **não terminais**.
 
 **Integridade:**
