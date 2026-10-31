@@ -84,7 +84,14 @@ export interface NovoDesafio {
   readonly amount: number;
 }
 
-export type CodigoErroDeDesafio = "desafio-invalido";
+export type CodigoErroDeDesafio =
+  /** Dados fora do domínio ou incoerentes com o estado. */
+  | "desafio-invalido"
+  /** Mudança de estado que a máquina de estados não permite (KAN-63). */
+  | "transicao-invalida"
+  /** Tentativa de mudar participantes, partida, valor, palpites ou datas já definidas (RN-CHL-024). */
+  | "campo-imutavel"
+  | "desafio-inexistente";
 
 export class ErroDeDesafio extends Error {
   constructor(

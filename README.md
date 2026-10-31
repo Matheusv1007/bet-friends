@@ -140,7 +140,7 @@ functions/src/                   # Cloud Functions (TypeScript)
 ├── perfil/                      # createUserProfile e username único
 ├── betcoins/                    # saldos, carteira inicial, ledger, reserva, desfecho
 ├── partidas/                    # modelo Match, Adapter da Football-Data (status e resultado) e FootballService
-└── desafios/                    # modelo Challenge e persistência em challenges
+└── desafios/                    # modelo Challenge, persistência e máquina de estados
 test/                            # testes Flutter (unidade e widget)
 integration_test/                # testes no Android contra os emuladores do Firebase
 tests/firestore-rules/           # testes das Security Rules
@@ -164,7 +164,7 @@ android/                         # projeto Android
 - **Cadastro** (KAN-25, KAN-31, KAN-32 e KAN-72): a tela cria a conta no Firebase Auth e chama a `createUserProfile`, que cria perfil, username único e carteira com 1.000 BetCoins em uma única transação. Se o perfil falhar, a sessão é mantida e o cadastro pode ser concluído na mesma tela ou depois, pela aba Perfil.
 - **BetCoins no backend:** invariantes de saldo (KAN-73), registro auditável de transações (KAN-79), reserva e liberação (KAN-74, KAN-75), premiação, perda e reembolso em empate (KAN-76 a KAN-78). São funções internas: nenhuma tela nem Callable as usa ainda.
 - **Partidas no backend:** modelo `Match`, mapeamento de status e de resultado (KAN-46 a KAN-48), Adapter da Football-Data (KAN-44), FootballService (KAN-45), sincronização com `matches` (KAN-49) e a função agendada `syncMatches`, a cada 5 minutos por padrão (KAN-50; configuração em `docs/callable-functions.md` §10). Sem deploy, o app continua chamando a API diretamente.
-- **Desafios no backend:** modelo `Challenge` com os oito estados oficiais e persistência em `challenges` (KAN-62). Ainda sem máquina de estados nem Callable de criação.
+- **Desafios no backend:** modelo `Challenge` com os oito estados oficiais e persistência em `challenges` (KAN-62) e máquina de estados com as transições do Plano §7, sem edição de participantes, partida, valor ou palpites (KAN-63). Ainda sem Callable de criação ou aceite.
 
 ### Apenas demonstrativo (interface sem funcionalidade real)
 - **Desafios Ativos** na Home: exemplos fixos, com o selo "DEMONSTRATIVO".

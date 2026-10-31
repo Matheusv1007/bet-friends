@@ -304,6 +304,8 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 | `EXPIRED` | sim | — |
 | `CANCELLED` | sim | — |
 
+**Implementação (KAN-63):** `functions/src/desafios/maquinaDeEstados.ts`. `aplicarEvento` aplica um evento (`ACEITAR`, `RECUSAR`, `EXPIRAR`, `CANCELAR`, `INICIAR`, `AGUARDAR_RESULTADO`, `FINALIZAR`) e preenche as datas e o vencedor de cada etapa; `CANCELAR` com motivo `CREATOR` só vale em `PENDING`. `validarAlteracao` confere qualquer mudança: estado fora da tabela → `transicao-invalida`; participantes, partida, valor, palpites ou datas já definidas alterados → `campo-imutavel`. `transicionarDesafioNaTransacao` (`challengeFirestore.ts`) lê, aplica e grava só os campos de estado; mudanças simultâneas no mesmo desafio conflitam e só uma vale. O app não grava em `challenges` (Security Rules).
+
 "Desafio ativo" (RN-CHL-010/011, KAN-64) = estados **não terminais**.
 
 **Integridade:**

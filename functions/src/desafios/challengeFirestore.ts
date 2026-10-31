@@ -1,6 +1,7 @@
 import { DocumentData, FieldValue, Firestore, Timestamp, Transaction } from "firebase-admin/firestore";
 
 import { Challenge, ErroDeDesafio, NovoDesafio, validarDesafio, validarNovoDesafio } from "./challenge";
+import { EventoDoDesafio, aplicarEvento } from "./maquinaDeEstados";
 
 /**
  * Persistência do desafio em `challenges/{id}` (KAN-62;
@@ -92,4 +93,41 @@ export async function lerDesafioNaTransacao(transacao: Transaction, db: Firestor
 export async function lerDesafio(db: Firestore, id: string): Promise<Challenge | null> {
   const doc = await db.collection(COLECAO_DE_DESAFIOS).doc(id).get();
   return doc.exists ? desafioDoDocumento(doc.id, doc.data()!) : null;
+}
+
+/**
+ * Aplica um evento da máquina de estados (KAN-63) numa transação já aberta
+ * e devolve o desafio atualizado. Grava só os campos de estado: participantes,
+ * partida, valor e palpite do criador nunca são enviados ao Firestore.
+ * Duas mudanças simultâneas no mesmo desafio conflitam no documento; o
+ * Firestore repete uma delas, que é recusada se não for mais permitida.
+ */
+export async function transicionarDesafioNaTransacao(
+  transacao: Transaction,
+  db: Firestore,
+  id: string,
+  evento: EventoDoDesafio,
+  agora: Date = new Date(),
+): Promise<Challenge> {
+  const antes = await lerDesafioNaTransacao(transacao, db, id);
+  if (antes === null) throw new ErroDeDesafio("Desafio não encontrado.", "desafio-inexistente");
+  const d = aplicarEvento(antes, evento, agora);
+  const timestamp = (valor: Date | null) => (valor === null ? null : Timestamp.fromDate(valor));
+  transacao.update(db.collection(COLECAO_DE_DESAFIOS).doc(id), {
+    status: d.status,
+    challengedPrediction: d.challengedPrediction,
+    winnerId: d.winnerId,
+    settledResult: d.settledResult,
+    cancelReason: d.cancelReason,
+    acceptedAt: timestamp(d.acceptedAt),
+    startedAt: timestamp(d.startedAt),
+    finishedAt: timestamp(d.finishedAt),
+    updatedAt: Timestamp.fromDate(d.updatedAt),
+  });
+  return d;
+}
+
+/** Atalho: abre a própria transação para aplicar o evento. */
+export function transicionarDesafio(db: Firestore, id: string, evento: EventoDoDesafio): Promise<Challenge> {
+  return db.runTransaction((t) => transicionarDesafioNaTransacao(t, db, id, evento));
 }
