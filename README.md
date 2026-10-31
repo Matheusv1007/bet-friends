@@ -119,7 +119,7 @@ O repositório já inclui a configuração **de cliente** do Firebase para Andro
 - As Security Rules por coleção (`firestore.rules`, KAN-22) foram **publicadas no projeto real em 29/10/2026**, idênticas às do repositório. Elas permitem ao usuário ler o próprio perfil e alterar só o nome de exibição; o resto continua negado ao app. Como ainda não há perfis no projeto real (a criação depende da `createUserProfile`), a tela de Perfil só foi validada nos emuladores.
 - Nunca versione credenciais administrativas, arquivos `.env`, `.secret.local` ou chaves de serviço.
 
-> **Aviso de segurança conhecido:** hoje o token da football-data.org está no código do app. Isso contraria a arquitetura planejada, em que só o backend acessa o provedor. O backend já tem a estrutura para guardar o token como segredo (KAN-21), mas nenhuma função o utiliza ainda; a troca do token (KAN-102) e o Adapter no backend (KAN-44) estão pendentes. Até lá, **não distribua APKs** gerados a partir deste código e não reproduza o token em issues, prints ou documentos.
+> **Aviso de segurança conhecido:** hoje o token da football-data.org está no código do app. Isso contraria a arquitetura planejada, em que só o backend acessa o provedor. O backend já guarda o token como segredo (KAN-21) e tem o Adapter do provedor (KAN-44), mas nenhuma função o utiliza ainda; a sincronização pelo backend (KAN-45, KAN-49, KAN-50) e a troca do token (KAN-102) estão pendentes. Até lá, **não distribua APKs** gerados a partir deste código e não reproduza o token em issues, prints ou documentos.
 
 ## Estrutura do projeto
 
