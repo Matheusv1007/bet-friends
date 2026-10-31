@@ -318,6 +318,8 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 
 **Finalização idempotente (KAN-85):** `functions/src/desafios/finalizacao.ts`. `finalizarDesafioNaTransacao` relê desafio e partida, registra a liquidação (KAN-84) e grava `FINISHED` com `settledResult`, `winnerId` e `finishedAt` na mesma transação; como o Firestore não permite ler depois de gravar, a mudança de estado usa `gravarTransicaoNaTransacao` (`challengeFirestore.ts`) com o desafio já lido. Desafio já `FINISHED` devolve `ja-finalizado` sem gravar nada, mesmo que o resultado do provedor mude depois (RN-RES-008); duas execuções simultâneas disputam o desafio e os saldos, e só uma paga. Qualquer erro aborta tudo: o desafio continua em `WAITING_RESULT`.
 
+**Processamento automático (KAN-86):** `functions/src/desafios/processamentoDeResultados.ts`. `processarResultados` roda na função agendada `syncMatches`, logo depois da sincronização: KAN-67 (`WAITING_RESULT`) → KAN-82/87 (aptos e casos excepcionais) → KAN-85 (finalização) para cada apto. Usa só dados de `matches`; não existe processamento por usuário ou por tela. Desafio que falha fica como estava e entra em `falhas`; a próxima execução tenta de novo.
+
 "Desafio ativo" (RN-CHL-010/011, KAN-64) = estados **não terminais**.
 
 **Integridade:**

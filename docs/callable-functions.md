@@ -217,9 +217,11 @@ npx firebase-tools@15.32.1 deploy --only functions --project betfriends-unirv-20
 
 Para testes locais, use sempre um projeto `demo-*`: o emulador não acessa o Firebase real e os testes recusam rodar fora dele.
 
-## 10 - Sincronização periódica de partidas (KAN-50)
+## 10 - Sincronização periódica de partidas e liquidação (KAN-50, KAN-86)
 
 `syncMatches` é uma função agendada (Cloud Scheduler) que chama `sincronizarPartidas` (KAN-49) para o Brasileirão (`BSA`). Cada execução faz **uma** chamada à Football-Data, só para a janela em volta do horário da execução, e grava em `matches`. O app só lê `matches`; não chama o provedor.
+
+Logo depois, na mesma execução, `processarResultados` (KAN-86, `functions/src/desafios/processamentoDeResultados.ts`) usa só o que já está em `matches`: passa para `WAITING_RESULT` os desafios cuja partida saiu de campo, identifica os aptos (partida `FINALIZADA` com resultado) e finaliza cada um com a liquidação idempotente, uma transação por desafio. A falha de um desafio não trava os outros nem deixa efeito parcial; vai para o log (`Desafios aptos que não puderam ser liquidados`) e a próxima execução tenta de novo, sem pagar duas vezes o que já foi finalizado.
 
 | Variável | Padrão | Uso |
 |---|---|---|
@@ -229,6 +231,6 @@ Para testes locais, use sempre um projeto `demo-*`: o emulador não acessa o Fir
 
 - **Limite do plano Free (10 chamadas/min):** uma chamada por execução; mesmo `every 1 minutes` fica abaixo do limite.
 - **Ajustar sem mudar código** (por exemplo, depois da medição de atraso da KAN-53): definir as variáveis em `functions/.env.betfriends-unirv-2026` (não é segredo; o Firebase CLI lê o arquivo no deploy) e refazer o deploy. Valor inválido faz o deploy falhar, em vez de publicar uma agenda errada.
-- **Falha do provedor:** a execução termina sem erro, o motivo fica no log (`Falha ao buscar partidas no provedor de futebol`) e `matches` mantém o último dado. A próxima execução tenta de novo (`retryCount: 0`, uma instância por vez).
+- **Falha do provedor:** a execução termina sem erro, o motivo fica no log (`Falha ao buscar partidas no provedor de futebol`), `matches` mantém o último dado e o processamento de resultados roda com o que já estava sincronizado. A próxima execução tenta de novo (`retryCount: 0`, uma instância por vez).
 - **Requisitos para rodar em produção:** plano Blaze, `FOOTBALL_DATA_TOKEN` configurado (seção 8.2) e deploy das Functions (seção 7).
 - **No emulador:** sem o emulador de Pub/Sub, o Functions Emulator só carrega a definição e não dispara a agenda.
