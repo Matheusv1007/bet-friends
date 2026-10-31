@@ -101,6 +101,10 @@ export async function lerDesafio(db: Firestore, id: string): Promise<Challenge |
  * partida, valor e palpite do criador nunca são enviados ao Firestore.
  * Duas mudanças simultâneas no mesmo desafio conflitam no documento; o
  * Firestore repete uma delas, que é recusada se não for mais permitida.
+ *
+ * O instante da mudança nunca fica antes do último registrado no desafio:
+ * `createdAt` vem do relógio do servidor e `agora` do relógio da função, que
+ * podem diferir em alguns milissegundos.
  */
 export async function transicionarDesafioNaTransacao(
   transacao: Transaction,
@@ -111,7 +115,7 @@ export async function transicionarDesafioNaTransacao(
 ): Promise<Challenge> {
   const antes = await lerDesafioNaTransacao(transacao, db, id);
   if (antes === null) throw new ErroDeDesafio("Desafio não encontrado.", "desafio-inexistente");
-  const d = aplicarEvento(antes, evento, agora);
+  const d = aplicarEvento(antes, evento, new Date(Math.max(agora.getTime(), antes.updatedAt.getTime())));
   const timestamp = (valor: Date | null) => (valor === null ? null : Timestamp.fromDate(valor));
   transacao.update(db.collection(COLECAO_DE_DESAFIOS).doc(id), {
     status: d.status,

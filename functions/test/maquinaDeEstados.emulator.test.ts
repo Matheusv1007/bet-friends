@@ -104,4 +104,16 @@ describe("máquina de estados do desafio (Firestore Emulator)", { skip: !noEmula
     const final = (await lerDesafio(db, id))!;
     assert.ok(["ACCEPTED", "CANCELLED"].includes(final.status));
   });
+
+  test("5. relógio da função atrás do servidor: a mudança não fica antes da criação", async () => {
+    const id = await criarDesafio(db, NOVO);
+    const criado = (await lerDesafio(db, id))!.createdAt;
+    const relogioAtrasado = new Date(criado.getTime() - 50);
+
+    const aceito = await db.runTransaction((t) =>
+      transicionarDesafioNaTransacao(t, db, id, { tipo: "ACEITAR", challengedPrediction: "DRAW" }, relogioAtrasado),
+    );
+    assert.deepEqual([aceito.acceptedAt, aceito.updatedAt], [criado, criado]);
+    assert.deepEqual(await lerDesafio(db, id), aceito);
+  });
 });
