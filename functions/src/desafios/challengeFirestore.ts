@@ -96,28 +96,26 @@ export async function lerDesafio(db: Firestore, id: string): Promise<Challenge |
 }
 
 /**
- * Aplica um evento da máquina de estados (KAN-63) numa transação já aberta
- * e devolve o desafio atualizado. Grava só os campos de estado: participantes,
- * partida, valor e palpite do criador nunca são enviados ao Firestore.
- * Duas mudanças simultâneas no mesmo desafio conflitam no documento; o
- * Firestore repete uma delas, que é recusada se não for mais permitida.
+ * Aplica um evento da máquina de estados (KAN-63) a um desafio já lido
+ * nesta transação e grava o resultado, sem ler de novo: serve para quem
+ * precisa gravar outras coisas antes, como a liquidação (KAN-85), já que o
+ * Firestore não permite ler depois de gravar. Grava só os campos de estado:
+ * participantes, partida, valor e palpite do criador nunca são enviados.
  *
  * O instante da mudança nunca fica antes do último registrado no desafio:
  * `createdAt` vem do relógio do servidor e `agora` do relógio da função, que
  * podem diferir em alguns milissegundos.
  */
-export async function transicionarDesafioNaTransacao(
+export function gravarTransicaoNaTransacao(
   transacao: Transaction,
   db: Firestore,
-  id: string,
+  antes: Challenge,
   evento: EventoDoDesafio,
   agora: Date = new Date(),
-): Promise<Challenge> {
-  const antes = await lerDesafioNaTransacao(transacao, db, id);
-  if (antes === null) throw new ErroDeDesafio("Desafio não encontrado.", "desafio-inexistente");
+): Challenge {
   const d = aplicarEvento(antes, evento, new Date(Math.max(agora.getTime(), antes.updatedAt.getTime())));
   const timestamp = (valor: Date | null) => (valor === null ? null : Timestamp.fromDate(valor));
-  transacao.update(db.collection(COLECAO_DE_DESAFIOS).doc(id), {
+  transacao.update(db.collection(COLECAO_DE_DESAFIOS).doc(antes.id), {
     status: d.status,
     challengedPrediction: d.challengedPrediction,
     winnerId: d.winnerId,
@@ -129,6 +127,24 @@ export async function transicionarDesafioNaTransacao(
     updatedAt: Timestamp.fromDate(d.updatedAt),
   });
   return d;
+}
+
+/**
+ * Lê o desafio numa transação já aberta, aplica o evento e grava (ver
+ * [gravarTransicaoNaTransacao]). Duas mudanças simultâneas no mesmo desafio
+ * conflitam no documento; o Firestore repete uma delas, que é recusada se
+ * não for mais permitida.
+ */
+export async function transicionarDesafioNaTransacao(
+  transacao: Transaction,
+  db: Firestore,
+  id: string,
+  evento: EventoDoDesafio,
+  agora: Date = new Date(),
+): Promise<Challenge> {
+  const antes = await lerDesafioNaTransacao(transacao, db, id);
+  if (antes === null) throw new ErroDeDesafio("Desafio não encontrado.", "desafio-inexistente");
+  return gravarTransicaoNaTransacao(transacao, db, antes, evento, agora);
 }
 
 /** Atalho: abre a própria transação para aplicar o evento. */
