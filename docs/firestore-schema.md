@@ -316,6 +316,8 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 
 **Movimentações da liquidação (KAN-84):** `functions/src/desafios/liquidacaoFinanceira.ts`. `registrarLiquidacaoNaTransacao(transacao, db, desafio, partida)` decide o desfecho (KAN-83) e registra numa única chamada ao ledger, dentro da transação de quem chama: vitória = `RELEASE` + `WIN` do vencedor e `LOSS` do perdedor; empate estrutural = `REFUND` dos dois. Cada reserva precisa ter o valor do desafio (pot = 2× `amount`, sem taxa); caso contrário, `ledger-inconsistente`. Qualquer falha aborta a transação sem gravar nada; repetir uma liquidação já registrada devolve `ja-registradas`. Não muda o estado do desafio: a finalização é a KAN-85.
 
+**Finalização idempotente (KAN-85):** `functions/src/desafios/finalizacao.ts`. `finalizarDesafioNaTransacao` relê desafio e partida, registra a liquidação (KAN-84) e grava `FINISHED` com `settledResult`, `winnerId` e `finishedAt` na mesma transação; como o Firestore não permite ler depois de gravar, a mudança de estado usa `gravarTransicaoNaTransacao` (`challengeFirestore.ts`) com o desafio já lido. Desafio já `FINISHED` devolve `ja-finalizado` sem gravar nada, mesmo que o resultado do provedor mude depois (RN-RES-008); duas execuções simultâneas disputam o desafio e os saldos, e só uma paga. Qualquer erro aborta tudo: o desafio continua em `WAITING_RESULT`.
+
 "Desafio ativo" (RN-CHL-010/011, KAN-64) = estados **não terminais**.
 
 **Integridade:**
