@@ -306,6 +306,8 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 
 **Implementação (KAN-63):** `functions/src/desafios/maquinaDeEstados.ts`. `aplicarEvento` aplica um evento (`ACEITAR`, `RECUSAR`, `EXPIRAR`, `CANCELAR`, `INICIAR`, `AGUARDAR_RESULTADO`, `FINALIZAR`) e preenche as datas e o vencedor de cada etapa; `CANCELAR` com motivo `CREATOR` só vale em `PENDING`. `validarAlteracao` confere qualquer mudança: estado fora da tabela → `transicao-invalida`; participantes, partida, valor, palpites ou datas já definidas alterados → `campo-imutavel`. `transicionarDesafioNaTransacao` (`challengeFirestore.ts`) lê, aplica e grava só os campos de estado; mudanças simultâneas no mesmo desafio conflitam e só uma vale. O app não grava em `challenges` (Security Rules).
 
+**Aguardando resultado (KAN-67):** `functions/src/desafios/aguardarResultado.ts`. `moverDesafiosParaAguardandoResultado` consulta os desafios `IN_PROGRESS` (só `status ==`, sem índice composto) e passa para `WAITING_RESULT` os de partida `FINALIZADA`, `SUSPENSA` ou `REVISAO_NECESSARIA`, conferindo partida e desafio de novo na transação. `WAITING_RESULT` não é erro: a liquidação só parte dele com partida `FINALIZADA` e resultado definido (`LIQUIDA_AUTOMATICAMENTE`); suspensa e em revisão continuam aguardando. `CANCELADA` e `ADIADA` ficam para o cancelamento (KAN-68).
+
 "Desafio ativo" (RN-CHL-010/011, KAN-64) = estados **não terminais**.
 
 **Integridade:**
