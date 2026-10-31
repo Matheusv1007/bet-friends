@@ -96,7 +96,13 @@ describe("desafios aptos para liquidação (Firestore Emulator)", { skip: !noEmu
       r.aptos.map((a) => [a.desafio.id, a.resultado]),
       [[apto, "AWAY_WIN"]],
     );
-    assert.deepEqual([...r.aguardando].sort(), [semResultado, suspensa, emRevisao, semPartida].sort());
+    const motivos = Object.fromEntries(r.aguardando.map((a) => [a.id, a.motivo]));
+    assert.deepEqual(motivos, {
+      [semResultado]: "sem-resultado",
+      [suspensa]: "partida-suspensa",
+      [emRevisao]: "partida-em-revisao",
+      [semPartida]: "partida-inexistente",
+    });
     assert.deepEqual(r.ignorados, []);
   });
 
