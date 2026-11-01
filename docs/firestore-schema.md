@@ -387,6 +387,7 @@ Ledger auditável. Uma transação é **criada uma vez e nunca alterada nem apag
 | `LOSS` | −amount | −amount | Derrota | sim |
 | `REFUND` | 0 | −amount | Empate | sim |
 | `RECOVERY_BONUS` | +100 | 0 | Recuperação (RN-BET-007 a 011) | null |
+| `DEV_TOP_UP` | +amount | 0 | Reposição técnica, **só em emuladores `demo-*`** (RN-BET-012, D-012, KAN-81). Não existe em produção | null |
 
 Verificação: vitória = `RELEASE` + `WIN` → reservado −valor, total +valor; derrota = `LOSS` → reservado −valor, total −valor. Ambas conferem com a tabela do Plano §8.3.
 
@@ -397,6 +398,7 @@ Verificação: vitória = `RELEASE` + `WIN` → reservado −valor, total +valor
 | Saldo inicial | `{uid}_INITIAL_BALANCE` |
 | Reserva / liberação / vitória / derrota / reembolso | `{challengeId}_{uid}_{TYPE}` |
 | Bônus de recuperação | `{uid}_RECOVERY_BONUS_{yyyyMMddHH}`, hora UTC da concessão; a regra de 24 h (RN-BET-008) é validada por `users.lastRecoveryBonusAt` |
+| Reposição em desenvolvimento | `{uid}_DEV_TOP_UP_{operacaoId}` |
 
 **Implementação da recuperação (KAN-80):** Callable `claimRecoveryBonus` (`functions/src/betcoins/`), sem parâmetros (UID do token). Numa única transação, lê `users/{uid}`, exige `saldoReservado = 0`, `saldoDisponivel < 10` e 24 horas desde `lastRecoveryBonusAt` (exatamente 24 h já é permitido), registra o `RECOVERY_BONUS` pelo ledger e grava `lastRecoveryBonusAt` com o horário da concessão. Não elegível → `failed-precondition` com `details.motivo` (`saldo-reservado`, `saldo-suficiente`, `intervalo-nao-cumprido` com `disponivelEm`, `perfil-inexistente`). Chamadas simultâneas disputam `users/{uid}`: só uma concede.
 
