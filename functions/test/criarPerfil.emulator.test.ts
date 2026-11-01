@@ -174,4 +174,43 @@ describe("username único e criação do perfil (Firestore Emulator)", { skip: !
       (e: unknown) => e instanceof HttpsError && e.code === "failed-precondition",
     );
   });
+
+  test("10. chamadas simultâneas do mesmo usuário criam uma única carteira", async () => {
+    const resultados = await Promise.all(Array.from({ length: 10 }, () => criarPerfil(db, ana)));
+    assert.equal(resultados.filter((r) => r.resultado === "criado").length, 1);
+    assert.equal(resultados.filter((r) => r.resultado === "ja-criado").length, 9);
+    assert.equal(await contar("users"), 1);
+    assert.equal(await contar("usernames"), 1);
+    assert.equal(await contar("betCoinTransactions"), 1);
+    assert.deepEqual(lerSaldos((await db.doc(`users/${ana.uid}`).get()).data()!), { saldoTotal: 1000, saldoReservado: 0 });
+  });
+
+  test("11. chamadas simultâneas do mesmo usuário com usernames diferentes não deixam reserva órfã", async () => {
+    const resultados = await Promise.allSettled(
+      Array.from({ length: 6 }, (_, i) => criarPerfil(db, { ...ana, username: `nome_${i}` })),
+    );
+    const recusadas = resultados.filter((r) => r.status === "rejected");
+    assert.equal(recusadas.length, 5);
+    for (const r of recusadas) assert.ok(erro("perfil-existente")((r as PromiseRejectedResult).reason));
+    assert.equal(await contar("users"), 1);
+    assert.equal(await contar("usernames"), 1);
+    assert.equal(await contar("betCoinTransactions"), 1);
+  });
+
+  test("12. pela Callable, UID, e-mail e saldo do payload são ignorados", async () => {
+    type Requisicao = Parameters<typeof createUserProfile.run>[0];
+    await createUserProfile.run({
+      data: { displayName: "Dani", username: "Dani_1", uid: "uidForjado", email: "forjado@example.com", saldoTotal: 999999 },
+      auth: { uid: "uidDaniKan25", rawToken: "fake", token: { uid: "uidDaniKan25", email: "dani@example.com" } },
+    } as Requisicao);
+
+    assert.equal((await db.doc("users/uidForjado").get()).exists, false);
+    const perfil = (await db.doc("users/uidDaniKan25").get()).data()!;
+    assert.equal(perfil.email, "dani@example.com");
+    assert.deepEqual(lerSaldos(perfil), { saldoTotal: 1000, saldoReservado: 0 });
+    const inicial = (await db.doc("betCoinTransactions/uidDaniKan25_INITIAL_BALANCE").get()).data()!;
+    assert.equal(inicial.userId, "uidDaniKan25");
+    assert.equal(inicial.type, "INITIAL_BALANCE");
+    assert.equal(inicial.amount, 1000);
+  });
 });
