@@ -53,6 +53,11 @@ const contas = [
   { uid: "uidDani", email: "dani@example.com", doc: perfil("Dani Souza", "DaniS", "dani@example.com") },
   // Usada só pelos testes de recuperação de BetCoins (KAN-80): sem saldo e sem reserva
   { uid: "uidEva", email: "eva@example.com", doc: { ...perfil("Eva Nunes", "EvaN", "eva@example.com"), saldoTotal: 5 } },
+  // Usadas só pelo histórico de desafios (KAN-89)
+  { uid: "uidHana", email: "hana@example.com", doc: perfil("Hana Reis", "HanaR", "hana@example.com") },
+  { uid: "uidIvo", email: "ivo@example.com", doc: perfil("Ivo Dias", "IvoD", "ivo@example.com") },
+  { uid: "uidJoao", email: "joao@example.com", doc: perfil("João Reis", "JoaoR", "joao@example.com") },
+  { uid: "uidVazio", email: "vazio@example.com", doc: perfil("Sem Desafios", "SemDesafios", "vazio@example.com") },
   // Conta sem documento em users/{uid}
   { uid: "uidSemPerfil", email: "semperfil@example.com", doc: null },
   // Documento fora do schema: sem username
@@ -73,5 +78,44 @@ for (const { uid, email, doc } of contas) {
   await auth.createUser({ uid, email, password: SENHA });
   if (doc) await db.doc(`users/${uid}`).create({ ...doc, updatedAt: doc.updatedAt ?? FieldValue.serverTimestamp() });
 }
+
+// Desafios do histórico (KAN-89): todos os estados, empate de finishedAt, terceiro e documento inválido
+const hora = (h) => Timestamp.fromDate(new Date(Date.UTC(2026, 9, 30, h)));
+const desafio = (id, challengerId, challengedId, status, finishedAt, extra = {}) =>
+  db.doc(`challenges/${id}`).create({
+    challengerId,
+    challengedId,
+    participants: [challengerId, challengedId],
+    matchId: "BSA_1",
+    challengerPrediction: "HOME_WIN",
+    challengedPrediction: null,
+    amount: 100,
+    status,
+    winnerId: null,
+    settledResult: null,
+    cancelReason: null,
+    createdAt: hora(1),
+    acceptedAt: null,
+    startedAt: null,
+    finishedAt,
+    updatedAt: finishedAt ?? hora(1),
+    ...extra,
+  });
+const aceito = { challengedPrediction: "DRAW", acceptedAt: hora(2) };
+const iniciado = { ...aceito, startedAt: hora(3) };
+await Promise.all([
+  desafio("hist-rej", "uidIvo", "uidHana", "REJECTED", hora(12)),
+  desafio("hist-can", "uidIvo", "uidHana", "CANCELLED", hora(11), { cancelReason: "MATCH_CANCELLED" }),
+  desafio("hist-fim", "uidHana", "uidIvo", "FINISHED", hora(10), { ...iniciado, winnerId: "uidHana", settledResult: "HOME_WIN" }),
+  desafio("hist-exp", "uidHana", "uidIvo", "EXPIRED", hora(9)),
+  desafio("hist-emp-a", "uidHana", "uidIvo", "FINISHED", hora(8), { ...iniciado, challengedPrediction: "AWAY_WIN", settledResult: "DRAW" }),
+  desafio("hist-emp-b", "uidIvo", "uidHana", "FINISHED", hora(8), { ...iniciado, challengedPrediction: "AWAY_WIN", settledResult: "DRAW" }),
+  desafio("hist-invalido", "uidHana", "uidIvo", "FINISHED", hora(7), { ...iniciado, amount: 5, settledResult: "DRAW" }),
+  desafio("hist-at-pendente", "uidHana", "uidIvo", "PENDING", null),
+  desafio("hist-at-aceito", "uidHana", "uidIvo", "ACCEPTED", null, aceito),
+  desafio("hist-at-progresso", "uidHana", "uidIvo", "IN_PROGRESS", null, iniciado),
+  desafio("hist-at-aguardando", "uidHana", "uidIvo", "WAITING_RESULT", null, iniciado),
+  desafio("hist-terc", "uidIvo", "uidJoao", "FINISHED", hora(13), { ...iniciado, winnerId: "uidIvo", settledResult: "HOME_WIN" }),
+]);
 
 console.log(`[seed] ${contas.length} contas no Auth Emulator e ${contas.filter((c) => c.doc).length} perfis no Firestore Emulator (${PROJECT}).`);
