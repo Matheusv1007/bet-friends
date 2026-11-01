@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { AddressInfo } from "node:net";
 import { afterEach, test } from "node:test";
 
 import { ErroDeCredencial, FOOTBALL_DATA_TOKEN } from "../src/core/segredos";
-import { ErroDoProvedor, FootballDataAdapter, converterPartidaFootballData } from "../src/partidas/footballData/adapter";
+import { ErroDoProvedor, FootballDataAdapter, URL_FOOTBALL_DATA, converterPartidaFootballData } from "../src/partidas/footballData/adapter";
 
 const TOKEN = "tokenFicticioDeTeste123";
 
@@ -168,4 +170,42 @@ test("código de competição inválido não monta URL", async () => {
   const { fn, chamadas } = fetchFalso(200, { matches: [] });
   await assert.rejects(adapter(fn).listarPartidas({ competitionCode: "BSA/../x" }), erroDoProvedor("resposta-invalida"));
   assert.equal(chamadas.length, 0);
+});
+
+/** Servidor local que atende como o provedor; nenhuma chamada sai da máquina. */
+async function comServidor(atender: Parameters<typeof createServer>[1], usar: (fn: typeof fetch) => Promise<void>) {
+  const servidor = createServer(atender).listen(0, "127.0.0.1");
+  await new Promise((pronto) => servidor.once("listening", pronto));
+  const { port } = servidor.address() as AddressInfo;
+  const viaLocal = ((url: string | URL | Request, init?: RequestInit) =>
+    fetch(String(url).replace(URL_FOOTBALL_DATA, `http://127.0.0.1:${port}`), init)) as typeof fetch;
+  try {
+    await usar(viaLocal);
+  } finally {
+    servidor.closeAllConnections();
+    servidor.close();
+  }
+}
+
+test("tempo esgotado antes da resposta vira indisponivel", async () => {
+  await comServidor(
+    () => {},
+    async (fn) => {
+      const lento = new FootballDataAdapter({ fetch: fn, token: () => TOKEN, timeoutMs: 100 });
+      await assert.rejects(lento.listarPartidas({ competitionCode: "BSA" }), erroDoProvedor("indisponivel"));
+    },
+  );
+});
+
+test("tempo esgotado durante a leitura do corpo vira indisponivel, não resposta-invalida", async () => {
+  await comServidor(
+    (_req, res) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.write('{"matches":[');
+    },
+    async (fn) => {
+      const lento = new FootballDataAdapter({ fetch: fn, token: () => TOKEN, timeoutMs: 100 });
+      await assert.rejects(lento.listarPartidas({ competitionCode: "BSA" }), erroDoProvedor("indisponivel"));
+    },
+  );
 });

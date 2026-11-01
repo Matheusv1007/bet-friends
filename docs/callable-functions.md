@@ -219,7 +219,7 @@ Para testes locais, use sempre um projeto `demo-*`: o emulador não acessa o Fir
 
 ## 10 - Sincronização periódica de partidas e liquidação (KAN-50, KAN-86)
 
-`syncMatches` é uma função agendada (Cloud Scheduler) que chama `sincronizarPartidas` (KAN-49) para o Brasileirão (`BSA`). Cada execução faz **uma** chamada à Football-Data, só para a janela em volta do horário da execução, e grava em `matches`. O app só lê `matches`; não chama o provedor.
+`syncMatches` é uma função agendada (Cloud Scheduler) que chama `executarSincronizacao` para o Brasileirão (`BSA`). Cada execução faz **uma** chamada à Football-Data e grava em `matches` só o que mudou. Em geral consulta a janela em volta do horário da execução; a cada `PARTIDAS_SYNC_TEMPORADA_HORAS`, consulta a temporada inteira, para alcançar partidas que saíram da janela (adiamento longo, resultado tardio). A varredura usa o mesmo agendamento, sem função nem job adicional. No desenho previsto, o app só lê `matches`; hoje ele ainda chama o provedor diretamente, até a migração (KAN-42).
 
 Logo depois, na mesma execução, `processarResultados` (KAN-86, `functions/src/desafios/processamentoDeResultados.ts`) usa só o que já está em `matches`: passa para `WAITING_RESULT` os desafios cuja partida saiu de campo, identifica os aptos (partida `FINALIZADA` com resultado) e finaliza cada um com a liquidação idempotente, uma transação por desafio. A falha de um desafio não trava os outros nem deixa efeito parcial; vai para o log (`Desafios aptos que não puderam ser liquidados`) e a próxima execução tenta de novo, sem pagar duas vezes o que já foi finalizado.
 
@@ -228,9 +228,21 @@ Logo depois, na mesma execução, `processarResultados` (KAN-86, `functions/src/
 | `PARTIDAS_SYNC_AGENDA` | `every 5 minutes` | Frequência, em sintaxe cron ou App Engine. Fuso: `America/Sao_Paulo` |
 | `PARTIDAS_SYNC_DIAS_ANTES` | `3` | Dias antes de agora (placar e resultado das partidas recentes). Inteiro de 0 a 60 |
 | `PARTIDAS_SYNC_DIAS_DEPOIS` | `14` | Dias depois de agora (partidas futuras). Inteiro de 0 a 60 |
+| `PARTIDAS_SYNC_TEMPORADA_HORAS` | `6` | Intervalo mínimo entre as consultas à temporada inteira. Inteiro de 1 a 168 |
 
-- **Limite do plano Free (10 chamadas/min):** uma chamada por execução; mesmo `every 1 minutes` fica abaixo do limite.
+- **Alternância depois de falha da temporada:** uma falha da temporada não pode impedir a sincronização da janela. Se a última execução consultou a temporada e ela falhou, a seguinte consulta a janela; depois, a temporada é tentada de novo, até concluir. Durante falha persistente, com a agenda padrão, a janela roda aproximadamente a cada 10 minutos, em vez de 5. A temporada só conta como concluída em sucesso (`lastSeasonSuccessAt`), e o sucesso da janela não apaga o histórico de falhas dela (`consecutiveSeasonFailures`). O contrato de `system/matchSync` continua sujeito à decisão E-1 e à revisão de Matheus (`docs/firestore-schema.md` §3.7).
+- **Limite do plano Free (10 chamadas/min):** uma chamada por execução, inclusive na varredura da temporada e durante a alternância. Agendas mais frequentes continuam abaixo desse limite, mas aumentam as leituras no Firestore (uma por partida consultada, por execução). Partida sem mudança não é regravada.
 - **Ajustar sem mudar código** (por exemplo, depois da medição de atraso da KAN-53): definir as variáveis em `functions/.env.betfriends-unirv-2026` (não é segredo; o Firebase CLI lê o arquivo no deploy) e refazer o deploy. Valor inválido faz o deploy falhar, em vez de publicar uma agenda errada.
-- **Falha do provedor:** a execução termina sem erro, o motivo fica no log (`Falha ao buscar partidas no provedor de futebol`), `matches` mantém o último dado e o processamento de resultados roda com o que já estava sincronizado. A próxima execução tenta de novo (`retryCount: 0`, uma instância por vez).
+- **Falhas:** `matches` mantém o último dado, o processamento de resultados roda com o que já estava sincronizado (mesmo quando a execução termina com erro) e a próxima execução tenta de novo (`retryCount: 0`, uma instância por vez). Toda falha registra `Falha ao buscar partidas no provedor de futebol` e atualiza `system/matchSync` (`docs/firestore-schema.md` §3.7). O token nunca entra em log nem no documento.
+
+| `falha` | Execução | `logger.error` (`evento: sincronizacao-falhou`) |
+|---|---|---|
+| `credencial`, `resposta-invalida` | Termina com erro | Sempre (`tipo: permanente`) |
+| `indisponivel`, `limite-de-requisicoes` | Termina sem erro | A partir da 3ª falha seguida de execuções ou da 3ª seguida da temporada (`tipo: persistente`) |
+
+- **Execuções sobrepostas ou respostas atrasadas:** o ID determinístico evita duplicar, e versão com `providerLastUpdated` mais antigo é ignorada. A primeira confirmação do vencedor é aceita com marca igual ou ausente; resultado já confirmado só muda com marca estritamente mais nova. Essa correção aparece no log (`Provedor corrigiu partidas já finalizadas`) e não altera desafios já liquidados nem BetCoins. Se o resultado corrigido divergir de um desafio já liquidado, há `logger.error` (`evento: divergencia-pos-liquidacao`) e contagem em `system/matchSync`, sem estorno automático.
+- **Pendência antes de liquidar em produção (B-4):** o resultado pago vem de `score.winner`, sem conferência com o placar.
+- **Parâmetros provisórios:** 6 horas entre varreduras e 240 segundos de limite permanecem inalterados, mas ainda não foram medidos no provedor nem na nuvem. A validação foi feita com emuladores e `fetch` falso, não com infraestrutura real. Se `lastUpdated` mudar sem mudança real, a redução de gravações será menor.
 - **Requisitos para rodar em produção:** plano Blaze, `FOOTBALL_DATA_TOKEN` configurado (seção 8.2) e deploy das Functions (seção 7).
+- **Alcance atual da liquidação:** nada em produção cria ou inicia desafios ainda (KAN-66 e Callables de desafio pendentes); o processamento só encontra desafios em testes.
 - **No emulador:** sem o emulador de Pub/Sub, o Functions Emulator só carrega a definição e não dispara a agenda.

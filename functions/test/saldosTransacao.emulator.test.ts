@@ -141,9 +141,10 @@ describe("saldos sob concorrência (Firestore Emulator)", { skip: !noEmulador &&
 
   test("controle: validar e gravar sem transação permite reservar acima do disponível", async () => {
     // Mostra o defeito que a transação evita: as leituras não veem umas às outras
+    const lidos = await Promise.all(Array.from({ length: 5 }, () => saldosDe(ana))); // todas veem 1000 disponível
     await Promise.all(
-      Array.from({ length: 5 }, async () => {
-        reservar(await saldosDe(ana), 900); // todas veem 1000 disponível e passam
+      lidos.map(async (saldos) => {
+        reservar(saldos, 900); // e passam
         await ana.update({ saldoReservado: FieldValue.increment(900) });
       }),
     );

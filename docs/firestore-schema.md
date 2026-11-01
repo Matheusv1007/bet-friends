@@ -201,7 +201,7 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 
 **Implementação (KAN-46):** `functions/src/partidas/match.ts` (modelo `Match`, enums de status e resultado, validação e ID `{providerKey}_{externalMatchId}`) e `functions/src/partidas/matchFirestore.ts` (`gravarMatchNaTransacao` cria ou atualiza o mesmo documento, preservando `originalStartsAtUtc` e `createdAt`; a leitura recusa status fora do domínio). O `providerKey` não é gravado: é o prefixo do ID.
 
-**Sincronização (KAN-49):** `functions/src/partidas/sincronizacao.ts` (`sincronizarPartidas`) busca as partidas pelo FootballService e grava cada uma com `gravarMatch`. Repetir a sincronização atualiza os mesmos documentos; falha do provedor não grava nada (fica o último dado conhecido) e partida ausente da resposta não é apagada. Documento existente fora do schema não é sobrescrito: volta em `recusadas` para revisão.
+**Sincronização (KAN-49):** `functions/src/partidas/sincronizacao.ts` (`sincronizarPartidas`) busca as partidas pelo FootballService e grava cada uma com `gravarMatch`. Repetir a sincronização atualiza os mesmos documentos; falha do provedor não grava nada (fica o último dado conhecido) e partida ausente da resposta não é apagada. Documento existente fora do schema não é sobrescrito: volta em `recusadas` para revisão. Partida igual à gravada não é regravada; versão com `providerLastUpdated` mais antigo é ignorada. A primeira confirmação do vencedor é aceita com marca igual ou ausente; resultado já confirmado só muda com marca estritamente mais nova (marca sobre partida sem marca conta como mais nova).
 
 | Campo | Tipo | Obrigatório | Descrição / regra |
 |---|---|---|---|
@@ -220,7 +220,7 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 | `awayScore` | int \| null | não | [PLANO] |
 | `result` | enum `HOME_WIN` \| `DRAW` \| `AWAY_WIN` \| null | não | [PLANO] Nulo até `FINALIZADA` (RN-RES-003) |
 | `providerLastUpdated` | Timestamp \| null | não | [PLANO] Marca de atualização do provedor |
-| `syncedAt` | Timestamp (servidor) | sim | [PLANO] Última sincronização do BetFriends; também exibido como "última atualização" (RN-CACHE-002) |
+| `syncedAt` | Timestamp (servidor) | sim | [PLANO] Última sincronização do BetFriends. **[PROPOSTA — aguarda revisão de Matheus]** Passa a ser a última sincronização que alterou o documento: sincronização sem mudança não regrava a partida. A última execução fica em `system/matchSync` (§3.7), que é a base para exibir "última atualização" (RN-CACHE-002) |
 | `createdAt` | Timestamp (servidor) | sim | [KAN-17] Primeira sincronização |
 
 **Enum `status` [PLANO §9.3 e §11]:**
@@ -415,6 +415,27 @@ Um usuário tem no máximo um `RESERVE` e uma liquidação por desafio, então `
   "metadata": { "matchId": "footballdata_537123" }
 }
 ```
+
+### 3.7 - `system/matchSync` **[PROPOSTA — aguarda revisão de Matheus]**
+
+Estado da sincronização periódica de partidas (`functions/src/partidas/execucaoDaSincronizacao.ts`). Documento único, só do backend: as Security Rules negam leitura e escrita ao app (regra padrão). Se o app precisar exibir a última atualização (RN-CACHE-002), será preciso liberar a leitura em uma regra própria. Não guarda token nem resposta do provedor.
+
+| Campo | Tipo | Regra |
+|---|---|---|
+| `competitionCode` | string | Competição sincronizada, ex.: `BSA` |
+| `lastRunAt` | Timestamp | Início da última execução, com ou sem sucesso |
+| `lastRunScope` | enum `janela` \| `temporada` | O que a última execução consultou. Com `consecutiveSeasonFailures` > 0, valor `temporada` faz a execução seguinte usar a janela |
+| `lastSuccessAt` | Timestamp | Última execução bem-sucedida |
+| `lastSeasonSuccessAt` | Timestamp | Última consulta bem-sucedida à temporada inteira; define quando será a próxima. Não muda em falha nem em sucesso da janela |
+| `lastFailureAt` | Timestamp | Última falha |
+| `lastFailureCode` | enum `credencial` \| `limite-de-requisicoes` \| `indisponivel` \| `resposta-invalida` | Motivo da última falha; permanece depois da recuperação |
+| `consecutiveFailures` | int | Execuções seguidas com falha, de qualquer escopo; volta a 0 em qualquer sucesso, inclusive só da janela |
+| `consecutiveSeasonFailures` | int | Falhas seguidas só da consulta à temporada; volta a 0 só quando ela conclui. O sucesso da janela não apaga esse histórico |
+| `lastSummary` | map | `criadas`, `atualizadas`, `inalteradas`, `ignoradas`, `corrigidas`, `divergencias`, `descartadas`, `recusadas` da última execução bem-sucedida |
+
+**Relação entre os campos:** enquanto a varredura estiver pendente, `lastSeasonSuccessAt` continua com a data antiga ou ausente. Se a última execução foi `temporada` e `consecutiveSeasonFailures` > 0, a próxima consulta a janela; depois, a temporada é tentada de novo. Assim, uma falha da temporada não impede a sincronização da janela.
+
+**Situação:** `system/matchSync` e seus campos, incluindo `consecutiveSeasonFailures`, continuam sujeitos à decisão E-1 e à revisão de Matheus; não são contrato aprovado. O comportamento foi validado só em emuladores, não em infraestrutura real.
 
 ---
 
