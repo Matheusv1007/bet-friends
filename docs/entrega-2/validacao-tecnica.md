@@ -1,5 +1,50 @@
 # Validação técnica — Segunda Entrega
 
+## Testes automatizados (01/11/2026)
+
+**Código:** `805eea8` · **Ambiente:** Arch Linux, Node 22.23.4, JDK 21, `emulator-5554`, emuladores no projeto `demo-betfriends`. Nenhum teste automatizado usou o Firebase de produção.
+
+| Verificação | Resultado |
+|---|---|
+| `flutter analyze` | **0 erros**; 7 avisos já conhecidos (2 variáveis sem uso em teste e 5 nomes de arquivo) |
+| `flutter test` | ✅ **176/176** |
+| `npm test` em `functions/` | ✅ **118/118** testes puros |
+| Backend + Security Rules no Firestore Emulator | ✅ **365/365** |
+| `integration_test/` no Android (Auth, Firestore e Functions Emulator) | ✅ **54/54**, em 7 arquivos |
+
+## Validação no Firebase real (01/11/2026)
+
+**Código:** `805eea8` · **Projeto:** `betfriends-unirv-2026`, com três contas de teste `qa_*` e e-mails fictícios. Cada teste foi autorizado separadamente, com conferência por leitura antes e depois. Senhas digitadas manualmente e não registradas.
+
+| Teste | O que validou | Resultado |
+|---|---|---|
+| R-0 | `createUserProfile` sem token | ✅ HTTP 401; nada gravado |
+| R-1 | Cadastro completo pelo app | ✅ Perfil, reserva e um `INITIAL_BALANCE` +1000 na mesma transação; 1000 / 0 |
+| R-2 | Username de outra conta em outra caixa; conclusão com outro | ✅ Recusado (409), sem documentos; depois concluído |
+| R-3 | E-mail repetido | ✅ Mensagem de e-mail cadastrado; nenhuma conta nova |
+| R-4 | Senha de 5 caracteres e senhas diferentes | ✅ Bloqueio no app; nenhuma chamada à função |
+| R-5 | Cadastro sem rede; conclusão com rede | ✅ Mensagem de conexão, nada gravado; depois uma carteira só |
+| R-6 | 5 chamadas simultâneas com carteira já criada | ✅ Todas `criado: false`; documentos sem regravação |
+| R-7 | Perfil, edição do nome, logout e novo login; edição em modo avião | ✅ Nome persiste; só `displayName` e `updatedAt` mudam; edição offline bloqueada, sem escrita pendente |
+| R-8 parcial | Ler o próprio perfil; ler perfil de outra conta; listar `users` | ✅ 200; 403 `PERMISSION_DENIED`; 403 `PERMISSION_DENIED` |
+| R-9 | Fechamento | ✅ 3 perfis, 3 reservas, 3 lançamentos; saldos 1000 / 0; sem órfãos; sem erro nos logs de `createUserProfile` |
+
+**Não comprovado em produção:**
+
+| Item | Situação |
+|---|---|
+| Negação de escrita (saldo, `usernames`, lançamento) | A execução real não foi autorizada, porque o banco não tem PITR nem backup. No emulador, com as regras publicadas: 403 `PERMISSION_DENIED`. Só essa resposta comprova bloqueio; `FAILED_PRECONDITION` e `NOT_FOUND` não comprovam |
+| Disputa simultânea na primeira criação da carteira | Só em emulador |
+| Retomada do cadastro pelo Perfil, depois de reabrir o app | Código e testes com emuladores |
+| Perda de conexão com o diálogo de edição aberto | Só em emulador |
+| `claimRecoveryBonus`, reserva e liquidação com dados reais | Sem fluxo no app; nenhum desafio real existe |
+
+**Limites:** a busca por token, senha e e-mail nos logs cobriu `createUserProfile`, não o Firebase Auth nem outras funções. Duas contas anteriores do Auth foram conferidas só por contagem. As contas de teste permanecem no projeto, e a conta B não deve ser usada: a primeira senha digitada nela apareceu em uma captura de preparação, antes do envio.
+
+**Situação do projeto real (01/11, leitura):** Blaze ativo; `systemPing`, `createUserProfile`, `claimRecoveryBonus` e `syncMatches` ativas; job da `syncMatches` a cada 5 minutos; 380 documentos em `matches`; regras idênticas às do repositório; PITR desligado e sem backups.
+
+As seções abaixo são o histórico anterior e **refletem o estado das suas datas**.
+
 ## Testes automatizados (29/10/2026)
 
 **Código:** `qas` em `5ed4796` (merge do PR #35) · **Ambiente:** cópia isolada do repositório (`git archive`), Arch Linux, Flutter 3.47.5, Node 26, Firestore Emulator 1.22.0 com JDK 21, projeto `demo-betfriends`. Nenhum teste usou o Firebase de produção.
@@ -85,8 +130,7 @@ O `flutter run` encerrou com "Lost connection to device" ao fechar o app à for�
 
 | # | Verificação | Por que não foi feita | Como fazer |
 |---|---|---|---|
-| P-1 | Refazer o roteiro da demo no app atual (Home nova, aba Perfil no Firebase real) | O app mudou depois do ensaio de 28/10 | `flutter run -d emulator-5554` a partir da branch apresentada, seguindo [roteiro-demonstracao.md](roteiro-demonstracao.md) |
-| P-2 | Reexecutar `integration_test/` | Nenhum dispositivo ativo em 29/10 | Comando em [`integration_test/README.md`](../../integration_test/README.md) |
+| P-1 | Refazer o roteiro completo da demo em sequência | Partes foram exercitadas em 01/11, mas não o roteiro inteiro | `flutter run -d emulator-5554` a partir da branch apresentada, seguindo [roteiro-demonstracao.md](roteiro-demonstracao.md) |
 | P-3 | Teste em aparelho físico | Nenhum aparelho conectado | `flutter run -d <id>` com depuração USB |
 | P-4 | Build **release** do código atual | Não refeito; o último build release é de 19/10 | `flutter build apk --release`, só para uso local (ver aviso abaixo) |
 | P-5 | Gravação do vídeo de contingência | Planejada para 03 a 05/11 | `scrcpy --record demo.mp4` ou gravador do emulador |
