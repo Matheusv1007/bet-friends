@@ -105,7 +105,7 @@ npx firebase-tools@15.32.1 deploy --only functions --project betfriends-unirv-20
 
 O deploy de Functions exige o projeto Firebase no plano Blaze. Informe sempre `--project` e `--only`: o `.firebaserc` só tem o projeto de produção.
 
-**Situação em 29/10/2026:** o projeto está no plano **Spark**, a Cloud Functions API não está ativa e **nenhuma função está publicada**. Antes do primeiro deploy:
+**Situação em 01/11/2026:** o projeto está no plano **Blaze**, com `systemPing`, `createUserProfile`, `claimRecoveryBonus` e `syncMatches` publicadas. Pré-requisitos seguidos no primeiro deploy, válidos como referência para os próximos:
 
 1. Ativar o plano Blaze, com alerta de orçamento (decisão do Proprietário do projeto).
 2. Garantir a permissão de deploy. As Callables gen 2 rodam no Cloud Run, e o deploy libera a invocação pública do serviço, o que exige `run.services.setIamPolicy`. O papel Editor não tem essa permissão. O deploy deve ser feito pelo Proprietário, ou por uma conta com um papel que a inclua (ex.: Cloud Run Admin ou Cloud Functions Admin).

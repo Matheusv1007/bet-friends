@@ -4,7 +4,7 @@ Aplicativo Android, feito em Flutter, para desafios 1x1 entre amigos sobre parti
 
 Projeto Final da disciplina de Desenvolvimento Mobile.
 
-> **Estado atual (Segunda Entrega, 05/11/2026):** protótipo navegável com autenticação real e listagem de partidas reais. A tela de Perfil e boa parte do backend (cadastro com username único, carteira e movimentações de BetCoins) estão implementadas e testadas **apenas nos emuladores do Firebase**. As Security Rules da KAN-22 foram **publicadas no projeto real em 29/10/2026**; as Cloud Functions ainda **não foram implantadas** (projeto no plano Spark). Amizades, desafios persistidos e liquidação ainda não foram iniciados. Veja [O que está pronto](#o-que-está-pronto).
+> **Estado atual (Segunda Entrega, 05/11/2026):** protótipo navegável com cadastro, login, perfil e carteira inicial **validados no Firebase real** em 01/11/2026, além de partidas reais. Security Rules e quatro Cloud Functions estão publicadas (plano Blaze). Saldo na interface, amizades e desafios reais ainda não chegaram ao app. Veja [O que está pronto](#o-que-está-pronto).
 
 ## Tecnologias
 
@@ -15,7 +15,7 @@ Projeto Final da disciplina de Desenvolvimento Mobile.
 | Navegação | Navigator (com `AuthGate` baseado na sessão) |
 | Autenticação | Firebase Authentication (e-mail e senha) |
 | Banco de dados | Cloud Firestore (schema v2.0; Security Rules da KAN-22 publicadas em 29/10/2026) |
-| Backend | Cloud Functions em TypeScript, Node 22 (implementadas e testadas no emulador, sem deploy) |
+| Backend | Cloud Functions em TypeScript, Node 22 (quatro publicadas no projeto real; parte dos módulos ainda sem uso pelo app) |
 | Dados de futebol | [football-data.org](https://www.football-data.org) API v4, competição BSA |
 | HTTP | `package:http` |
 
@@ -109,17 +109,17 @@ Os padrões de arquivos ficam entre aspas simples: o `node --test` do Node 22 n�
 
 Os testes de integração do app no Android contra os emuladores estão descritos em [`integration_test/README.md`](integration_test/README.md).
 
-As Cloud Functions **ainda não estão implantadas** no projeto Firebase: o projeto está no plano **Spark** e a Cloud Functions API não está ativa. O deploy depende do plano Blaze e de uma conta com permissão para liberar a invocação das Callables (ver [`docs/callable-functions.md`](docs/callable-functions.md) §7). Não é preciso executar o backend para rodar o app.
+As Cloud Functions `systemPing`, `createUserProfile`, `claimRecoveryBonus` e `syncMatches` estão publicadas no projeto real (plano Blaze, `southamerica-east1`). Não é preciso executar o backend localmente para rodar o app.
 
 ## Configuração do Firebase
 
 O repositório já inclui a configuração **de cliente** do Firebase para Android (`android/app/google-services.json` e `lib/firebase_options.dart`). Esses arquivos identificam o projeto, mas não são credenciais administrativas. Não é preciso configurar nada para rodar o app.
 
-- Para entrar no projeto real, use uma conta já cadastrada no Firebase Authentication (peça uma conta de teste à equipe). A tela de cadastro cria a conta no Auth, mas o perfil depende da `createUserProfile`, que ainda não foi implantada: no projeto real, a conta fica criada sem perfil.
-- As Security Rules por coleção (`firestore.rules`, KAN-22) foram **publicadas no projeto real em 29/10/2026**, idênticas às do repositório. Elas permitem ao usuário ler o próprio perfil e alterar só o nome de exibição; o resto continua negado ao app. Como ainda não há perfis no projeto real (a criação depende da `createUserProfile`), a tela de Perfil só foi validada nos emuladores.
+- No projeto real, a tela de cadastro cria a conta no Auth e chama a `createUserProfile`, que cria perfil, username único e carteira. Os dados criados são permanentes: use e-mail fictício e combine com a equipe antes de criar contas de teste.
+- As Security Rules por coleção (`firestore.rules`, KAN-22) foram **publicadas no projeto real em 29/10/2026**, idênticas às do repositório. Elas permitem ao usuário ler o próprio perfil e alterar só o nome de exibição; o resto continua negado ao app.
 - Nunca versione credenciais administrativas, arquivos `.env`, `.secret.local` ou chaves de serviço.
 
-> **Aviso de segurança conhecido:** hoje o token da football-data.org está no código do app. Isso contraria a arquitetura planejada, em que só o backend acessa o provedor. O backend já guarda o token como segredo (KAN-21) e tem a função agendada `syncMatches`, que busca as partidas e as grava no Firestore (KAN-44 a KAN-50), mas ela ainda não foi implantada; o app lendo do Firestore e a troca do token (KAN-102) estão pendentes. Até lá, **não distribua APKs** gerados a partir deste código e não reproduza o token em issues, prints ou documentos.
+> **Aviso de segurança conhecido:** hoje o token da football-data.org está no código do app. Isso contraria a arquitetura planejada, em que só o backend acessa o provedor. A função agendada `syncMatches` já roda no projeto real, com o token como segredo, e grava as partidas no Firestore (KAN-21, KAN-44 a KAN-50); o app lendo do Firestore (KAN-42) e a troca do token (KAN-102) estão pendentes. Até lá, **não distribua APKs** gerados a partir deste código e não reproduza o token em issues, prints ou documentos.
 
 ## Estrutura do projeto
 
@@ -150,49 +150,52 @@ android/                         # projeto Android
 
 ## O que está pronto
 
-### Funciona no app com o Firebase real
-- **Login** com e-mail e senha (Firebase Authentication), com mensagens de erro em português.
-- **Sessão:** ao abrir, o app restaura a sessão e vai direto para a Home.
-- **Logout** pelo menu do avatar, com confirmação. Depois de sair, o botão Voltar não retorna às telas protegidas.
-- **Partidas reais** do Brasileirão (ao vivo, próximas e finalizadas recentes) na Home e na tela Criar Desafio, com carregamento, mensagem de erro, estado vazio, "Tentar novamente", puxar para atualizar e atualização automática a cada 30 s. Hoje o app chama a API diretamente.
-- **Security Rules** por coleção (KAN-22): testadas no emulador e publicadas no projeto real em 29/10/2026.
-- **Falha de atualização:** se a API falhar depois de já ter carregado, os dados anteriores continuam na tela com um aviso.
-- **Home sem dados fictícios no cabeçalho:** saudação "Olá!" (ou "Olá, {nome}" quando há perfil) e "Saldo indisponível". A barra inferior tem Home, Desafios e Perfil; o Ranking foi removido por ser pós-MVP.
+### Validado no app com o Firebase real
+- **Cadastro** (KAN-25, KAN-31, KAN-32, KAN-72): a tela cria a conta no Auth e chama a `createUserProfile`, que cria perfil, username único e carteira com 1.000 BetCoins em uma única transação. Dados inválidos e e-mail ou username repetidos são recusados. Sem rede, nada é gravado, e o cadastro pode ser concluído na mesma tela.
+- **Login, logout e sessão:** com mensagens de erro em português. Depois de sair, o app volta ao Login.
+- **Perfil** (`users/{uid}`, KAN-28, KAN-29, KAN-32): tela com nome e username, edição do nome com persistência depois de novo login, e leitura de terceiros e listagem negadas.
+- **Comportamento sem conexão** (KAN-24): dados salvos com aviso; edição e cadastro bloqueados, sem falsa confirmação nem escrita pendente.
+- **Carteira inicial:** um `INITIAL_BALANCE` +1000 por perfil. Chamadas simultâneas com a carteira já criada não duplicam nem alteram dados.
+- **Partidas reais** do Brasileirão na Home e na tela Criar Desafio, com carregamento, erro, estado vazio, puxar para atualizar e atualização a cada 30 s. Hoje o app chama a API diretamente.
+- **Home:** saudação com o nome do perfil e "Saldo indisponível" até a KAN-69. A barra inferior tem Home, Desafios e Perfil; o Ranking foi removido por ser pós-MVP.
+- **Security Rules** por coleção (KAN-22), publicadas em 29/10/2026.
 
-### Implementado e testado só nos emuladores do Firebase
-- **Perfil** (`users/{uid}`, vinculado ao UID): tela de Perfil, edição do nome de exibição e comportamento seguro sem conexão (KAN-24, KAN-28, KAN-29, KAN-32). No projeto real, as Security Rules já estão publicadas, mas ainda não há perfis: a criação depende da `createUserProfile`, sem deploy.
-- **Cadastro** (KAN-25, KAN-31, KAN-32 e KAN-72): a tela cria a conta no Firebase Auth e chama a `createUserProfile`, que cria perfil, username único e carteira com 1.000 BetCoins em uma única transação. Se o perfil falhar, a sessão é mantida e o cadastro pode ser concluído na mesma tela ou depois, pela aba Perfil.
-- **BetCoins no backend:** invariantes de saldo (KAN-73), registro auditável de transações (KAN-79), reserva e liberação (KAN-74, KAN-75), premiação, perda e reembolso em empate (KAN-76 a KAN-78) e as movimentações da liquidação de um desafio numa única transação, sem taxa (KAN-84). São funções internas: nenhuma tela nem Callable as usa ainda.
-- **Partidas no backend:** modelo `Match`, mapeamento de status e de resultado (KAN-46 a KAN-48), Adapter da Football-Data (KAN-44), FootballService (KAN-45), sincronização com `matches` (KAN-49) e a função agendada `syncMatches`, a cada 5 minutos por padrão, com consulta à temporada inteira a cada 6 horas, que depois de sincronizar já liquida os desafios com resultado oficial (KAN-50, KAN-86; configuração em `docs/callable-functions.md` §10). Sem deploy, o app continua chamando a API diretamente.
-- **Desafios no backend:** modelo `Challenge` com os oito estados oficiais e persistência em `challenges` (KAN-62), máquina de estados com as transições do Plano §7, sem edição de participantes, partida, valor ou palpites (KAN-63), passagem para `WAITING_RESULT` quando a partida termina, é suspensa ou vai para revisão (KAN-67), identificação dos desafios aptos para liquidação: só com partida finalizada e resultado oficial; suspensa e em revisão ficam aguardando, sem mover BetCoins, e aparecem no log (KAN-82, KAN-87), decisão de vencedor ou empate estrutural pelo resultado oficial (KAN-83), finalização do desafio junto com a liquidação, uma única vez (KAN-85), e tudo isso automático, a cada execução da `syncMatches` (KAN-86). Ainda sem Callable de criação ou aceite de desafio.
+### Publicado, sem uso pelo app
+- **Sincronização de partidas:** `syncMatches` (KAN-44 a KAN-50) grava em `matches` a cada 5 minutos por padrão, com consulta à temporada inteira a cada 6 horas (`docs/callable-functions.md` §10).
+- **Liquidação automática** (KAN-82 a KAN-87): roda dentro da `syncMatches`, mas nunca liquidou em produção, porque não há desafios reais.
+- **Recuperação de BetCoins** (`claimRecoveryBonus`, KAN-80): testada em emulador; sem tela (KAN-71) e sem execução em produção.
+
+### Testado só em emulador
+- **Negação de escrita pelo cliente** (saldo, `usernames` e lançamentos): com as mesmas regras publicadas. A execução em produção não foi autorizada, porque o banco não tem backup.
+- **Disputa simultânea na primeira criação da carteira** e **retomada do cadastro pelo Perfil depois de reabrir o app**.
+- **BetCoins no backend:** invariantes de saldo (KAN-73), registro auditável (KAN-79), reserva e liberação (KAN-74, KAN-75), premiação, perda e reembolso em empate (KAN-76 a KAN-78) e movimentações da liquidação, sem taxa (KAN-84). Fora a carteira inicial, nenhuma tela nem Callable as usa ainda.
+- **Desafios no backend:** modelo `Challenge` com os oito estados oficiais e persistência (KAN-62), máquina de estados (KAN-63), `WAITING_RESULT` (KAN-67) e identificação, decisão e finalização da liquidação pelo resultado oficial (KAN-82, KAN-83, KAN-85, KAN-87). Ainda sem Callable de criação ou aceite.
 
 ### Apenas demonstrativo (interface sem funcionalidade real)
 - **Desafios Ativos** na Home: exemplos fixos, com o selo "DEMONSTRATIVO".
 - **Criar Desafio:** a escolha da partida usa dados reais, mas amigos ("DEMONSTRATIVO") e saldo ("1.500 fichas", valor fixo) não são reais, e o envio mostra "Modo demonstrativo: nenhum desafio foi salvo no banco."
 
 ### Pendente para o MVP
-Deploy das Functions (as regras já foram publicadas), amizades, criação e aceite de desafios pelo app, saldo e extrato na interface, bônus de recuperação na interface, app lendo as partidas de `matches` em vez da API, histórico e tela de créditos ("Data provided by football-data.org").
+Amizades, criação e aceite de desafios pelo app, início de partida (KAN-66), saldo e extrato na interface, bônus de recuperação na interface, app lendo `matches` em vez da API, troca do token, histórico e tela de créditos ("Data provided by football-data.org").
+
+### Limitações conhecidas
+- O cadastro revela quando um e-mail já existe, e um username recusado deixa a conta no Auth sem perfil, a ser concluído depois.
+- O Firestore do projeto está sem PITR, backups e proteção contra exclusão (01/11/2026).
+- Os dados de teste `qa_*` permanecem no projeto real.
 
 ## Testes
 
-Últimos resultados registrados (29/10/2026, `qas` em `5ed4796`):
+Últimos resultados (01/11/2026, `805eea8`, Node 22.23.4, emuladores em `demo-betfriends`). Nenhum teste automatizado usa o Firebase de produção.
 
 | Suíte | Resultado |
 |---|---|
-| `flutter test` | 128/128 |
-| `flutter analyze` | 0 erros; 7 avisos já conhecidos (2 warnings em teste e 5 de nome de arquivo) |
-| Backend (`functions/`): testes puros + Firestore Emulator | 131/131 (58 puros + 73 no emulador) |
-| Security Rules no Firestore Emulator | 77/77 |
-| `integration_test/` no Android contra os emuladores | 33/33 na última execução, em 28/10/2026; não reexecutados depois (o app só ganhou uma constante desde então) |
+| `flutter test` | 176/176 |
+| `flutter analyze` | 0 erros; 7 avisos já conhecidos (2 variáveis sem uso em teste e 5 nomes de arquivo) |
+| Backend (`functions/`): `npm test`, testes puros | 118/118 |
+| Backend + Security Rules no Firestore Emulator | 365/365 |
+| `integration_test/` no Android contra os emuladores | 54/54 |
 
-Validação antes da publicação das Security Rules (29/10/2026, `qas` em `74a9bcf`, Node 22.23.4, projeto `demo-betfriends`):
-
-| Suíte | Resultado |
-|---|---|
-| Backend (`functions/`): `npm test`, testes puros | 67/67 |
-| Backend + Security Rules no Firestore Emulator | 226/226 (149 do backend + 77 das rules) |
-
-Nenhum teste usa o Firebase de produção.
+A validação controlada no Firebase real (01/11/2026) está em [`docs/entrega-2/validacao-tecnica.md`](docs/entrega-2/validacao-tecnica.md).
 
 ## Fonte dos dados
 
