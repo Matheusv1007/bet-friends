@@ -3,8 +3,8 @@ import { onSchedule } from "firebase-functions/scheduler";
 import { db } from "../core/firebase";
 import { FOOTBALL_DATA_TOKEN } from "../core/segredos";
 import { processarResultados } from "../desafios/processamentoDeResultados";
-import { COMPETICAO_SINCRONIZADA, janelaDaSincronizacao, lerConfigDaSincronizacao } from "./agendaDaSincronizacao";
-import { sincronizarPartidas } from "./sincronizacao";
+import { lerConfigDaSincronizacao } from "./agendaDaSincronizacao";
+import { ErroDaSincronizacao, executarSincronizacao } from "./execucaoDaSincronizacao";
 
 // Lida no carregamento: a agenda precisa ser conhecida no deploy.
 const config = lerConfigDaSincronizacao();
@@ -16,11 +16,13 @@ const config = lerConfigDaSincronizacao();
  * usuários e liquida os desafios cujas partidas já têm resultado oficial;
  * o app não chama o provedor.
  *
- * Falha do provedor não lança: o FootballService já registrou o motivo, o
- * Firestore mantém o último dado e o processamento usa o que já estava
- * sincronizado. A próxima execução tenta de novo, por isso `retryCount: 0`;
- * a liquidação é idempotente. Uma instância só, para execuções não se
- * sobreporem.
+ * Em falha do provedor, o Firestore mantém o último dado e o processamento
+ * usa o que já estava sincronizado. A próxima execução tenta de novo, por
+ * isso `retryCount: 0`; a liquidação é idempotente. Credencial recusada e
+ * resposta inválida terminam com erro, depois do processamento. Uma instância
+ * só; se execuções se sobrepuserem, o ID determinístico e a marca do provedor
+ * mantêm os dados. O tempo limite cabe a temporada inteira e termina antes da
+ * próxima execução.
  */
 export const syncMatches = onSchedule(
   {
@@ -29,13 +31,17 @@ export const syncMatches = onSchedule(
     secrets: [FOOTBALL_DATA_TOKEN],
     retryCount: 0,
     maxInstances: 1,
-    timeoutSeconds: 120,
+    timeoutSeconds: 240,
   },
   async () => {
-    await sincronizarPartidas(db, {
-      competitionCode: COMPETICAO_SINCRONIZADA,
-      ...janelaDaSincronizacao(new Date(), config),
-    });
+    let falhaPermanente: ErroDaSincronizacao | null = null;
+    try {
+      await executarSincronizacao(db, config);
+    } catch (err) {
+      if (!(err instanceof ErroDaSincronizacao)) throw err;
+      falhaPermanente = err;
+    }
     await processarResultados(db);
+    if (falhaPermanente !== null) throw falhaPermanente;
   },
 );

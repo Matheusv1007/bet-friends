@@ -199,7 +199,11 @@ export class FootballDataAdapter {
 
     try {
       return await resposta.json();
-    } catch {
+    } catch (err) {
+      // O mesmo sinal de tempo limite também cobre a leitura do corpo.
+      if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
+        throw new ErroDoProvedor("indisponivel", "Tempo esgotado ao ler a resposta do provedor.", resposta.status);
+      }
       throw new ErroDoProvedor("resposta-invalida", "Resposta do provedor não é JSON válido.", resposta.status);
     }
   }

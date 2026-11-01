@@ -72,15 +72,78 @@ export async function lerMatchNaTransacao(transacao: Transaction, db: Firestore,
 }
 
 export interface ResultadoDaGravacao {
-  readonly resultado: "criada" | "atualizada";
+  /**
+   * `inalterada`: igual ao documento, nada gravado. `ignorada`: dado mais
+   * antigo que o documento, nada gravado; `match` é a versão que continua valendo.
+   */
+  readonly resultado: "criada" | "atualizada" | "inalterada" | "ignorada";
   readonly match: Match;
+  /** O provedor mudou um resultado já confirmado. Desafios já liquidados não mudam: quem liquida usa `settledResult` (KAN-85). */
+  readonly correcaoDeResultado: boolean;
+}
+
+function mesmoInstante(a: Date | null, b: Date | null): boolean {
+  return (a?.getTime() ?? null) === (b?.getTime() ?? null);
+}
+
+function mesmoTime(a: Time, b: Time): boolean {
+  return a.externalId === b.externalId && a.name === b.name && a.shortName === b.shortName;
+}
+
+/** Compara o que vem do provedor; `syncedAt` e `createdAt` são do servidor e não contam como mudança. */
+function mesmosDados(a: Match, b: Match): boolean {
+  return (
+    a.provider === b.provider &&
+    a.competitionCode === b.competitionCode &&
+    a.season === b.season &&
+    a.matchday === b.matchday &&
+    mesmoInstante(a.startsAtUtc, b.startsAtUtc) &&
+    a.status === b.status &&
+    mesmoTime(a.homeTeam, b.homeTeam) &&
+    mesmoTime(a.awayTeam, b.awayTeam) &&
+    a.homeScore === b.homeScore &&
+    a.awayScore === b.awayScore &&
+    a.result === b.result &&
+    mesmoInstante(a.providerLastUpdated, b.providerLastUpdated)
+  );
+}
+
+/** Se a versão muda um resultado já confirmado; preencher o resultado ou só avançar a marca não é correção. */
+function corrigeResultado(existente: Match, nova: Match): boolean {
+  return (
+    existente.status === "FINALIZADA" &&
+    existente.result !== null &&
+    (nova.status !== existente.status ||
+      nova.result !== existente.result ||
+      nova.homeScore !== existente.homeScore ||
+      nova.awayScore !== existente.awayScore)
+  );
+}
+
+/**
+ * Se a versão recebida é mais antiga que a gravada, pela marca
+ * `providerLastUpdated`. Marca igual ou ausente é aceita, exceto em partida
+ * FINALIZADA, que só muda com marca estritamente mais nova (marca sobre partida
+ * sem marca conta como mais nova): placar e resultado confirmados não regridem
+ * por uma resposta atrasada. A primeira confirmação do vencedor é aceita com
+ * marca igual ou ausente, senão o desafio nunca seria liquidado (RN-MAT-013).
+ */
+function versaoAntiga(existente: Match, nova: Match): boolean {
+  const atual = existente.providerLastUpdated?.getTime() ?? null;
+  const recebida = nova.providerLastUpdated?.getTime() ?? null;
+  if (atual !== null && recebida !== null && recebida < atual) return true;
+  if (existente.status !== "FINALIZADA") return false;
+  if (existente.result === null && nova.status === "FINALIZADA" && nova.result !== null) return false;
+  return recebida === null || (atual !== null && recebida <= atual);
 }
 
 /**
  * Cria ou atualiza a partida numa transação já aberta, sempre no mesmo
  * documento `matches/{providerKey}_{externalMatchId}`. Na criação grava
  * `createdAt` e `originalStartsAtUtc`; na atualização preserva os dois e
- * troca horário, status, placar e resultado pelo que veio do provedor.
+ * troca horário, status, placar e resultado pelo que veio do provedor. Sem
+ * mudança ou com versão antiga, não grava nada: `syncedAt` fica sendo a última
+ * sincronização que alterou o documento (a última execução está em `system/matchSync`).
  */
 export async function gravarMatchNaTransacao(
   transacao: Transaction,
@@ -93,10 +156,12 @@ export async function gravarMatchNaTransacao(
   const ref = db.collection(COLECAO_DE_PARTIDAS).doc(id);
   if (existente === null) {
     transacao.create(ref, { ...documentoDoMatch(match), createdAt: FieldValue.serverTimestamp() });
-    return { resultado: "criada", match };
+    return { resultado: "criada", match, correcaoDeResultado: false };
   }
+  if (mesmosDados(existente, match)) return { resultado: "inalterada", match: existente, correcaoDeResultado: false };
+  if (versaoAntiga(existente, match)) return { resultado: "ignorada", match: existente, correcaoDeResultado: false };
   transacao.update(ref, documentoDoMatch(match));
-  return { resultado: "atualizada", match };
+  return { resultado: "atualizada", match, correcaoDeResultado: corrigeResultado(existente, match) };
 }
 
 /** Atalho: abre a própria transação para gravar a partida. */

@@ -81,7 +81,7 @@ describe("sincronização de partidas (Firestore Emulator)", { skip: !noEmulador
     const partidas = Array.from({ length: 45 }, (_, i) => partida(String(1000 + i)));
     const r = await sincronizarPartidas(db, CONSULTA, service({ partidas, descartadas: [] }));
 
-    assert.deepEqual(r, { ok: true, criadas: 45, atualizadas: 0, descartadas: [], recusadas: [] });
+    assert.deepEqual(r, { ok: true, criadas: 45, atualizadas: 0, inalteradas: 0, ignoradas: 0, corrigidas: [], divergencias: [], descartadas: [], recusadas: [] });
     assert.equal((await db.collection("matches").get()).size, 45);
     assert.deepEqual(await lerMatch(db, "footballdata_1000"), {
       ...partidas[0],
@@ -95,7 +95,7 @@ describe("sincronização de partidas (Firestore Emulator)", { skip: !noEmulador
     await sincronizarPartidas(db, CONSULTA, service(resposta));
     const r = await sincronizarPartidas(db, CONSULTA, service(resposta));
 
-    assert.deepEqual(r, { ok: true, criadas: 0, atualizadas: 2, descartadas: [], recusadas: [] });
+    assert.deepEqual(r, { ok: true, criadas: 0, atualizadas: 0, inalteradas: 2, ignoradas: 0, corrigidas: [], divergencias: [], descartadas: [], recusadas: [] });
     assert.equal((await db.collection("matches").get()).size, 2);
   });
 
@@ -145,5 +145,58 @@ describe("sincronização de partidas (Firestore Emulator)", { skip: !noEmulador
     assert.deepEqual(r.recusadas.map((x) => x.id), ["footballdata_1"]);
     assert.equal((await db.doc("matches/footballdata_1").get()).data()!.status, "IN_PLAY", "documento recusado fica como está");
     assert.notEqual(await lerMatch(db, "footballdata_2"), null);
+  });
+
+  test("7. B-3: resposta atrasada é ignorada e correção oficial de partida finalizada é informada", async () => {
+    const final = partida("1", { status: "FINALIZADA", homeScore: 1, awayScore: 0, result: "HOME_WIN", providerLastUpdated: new Date("2026-11-01T22:00:00Z") });
+    await sincronizarPartidas(db, CONSULTA, service({ partidas: [final], descartadas: [] }));
+
+    const atrasada = partida("1", { status: "EM_ANDAMENTO", providerLastUpdated: new Date("2026-11-01T20:00:00Z") });
+    const r1 = await sincronizarPartidas(db, CONSULTA, service({ partidas: [atrasada], descartadas: [] }));
+    assert.ok(r1.ok);
+    assert.deepEqual([r1.atualizadas, r1.ignoradas, r1.corrigidas], [0, 1, []]);
+    assert.equal((await lerMatch(db, "footballdata_1"))!.result, "HOME_WIN");
+
+    const correcao = { ...final, homeScore: 1, awayScore: 1, result: "DRAW" as const, providerLastUpdated: new Date("2026-11-02T10:00:00Z") };
+    const r2 = await sincronizarPartidas(db, CONSULTA, service({ partidas: [correcao], descartadas: [] }));
+    assert.ok(r2.ok);
+    assert.deepEqual([r2.atualizadas, r2.corrigidas], [1, ["footballdata_1"]]);
+    assert.equal((await lerMatch(db, "footballdata_1"))!.result, "DRAW");
+  });
+
+  test("8. E-4: correção que diverge de desafio já liquidado é sinalizada, sem alterar desafio, saldo nem ledger", async () => {
+    const final = partida("1", { status: "FINALIZADA", homeScore: 1, awayScore: 0, result: "HOME_WIN", providerLastUpdated: new Date("2026-11-01T22:00:00Z") });
+    await sincronizarPartidas(db, CONSULTA, service({ partidas: [final], descartadas: [] }));
+    const liquidado = { matchId: "footballdata_1", status: "FINISHED", settledResult: "HOME_WIN", winnerId: "uidAna" };
+    const aberto = { matchId: "footballdata_1", status: "WAITING_RESULT", settledResult: null };
+    const outraPartida = { matchId: "footballdata_2", status: "FINISHED", settledResult: "HOME_WIN" };
+    const usuario = { saldoTotal: 1100, saldoReservado: 0 };
+    const lancamento = { userId: "uidAna", type: "WIN", amount: 100 };
+    await db.doc("challenges/liquidado").set(liquidado);
+    await db.doc("challenges/aberto").set(aberto);
+    await db.doc("challenges/outraPartida").set(outraPartida);
+    await db.doc("users/uidAna").set(usuario);
+    await db.doc("betCoinTransactions/liquidado_uidAna_WIN").set(lancamento);
+
+    const correcao = { ...final, homeScore: 1, awayScore: 1, result: "DRAW" as const, providerLastUpdated: new Date("2026-11-02T10:00:00Z") };
+    const r = await sincronizarPartidas(db, CONSULTA, service({ partidas: [correcao], descartadas: [] }));
+
+    assert.ok(r.ok);
+    assert.deepEqual(r.divergencias, [{ matchId: "footballdata_1", challengeId: "liquidado", settledResult: "HOME_WIN", result: "DRAW" }]);
+    assert.deepEqual((await db.doc("challenges/liquidado").get()).data(), liquidado);
+    assert.deepEqual((await db.doc("challenges/aberto").get()).data(), aberto);
+    assert.deepEqual((await db.doc("users/uidAna").get()).data(), usuario);
+    assert.deepEqual((await db.doc("betCoinTransactions/liquidado_uidAna_WIN").get()).data(), lancamento);
+  });
+
+  test("9. E-4: correção que mantém o resultado liquidado não é divergência", async () => {
+    const final = partida("1", { status: "FINALIZADA", homeScore: 1, awayScore: 0, result: "HOME_WIN", providerLastUpdated: new Date("2026-11-01T22:00:00Z") });
+    await sincronizarPartidas(db, CONSULTA, service({ partidas: [final], descartadas: [] }));
+    await db.doc("challenges/liquidado").set({ matchId: "footballdata_1", status: "FINISHED", settledResult: "HOME_WIN" });
+
+    const correcao = { ...final, homeScore: 2, providerLastUpdated: new Date("2026-11-02T10:00:00Z") };
+    const r = await sincronizarPartidas(db, CONSULTA, service({ partidas: [correcao], descartadas: [] }));
+    assert.ok(r.ok);
+    assert.deepEqual([r.corrigidas, r.divergencias], [["footballdata_1"], []]);
   });
 });

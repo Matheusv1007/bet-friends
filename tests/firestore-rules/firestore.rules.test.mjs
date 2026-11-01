@@ -590,4 +590,9 @@ describe("caminhos não declarados", () => {
   });
 
   test("subcoleção sob partidas é bloqueada", () => expectDenied(getDoc(ANA, `matches/${MATCH}/odds/x`)));
+
+  test("estado da sincronização (system/matchSync) é só do backend", async () => {
+    await expectDenied(getDoc(ANA, "system/matchSync"));
+    await expectDenied(commit(ANA, [setWrite("system/matchSync", { consecutiveFailures: 0 })]));
+  });
 });

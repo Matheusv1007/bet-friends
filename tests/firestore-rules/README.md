@@ -4,7 +4,7 @@ Testes de `firestore.rules` contra o **Firestore Emulator local**, usando `node:
 
 | Arquivo | O que valida | Testes |
 |---|---|---|
-| `firestore.rules.test.mjs` | Permissões do cliente em todas as coleções, sem dependências npm | 67 |
+| `firestore.rules.test.mjs` | Permissões do cliente em todas as coleções, sem dependências npm | 68 |
 | `backend-admin.test.mjs` | Backend privilegiado (Admin SDK) gravando saldo e transação enquanto o cliente continua bloqueado | 10 |
 
 ## Pré-requisitos

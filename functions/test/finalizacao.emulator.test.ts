@@ -23,7 +23,7 @@ import { ErroDeDesafio } from "../src/desafios/challenge";
 import { criarDesafio, lerDesafio, transicionarDesafio } from "../src/desafios/challengeFirestore";
 import { finalizarDesafio, finalizarDesafioNaTransacao } from "../src/desafios/finalizacao";
 import { PartidaAdaptada, ResultadoDaPartida, StatusDaPartida } from "../src/partidas/match";
-import { gravarMatch } from "../src/partidas/matchFirestore";
+import { gravarMatch, lerMatch } from "../src/partidas/matchFirestore";
 
 const PROJETO = process.env.GCLOUD_PROJECT ?? "";
 const noEmulador = Boolean(process.env.FIRESTORE_EMULATOR_HOST) && PROJETO.startsWith("demo-");
@@ -151,7 +151,8 @@ describe("finalização idempotente do desafio (Firestore Emulator)", { skip: !n
     await finalizarDesafio(db, desafioId);
     const antes = { saldos: await saldos(), ledger: await ledger() };
 
-    await gravarMatch(db, { ...partida("FINALIZADA", "AWAY_WIN"), homeScore: 0, awayScore: 1 });
+    await gravarMatch(db, { ...partida("FINALIZADA", "AWAY_WIN"), homeScore: 0, awayScore: 1, providerLastUpdated: new Date("2026-11-02T10:00:00Z") });
+    assert.equal((await lerMatch(db, MATCH_ID))!.result, "AWAY_WIN", "a partida precisa ter mudado para o teste valer");
     assert.equal((await finalizarDesafio(db, desafioId)).resultado, "ja-finalizado");
     const d = (await lerDesafio(db, desafioId))!;
     assert.deepEqual([d.settledResult, d.winnerId], ["HOME_WIN", ANA]);
