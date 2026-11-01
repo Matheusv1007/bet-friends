@@ -19,6 +19,8 @@ export const TIPOS_DE_TRANSACAO = [
   "LOSS",
   "REFUND",
   "RECOVERY_BONUS",
+  /** Só em desenvolvimento (KAN-81, D-012): gravado apenas por `src/dev`, que não é publicado. */
+  "DEV_TOP_UP",
 ] as const;
 
 export type TipoDeTransacao = (typeof TIPOS_DE_TRANSACAO)[number];
@@ -32,6 +34,7 @@ export const TIPO_DE_DESAFIO: Readonly<Record<TipoDeTransacao, boolean>> = {
   LOSS: true,
   REFUND: true,
   RECOVERY_BONUS: false,
+  DEV_TOP_UP: false,
 };
 
 /** Valor do bônus de recuperação (Plano §8.3, RN-BET-007 a 011). */
@@ -51,6 +54,8 @@ export type CodigoErroDeTransacao =
   | "metadata-invalida"
   /** RECOVERY_BONUS sem a data de concessão, que compõe o ID. */
   | "data-invalida"
+  /** DEV_TOP_UP sem um `operacaoId` válido, que compõe o ID. */
+  | "operacao-invalida"
   /** Saldos de antes e depois não correspondem ao efeito do tipo. */
   | "lancamento-incompativel"
   /** Mesma transação repetida numa operação, ou parte da operação já registrada. */
@@ -82,6 +87,8 @@ export interface Movimentacao {
   readonly challengeId?: string | null;
   /** Obrigatório para RECOVERY_BONUS: momento da concessão, compõe o ID. */
   readonly concedidoEm?: Date;
+  /** Obrigatório para DEV_TOP_UP: identifica a operação e compõe o ID. */
+  readonly operacaoId?: string;
   readonly metadata?: MetadataDaTransacao | null;
 }
 
@@ -102,6 +109,7 @@ export function efeitoDoTipo(type: TipoDeTransacao, amount: number): VariacaoDeS
     case "INITIAL_BALANCE":
     case "WIN":
     case "RECOVERY_BONUS":
+    case "DEV_TOP_UP":
       return { saldoTotal: amount, saldoReservado: 0 };
     case "RESERVE":
       return { saldoTotal: 0, saldoReservado: amount };
@@ -173,6 +181,9 @@ export function validarMovimentacao(m: Movimentacao): Movimentacao & {
   if (m.type === "RECOVERY_BONUS" && !(m.concedidoEm instanceof Date && !Number.isNaN(m.concedidoEm.getTime()))) {
     throw new ErroDeTransacao("data-invalida", "RECOVERY_BONUS exige a data de concessão.");
   }
+  if (m.type === "DEV_TOP_UP" && !validarIdDeDocumento(m.operacaoId)) {
+    throw new ErroDeTransacao("operacao-invalida", "DEV_TOP_UP exige um operacaoId válido.");
+  }
 
   return { ...m, userId, challengeId, metadata: validarMetadata(m.metadata) };
 }
@@ -182,6 +193,7 @@ export function validarMovimentacao(m: Movimentacao): Movimentacao & {
  * - INITIAL_BALANCE: `{uid}_INITIAL_BALANCE`
  * - tipos de desafio: `{challengeId}_{uid}_{TYPE}`
  * - RECOVERY_BONUS: `{uid}_RECOVERY_BONUS_{yyyyMMddHH}` (hora UTC da concessão)
+ * - DEV_TOP_UP: `{uid}_DEV_TOP_UP_{operacaoId}`
  */
 export function idDaTransacao(movimentacao: Movimentacao): string {
   const m = validarMovimentacao(movimentacao);
@@ -191,6 +203,8 @@ export function idDaTransacao(movimentacao: Movimentacao): string {
     case "RECOVERY_BONUS":
       // hora UTC da concessão, `yyyyMMddHH`
       return `${m.userId}_RECOVERY_BONUS_${m.concedidoEm!.toISOString().slice(0, 13).replace(/[-T]/g, "")}`;
+    case "DEV_TOP_UP":
+      return `${m.userId}_DEV_TOP_UP_${m.operacaoId!}`;
     default:
       return idDeTransacaoDeDesafio(m.challengeId!, m.userId, m.type);
   }

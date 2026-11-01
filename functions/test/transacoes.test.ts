@@ -30,6 +30,7 @@ test("efeito de cada tipo confere com a tabela do Plano §8.3", () => {
     LOSS: [-100, -100],
     REFUND: [0, -100],
     RECOVERY_BONUS: [100, 0],
+    DEV_TOP_UP: [100, 0],
   };
   for (const tipo of TIPOS_DE_TRANSACAO) {
     const valor = tipo === "INITIAL_BALANCE" ? 1000 : 100;

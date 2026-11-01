@@ -34,7 +34,8 @@
         "firebase-debug.log",
         "firebase-debug.*.log",
         "*.local",
-        "test"
+        "test",
+        "dev"
       ],
       "predeploy": [
         "npm --prefix functions run build"
