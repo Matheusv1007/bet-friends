@@ -6,19 +6,23 @@ import 'package:http/http.dart' as http;
 import '../../models/partida_model.dart';
 import 'api_client.dart';
 
-/// Serviço responsável por buscar os dados de partidas na API em tempo real
+/// Serviço responsável por buscar os dados de partidas na API em tempo real.
+///
+/// Diretrizes de Segurança (KAN-21; RN-SEC-003, RN-SEC-005, RNF-004):
+/// - Credenciais e segredos de serviços externos residem exclusivamente no backend.
+/// - O token do provedor de futebol NÃO deve ser versionado, embutido no código Flutter ou exposto no APK.
+/// - O cliente Flutter não armazena nem envia credenciais de provedor por padrão.
 class PartidasService {
   final ApiClient _client;
 
-  // Chave de API Football-Data configurada
-  static const String apiKey = '9294186c0e964542a6661b69665bd315';
-
-  PartidasService({ApiClient? client})
+  PartidasService({ApiClient? client, String? apiKey})
     : _client =
           client ??
           ApiClient(
             baseUrl: 'https://api.football-data.org/v4',
-            defaultHeaders: {'X-Auth-Token': apiKey},
+            defaultHeaders: (apiKey != null && apiKey.isNotEmpty)
+                ? {'X-Auth-Token': apiKey}
+                : null,
           );
 
   ApiClient get client => _client;

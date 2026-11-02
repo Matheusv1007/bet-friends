@@ -26,6 +26,20 @@ class FakeErrorPartidasService extends PartidasService {
   }
 }
 
+class MutablePartidasService extends PartidasService {
+  List<PartidaModel> matches;
+  Object? error;
+  MutablePartidasService({this.matches = const [], this.error});
+
+  @override
+  Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
+    if (error != null) {
+      throw error!;
+    }
+    return matches;
+  }
+}
+
 void main() {
   group('Tratamento de Mensagens de Erro Amigáveis', () {
     test('ApiException com status 401/403 não expõe corpo HTTP bruto', () {
@@ -130,40 +144,24 @@ void main() {
       final partidasIniciais = [
         PartidaModel(id: '1', timeMandante: 'Time A', timeVisitante: 'Time B', status: 'PRÓXIMO JOGO'),
       ];
-      // 1. Carrega dados válidos
-      final provider = PartidasProvider(partidasService: FakeSuccessPartidasService(partidasIniciais));
+      final mutableService = MutablePartidasService(matches: partidasIniciais);
+      final provider = PartidasProvider(partidasService: mutableService);
+
+      // 1. Carrega dados válidos com sucesso
       await provider.carregarPartidas();
       expect(provider.partidas.length, 1);
+      expect(provider.hasRefreshError, isFalse);
+      expect(provider.errorMessage, isNull);
 
-      // 2. Simula falha em refresh posterior com provider usando serviço com erro
-      final providerComErro = PartidasProvider(
-        partidasService: FakeErrorPartidasService(const SocketException('sem rede')),
-      );
-      // Preenche partidas em cache
-      await providerComErro.carregarPartidas(); // vai falhar inicialmente
-      expect(providerComErro.errorMessage, isNotNull);
+      // 2. Simula falha no refresh subsequente
+      mutableService.error = ApiException(statusCode: 429);
+      await provider.carregarPartidas(silencioso: true);
 
-      // Agora com dados já existentes e novo refresh falhando:
-      final providerComDadosExistentes = PartidasProvider(partidasService: FakeSuccessPartidasService(partidasIniciais));
-      await providerComDadosExistentes.carregarPartidas();
-      expect(providerComDadosExistentes.partidas.length, 1);
-
-      // Injeta serviço com erro para próximo refresh
-      final providerMock = PartidasProvider(partidasService: FakeErrorPartidasService(const SocketException('timeout')));
-      // manually set initial state simulating cached data
-      final serviceSuccess = FakeSuccessPartidasService(partidasIniciais);
-      final providerDual = PartidasProvider(partidasService: serviceSuccess);
-      await providerDual.carregarPartidas();
-
-      // Agora substituímos por serviço com erro e rodamos refresh silencioso
-      final providerRefreshFail = PartidasProvider(
-        partidasService: FakeErrorPartidasService(ApiException(statusCode: 429)),
-      );
-      // simula cache
-      final providerCache = PartidasProvider(partidasService: FakeSuccessPartidasService(partidasIniciais));
-      await providerCache.carregarPartidas();
-      expect(providerCache.partidas.length, 1);
-      expect(providerCache.hasRefreshError, isFalse);
+      // Dados anteriores continuam no cache e erro de refresh é sinalizado
+      expect(provider.partidas.length, 1);
+      expect(provider.hasRefreshError, isTrue);
+      expect(provider.refreshErrorMessage, 'Não foi possível atualizar os dados mais recentes. Exibindo dados anteriores.');
+      expect(provider.errorMessage, isNull);
     });
 
     test('limparErroRefresh limpa a flag e notifica ouvintes', () async {
