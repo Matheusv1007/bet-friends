@@ -19,13 +19,50 @@ class Carddepartidas extends StatelessWidget {
   }
 
   Widget _buildShieldIcon(String name) {
-    // Escudo estilizado preto/vermelho/branco para os times
+    // Escudo estilizado para os times
     Color shieldColor = Colors.black87;
-    if (name.toLowerCase().contains('fla')) {
+    final lower = name.toLowerCase();
+    if (lower.contains('fla')) {
       shieldColor = const Color(0xFFC00000);
-    } else if (name.toLowerCase().contains('flu')) {
+    } else if (lower.contains('flu')) {
       shieldColor = const Color(0xFF800020);
-    } else if (name.toLowerCase().contains('volta')) {
+    } else if (lower.contains('pal')) {
+      shieldColor = const Color(0xFF006437);
+    } else if (lower.contains('cor') || lower.contains('sccp')) {
+      shieldColor = const Color(0xFF111111);
+    } else if (lower.contains('sao') || lower.contains('são')) {
+      shieldColor = const Color(0xFFC00000);
+    } else if (lower.contains('san')) {
+      shieldColor = const Color(0xFF222222);
+    } else if (lower.contains('vas')) {
+      shieldColor = const Color(0xFF1E293B);
+    } else if (lower.contains('bot')) {
+      shieldColor = const Color(0xFF0F172A);
+    } else if (lower.contains('gre')) {
+      shieldColor = const Color(0xFF0D6EFD);
+    } else if (lower.contains('int')) {
+      shieldColor = const Color(0xFFDC2626);
+    } else if (lower.contains('cru')) {
+      shieldColor = const Color(0xFF1D4ED8);
+    } else if (lower.contains('cam') || lower.contains('atletico') || lower.contains('atlético')) {
+      shieldColor = const Color(0xFF1E293B);
+    } else if (lower.contains('bah')) {
+      shieldColor = const Color(0xFF0284C7);
+    } else if (lower.contains('for')) {
+      shieldColor = const Color(0xFF1E40AF);
+    } else if (lower.contains('ath') || lower.contains('furacao') || lower.contains('furacão')) {
+      shieldColor = const Color(0xFFB91C1C);
+    } else if (lower.contains('cui')) {
+      shieldColor = const Color(0xFF15803D);
+    } else if (lower.contains('cri')) {
+      shieldColor = const Color(0xFFCA8A04);
+    } else if (lower.contains('j鐘') || lower.contains('juv')) {
+      shieldColor = const Color(0xFF16A34A);
+    } else if (lower.contains('goi') || lower.contains('goiás')) {
+      shieldColor = const Color(0xFF15803D);
+    } else if (lower.contains('vil')) {
+      shieldColor = const Color(0xFFDC2626);
+    } else if (lower.contains('volta')) {
       shieldColor = const Color(0xFFE5A800);
     }
 
@@ -42,6 +79,8 @@ class Carddepartidas extends StatelessWidget {
     final visitante = partida?.timeVisitante ?? "Visitante";
     final isFinalizado = partida?.isFinalizado ?? false;
     final isAoVivo = partida?.isAoVivo ?? false;
+    final isAdiado = partida?.isAdiado ?? false;
+    final isCancelado = partida?.isCancelado ?? false;
     final placar = partida?.placarTexto ?? "0 - 0";
     final minuto = partida?.minuto;
     final horario = partida?.horario ?? "A definir";
@@ -181,7 +220,6 @@ class Carddepartidas extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  // Barra de progresso laranja
                   Stack(
                     children: [
                       Container(
@@ -201,6 +239,74 @@ class Carddepartidas extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                ] else if (isAdiado) ...[
+                  // BADGE ADIADO
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2A1C14),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Text(
+                      "ADIADO",
+                      style: TextStyle(
+                        color: Color(0xFFF59E0B),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    horario,
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ] else if (isCancelado) ...[
+                  // BADGE CANCELADO
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2B1414),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.4),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Text(
+                      "CANCELADO",
+                      style: TextStyle(
+                        color: Color(0xFFEF4444),
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    horario,
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ] else ...[
                   // BADGE PRÓXIMO JOGO

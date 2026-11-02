@@ -129,12 +129,17 @@ class _HomepageState extends State<Homepage> {
 
                   const SizedBox(height: 22),
 
-                  // TÍTULO "PARTIDAS" E "Ver todas" (Com indicador de tempo real)
-                  Appbardaspartidas(
-                    onVerTodasPressed: () {
-                      setState(() {
-                        _mostrarTodas = !_mostrarTodas;
-                      });
+                  // TÍTULO "PARTIDAS" E "Ver todas" (Com indicador de tempo real e última atualização)
+                  Consumer<PartidasProvider>(
+                    builder: (context, provider, _) {
+                      return Appbardaspartidas(
+                        ultimaAtualizacao: provider.ultimaAtualizacaoFormatada,
+                        onVerTodasPressed: () {
+                          setState(() {
+                            _mostrarTodas = !_mostrarTodas;
+                          });
+                        },
+                      );
                     },
                   ),
 

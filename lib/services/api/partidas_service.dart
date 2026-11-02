@@ -1,34 +1,47 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 
+import '../../data/firestore/partidas_repository.dart';
 import '../../models/partida_model.dart';
 import 'api_client.dart';
 
-/// Serviço responsável por buscar os dados de partidas na API em tempo real.
+/// Serviço responsável por buscar os dados de partidas sincronizados no Firestore.
 ///
-/// Diretrizes de Segurança (KAN-21; RN-SEC-003, RN-SEC-005, RNF-004):
-/// - Credenciais e segredos de serviços externos residem exclusivamente no backend.
-/// - O token do provedor de futebol NÃO deve ser versionado, embutido no código Flutter ou exposto no APK.
-/// - O cliente Flutter não armazena nem envia credenciais de provedor por padrão.
+/// Diretrizes Arquiteturais (KAN-42; RF-007, RN-MAT-001, RN-MAT-005, RN-CACHE-001, RNF-005):
+/// - O aplicativo Flutter NÃO chama a Football-Data.org diretamente (RNF-005).
+/// - Todas as partidas são consumidas do backend/Firestore (coleção `matches`).
+/// - Na indisponibilidade do provedor externo, dados previamente sincronizados continuam disponíveis (RN-CACHE-003).
 class PartidasService {
-  final ApiClient _client;
+  final PartidasRepository _repository;
 
-  PartidasService({ApiClient? client, String? apiKey})
-    : _client =
-          client ??
-          ApiClient(
-            baseUrl: 'https://api.football-data.org/v4',
-            defaultHeaders: (apiKey != null && apiKey.isNotEmpty)
-                ? {'X-Auth-Token': apiKey}
-                : null,
-          );
+  PartidasService({
+    PartidasRepository? repository,
+    FirebaseFirestore? firestore,
+    @Deprecated('Flutter não acessa Football-Data.org diretamente (RNF-005). Usar Firestore.')
+    ApiClient? client,
+    @Deprecated('Credenciais ficam exclusivamente no backend (RN-SEC-003, RNF-005).')
+    String? apiKey,
+  }) : _repository = repository ??
+            FirestorePartidasRepository(firestore: firestore);
 
-  ApiClient get client => _client;
+  PartidasRepository get repository => _repository;
 
   /// Converte exceções técnicas em mensagens amigáveis em português sem corpo JSON cru
   static String formatErrorMessage(Object error) {
+    if (error is FirebaseException) {
+      switch (error.code) {
+        case 'unavailable':
+        case 'deadline-exceeded':
+          return 'Serviço de partidas temporariamente indisponível. Verifique sua conexão e tente novamente.';
+        case 'permission-denied':
+          return 'Não foi possível autorizar o acesso ao serviço de partidas.';
+        default:
+          return 'Não foi possível carregar as partidas no momento. Tente novamente.';
+      }
+    }
     if (error is ApiException) {
       return error.friendlyMessage;
     }
@@ -48,57 +61,10 @@ class PartidasService {
     return 'Não foi possível carregar as partidas no momento. Tente novamente.';
   }
 
-  /// Busca as partidas na API com ordenação inteligente e limite configurável
+  /// Busca as partidas do Brasileirão Série A 2026 sincronizadas no Firestore
   Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
     try {
-      dynamic response;
-
-      // 1. Busca as partidas reais do Brasileirão Série A (BSA)
-      try {
-        response = await _client.get('/competitions/BSA/matches');
-      } catch (_) {
-        // Fallback para endpoint geral de partidas caso o endpoint específico falhe
-        response = await _client.get('/matches');
-      }
-
-      if (response != null && response['matches'] is List) {
-        final List matchesList = response['matches'];
-        final todasPartidas = matchesList
-            .map((item) => PartidaModel.fromJson(item as Map<String, dynamic>))
-            .toList();
-
-        // Separação em categorias:
-        final aoVivo = <PartidaModel>[];
-        final agendados = <PartidaModel>[];
-        final finalizados = <PartidaModel>[];
-
-        for (final p in todasPartidas) {
-          if (p.isAoVivo) {
-            aoVivo.add(p);
-          } else if (p.isAgendado) {
-            agendados.add(p);
-          } else if (p.isFinalizado) {
-            finalizados.add(p);
-          }
-        }
-
-        // Ordenação inteligente:
-        // 1º Jogos Ao Vivo
-        // 2º Próximos Jogos Agendados para desafiar/apostar
-        // 3º Jogos Finalizados mais recentes
-        final finalizadosRecentes = finalizados.reversed.take(6).toList();
-        final agendadosProximos = agendados.take(10).toList();
-
-        final resultadoFinal = [
-          ...aoVivo,
-          ...agendadosProximos,
-          ...finalizadosRecentes,
-        ];
-
-        return resultadoFinal.take(limit).toList();
-      }
-
-      return [];
+      return await _repository.getPartidas(limit: limit);
     } catch (e) {
       throw Exception(formatErrorMessage(e));
     }
