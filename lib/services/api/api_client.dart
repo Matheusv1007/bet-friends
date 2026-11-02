@@ -8,7 +8,7 @@ class ApiClient {
   final http.Client? httpClient;
 
   ApiClient({
-    this.baseUrl = 'https://api.football-data.org/v4/matches',
+    this.baseUrl = '',
     this.defaultHeaders,
     this.httpClient,
   });

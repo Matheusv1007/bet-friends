@@ -23,6 +23,15 @@ class PartidasProvider extends ChangeNotifier {
   bool get hasRefreshError => _refreshErrorMessage != null;
   DateTime? get ultimaAtualizacao => _ultimaAtualizacao;
 
+  /// Exibe a data/hora da última atualização das partidas (RN-CACHE-002)
+  String? get ultimaAtualizacaoFormatada {
+    if (_ultimaAtualizacao == null) return null;
+    final dt = _ultimaAtualizacao!.toLocal();
+    final hora = dt.hour.toString().padLeft(2, '0');
+    final minuto = dt.minute.toString().padLeft(2, '0');
+    return 'Atualizado às $hora:$minuto';
+  }
+
   /// Limpa a mensagem de erro de atualização em segundo plano / refresh
   void limparErroRefresh() {
     if (_refreshErrorMessage != null) {
@@ -31,7 +40,7 @@ class PartidasProvider extends ChangeNotifier {
     }
   }
 
-  /// Busca as partidas através do serviço da API.
+  /// Busca as partidas através do repositório/Firestore.
   /// Se [silencioso] for true, atualiza em segundo plano sem disparar loading em tela cheia.
   Future<void> carregarPartidas({int limit = 15, bool silencioso = false}) async {
     if (silencioso) {
@@ -48,10 +57,18 @@ class PartidasProvider extends ChangeNotifier {
 
     try {
       final novasPartidas = await _partidasService.getPartidas(limit: limit);
-      if (novasPartidas.isNotEmpty) {
-        _partidas = novasPartidas;
+      _partidas = novasPartidas;
+
+      // Recupera o timestamp de sincronização mais recente ou o instante da consulta
+      DateTime? latestSynced;
+      for (final p in novasPartidas) {
+        if (p.syncedAt != null) {
+          if (latestSynced == null || p.syncedAt!.isAfter(latestSynced)) {
+            latestSynced = p.syncedAt;
+          }
+        }
       }
-      _ultimaAtualizacao = DateTime.now();
+      _ultimaAtualizacao = latestSynced ?? DateTime.now();
       _errorMessage = null;
       _refreshErrorMessage = null;
     } catch (e) {
@@ -60,7 +77,7 @@ class PartidasProvider extends ChangeNotifier {
         // Sem dados em cache: define o erro principal da tela
         _errorMessage = formattedMsg;
       } else {
-        // Com dados em cache: preserva os dados existentes e sinaliza a falha no refresh
+        // Com dados em cache: preserva os dados existentes e sinaliza a falha no refresh (RN-CACHE-003)
         _refreshErrorMessage = 'Não foi possível atualizar os dados mais recentes. Exibindo dados anteriores.';
       }
     } finally {

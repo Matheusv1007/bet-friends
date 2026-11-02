@@ -53,3 +53,11 @@ AnaliseTemporaria.md
 firebase-debug.log
 firebase-debug.*.log
 ui-debug.log
+
+# Environment and Secrets (KAN-21: RN-SEC-003, RN-SEC-005, RNF-004)
+.env
+.env.*
+*.env
+*.local
+**/.secret.local
+.secret.local
