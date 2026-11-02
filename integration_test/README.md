@@ -66,6 +66,10 @@ Usa o app inteiro (`App` com AuthGate, Login, Cadastro, Home e Perfil) contra Au
 
 Usa e-mails e usernames com o prefixo `cad`, para não colidir com `criar_perfil_emulator_test.dart` na mesma sessão dos emuladores. Os testes rodam em ordem (B usa a conta de A).
 
+## `historico_desafios_emulator_test.dart` (KAN-89)
+
+Consulta o histórico com o serviço real e as Security Rules: criador ou desafiado, só estados encerrados, ordem do mais recente ao mais antigo, paginação com empate de `finishedAt`, documento inválido ignorado e contado, terceiros negados, histórico vazio, consultas simultâneas e desafio encerrado durante a paginação. Usa `uidHana`, `uidIvo`, `uidJoao` e `uidVazio`. O emulador não exige índices compostos; `firestore.indexes.json` é conferido em `tests/firestore-rules/`.
+
 ## `recuperacao_emulator_test.dart` (KAN-80)
 
 Chama a Callable `claimRecoveryBonus` pelo `FunctionsService` (HTTP do Functions Emulator), sem tela (a interface é da KAN-71). Verifica: sem sessão → `unauthenticated`; `uidEva` (5 BetCoins) recebe +100 com a transação `RECOVERY_BONUS` e `lastRecoveryBonusAt`, ignorando `userId`/`amount` do payload; o cliente não altera saldo, `lastRecoveryBonusAt` nem o ledger; repetir é negado (`saldo-suficiente`); conta com 1.000 e conta sem perfil são negadas com o motivo.

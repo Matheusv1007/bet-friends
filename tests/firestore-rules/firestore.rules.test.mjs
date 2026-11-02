@@ -9,6 +9,7 @@
 // O projeto "demo-*" garante que nenhum recurso real do Firebase é usado.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { after, before, beforeEach, describe, test } from "node:test";
 
 const HOST = process.env.FIRESTORE_EMULATOR_HOST;
@@ -476,6 +477,88 @@ describe("challenges/{challengeId}", () => {
   });
 
   test("consulta sem filtro de participante é bloqueada", () => expectDenied(query(ANA, "challenges")));
+
+  // Histórico (KAN-89): a mesma forma de consulta usada pelo app
+  describe("consulta de histórico", () => {
+    const ENCERRADO = "hist-regras";
+    const historico = async (auth, uid, filtrarParticipante = true) => {
+      const filtros = [
+        { fieldFilter: { field: { fieldPath: "status" }, op: "IN", value: toValue(["FINISHED", "REJECTED", "EXPIRED", "CANCELLED"]) } },
+      ];
+      if (filtrarParticipante) {
+        filtros.unshift({ fieldFilter: { field: { fieldPath: "participants" }, op: "ARRAY_CONTAINS", value: toValue(uid) } });
+      }
+      const res = await fetch(`${BASE}:runQuery`, {
+        method: "POST",
+        headers: headers(auth),
+        body: JSON.stringify({
+          structuredQuery: {
+            from: [{ collectionId: "challenges" }],
+            where: { compositeFilter: { op: "AND", filters: filtros } },
+            orderBy: [
+              { field: { fieldPath: "finishedAt" }, direction: "DESCENDING" },
+              { field: { fieldPath: "__name__" }, direction: "DESCENDING" },
+            ],
+            limit: 21,
+          },
+        }),
+      });
+      const body = await res.json();
+      return { status: res.status, docs: Array.isArray(body) ? body.filter((r) => r.document).length : 0 };
+    };
+
+    beforeEach(async () => {
+      const r = await commit(ADMIN, [
+        setWrite(`challenges/${ENCERRADO}`, {
+          challengerId: ANA,
+          challengedId: CAIO,
+          participants: [ANA, CAIO],
+          matchId: MATCH,
+          challengerPrediction: "HOME_WIN",
+          challengedPrediction: null,
+          amount: 100,
+          status: "EXPIRED",
+          winnerId: null,
+          createdAt: T0,
+          finishedAt: T0,
+          updatedAt: T0,
+        }),
+      ]);
+      assert.equal(r.status, ALLOWED);
+    });
+
+    test("participante vê o encerrado, e o desafio ativo fica de fora", async () => {
+      const { status, docs } = await historico(ANA, ANA);
+      assert.equal(status, ALLOWED);
+      assert.equal(docs, 1);
+    });
+
+    test("participante sem encerrados recebe lista vazia", async () => {
+      const { status, docs } = await historico(BIA, BIA);
+      assert.equal(status, ALLOWED);
+      assert.equal(docs, 0);
+    });
+
+    test("consultar o UID de outro usuário é bloqueado", () => expectDenied(historico(BIA, ANA)));
+
+    test("sem filtro de participante é bloqueado", () => expectDenied(historico(ANA, ANA, false)));
+
+    test("sem autenticação é bloqueado", () => expectDenied(historico(null, ANA)));
+
+    test("o índice composto da consulta está declarado", () => {
+      const { indexes } = JSON.parse(readFileSync(new URL("../../firestore.indexes.json", import.meta.url), "utf8"));
+      const campos = indexes
+        .filter((i) => i.collectionGroup === "challenges" && i.queryScope === "COLLECTION")
+        .map((i) => i.fields);
+      assert.deepEqual(campos, [
+        [
+          { fieldPath: "participants", arrayConfig: "CONTAINS" },
+          { fieldPath: "status", order: "ASCENDING" },
+          { fieldPath: "finishedAt", order: "DESCENDING" },
+        ],
+      ]);
+    });
+  });
 
   test("consulta por challengedId (sem participants) é bloqueada", () =>
     expectDenied(query(BIA, "challenges", ["challengedId", "EQUAL", BIA])));

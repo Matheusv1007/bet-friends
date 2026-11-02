@@ -498,7 +498,7 @@ O app nunca grava saldo, transação, estado de desafio, resultado ou vencedor (
 | `betCoinTransactions` | `challengeId ASC`, `createdAt ASC` | Movimentações de um desafio | KAN-61, KAN-91 |
 | `challenges` | `challengedId ASC`, `status ASC`, `createdAt DESC` | Desafios recebidos | KAN-56 |
 | `challenges` | `challengerId ASC`, `status ASC`, `createdAt DESC` | Desafios enviados | KAN-57 |
-| `challenges` | `participants CONTAINS`, `status ASC`, `finishedAt DESC` | Histórico | KAN-89 |
+| `challenges` | `participants CONTAINS`, `status ASC`, `finishedAt DESC` | Histórico; declarado em `firestore.indexes.json`, ainda não publicado | KAN-89 |
 | `challenges` | `matchId ASC`, `status ASC` | Expiração, início, liquidação | KAN-65 a KAN-68, KAN-82 |
 | `friendships` | `participants CONTAINS`, `status ASC` | Amigos e solicitações | KAN-35, KAN-38 |
 | `matches` | `competitionCode ASC`, `season ASC`, `startsAtUtc ASC` | Próximas partidas | KAN-42 |
