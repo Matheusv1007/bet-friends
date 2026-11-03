@@ -32,12 +32,12 @@ Legenda: ✅ validado no app com o Firebase real · ☁️ publicado no projeto 
 
 | Funcionalidade | Situação | Observação |
 |---|---|---|
-| Listar partidas do Brasileirão | ✅ | Com chamada direta do app ao provedor |
+| Listar partidas do Brasileirão | ✅ | Consumo do Firestore `matches` via backend (KAN-42; sem chamada direta do app ao provedor) |
 | Estados de carregamento, erro e vazio | ✅ | Com "Tentar novamente" e mensagens amigáveis; 429 real não provocado |
 | Puxar para atualizar e atualização a cada 30 s | ✅ | Mantém os dados anteriores com aviso se a atualização falhar |
 | Sincronização pelo backend (`syncMatches`) | ☁️ | A cada 5 min, com o token como segredo; 380 documentos em `matches` em 01/11 |
-| App lendo `matches` | ⏳ | KAN-42; pré-requisito para retirar o token do app |
-| Token fora do app e troca do token | ⏳ | KAN-102; **o app ainda carrega o token** |
+| App lendo `matches` | ✅ | KAN-42; app consome a coleção `matches` do Firestore |
+| Token fora do app e troca do token | ✅ | KAN-21 / KAN-102; token purgado do Flutter/APK e rotação formalizada |
 | Detalhes da partida | ⏳ | KAN-43 |
 | Créditos "Data provided by football-data.org" | ⏳ | Só no README por enquanto (KAN-54) |
 

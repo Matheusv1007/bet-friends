@@ -144,12 +144,19 @@ firebase functions:secrets:set FOOTBALL_DATA_TOKEN   # o CLI pede o valor sem ec
 firebase deploy --only functions
 ```
 
-### 8.3 - Rotação (ex.: token exposto)
+### 8.3 - Rotação e Revogação do Token Exposto (KAN-102; Auditoria Técnica 10/05/2026, RN-SEC-005, RNF-004)
 
-1. Gerar um novo token no painel da Football-Data.org (o anterior deixa de funcionar).
-2. `firebase functions:secrets:set FOOTBALL_DATA_TOKEN` com o novo valor (cria uma nova versão).
-3. `firebase deploy --only functions` para as funções usarem a nova versão.
-4. `firebase functions:secrets:prune` para destruir as versões antigas que não estão em uso.
+1. **Procedimento Operacional de Rotação:**
+   - Gerar uma nova credencial no painel da Football-Data.org. O token anterior é invalidado no provedor e deixa de funcionar.
+   - Definir o novo segredo no backend: `firebase functions:secrets:set FOOTBALL_DATA_TOKEN` (o CLI solicita o valor sem ecoar no terminal).
+   - Implantar as Cloud Functions: `firebase deploy --only functions --project betfriends-unirv-2026` para que utilizem a nova versão do segredo.
+   - Destruir versões antigas/revogadas no Secret Manager: `firebase functions:secrets:prune --project betfriends-unirv-2026`.
+
+2. **Registro de Segurança para a Equipe:**
+   - **Credencial antiga invalidada:** A credencial identificada na auditoria de 10/05/2026 como exposta no histórico do repositório (`lib/services/api/partidas_service.dart`) e embutida no APK anterior está formalmente **revogada e descontinuada**. Ela não deve ser utilizada em nenhum ambiente (desenvolvimento, homologação ou produção).
+   - **Isolamento de Credenciais (KAN-21 / RN-SEC-003, RN-SEC-005):** Nenhuma credencial do provedor de futebol é adicionada ao código Flutter nem a qualquer arquivo versionado no repositório. Arquivos locais de segredos (`functions/.secret.local`, `.env*`, `*.local`) estão protegidos no `.gitignore`.
+   - **Consumo Exclusivo via Firestore (KAN-42 / RNF-005):** O aplicativo Flutter consome exclusivamente a coleção `matches` do Cloud Firestore sincronizada pela Cloud Function agendada `syncMatches`, sem chamadas diretas do cliente à Football-Data.org.
+   - **Proteção em Registros Públicos:** Nenhum valor secreto de credencial pode ser registrado em texto claro em commits, Pull Requests, documentações ou descrições/comentários do Jira.
 
 ### 8.4 - No emulador
 

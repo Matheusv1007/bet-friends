@@ -138,4 +138,4 @@ O `flutter run` encerrou com "Lost connection to device" ao fechar o app à for�
 
 ## Aviso sobre builds
 
-O APK contém hoje o token da football-data.org embutido no código. **Use os APKs apenas no emulador ou no aparelho da equipe. Não publique o APK no Classroom, no GitHub Releases nem em grupos.** A correção depende da troca do token (KAN-102) e da migração das chamadas para o backend (KAN-44).
+**Nota de Segurança e Resolução (KAN-21, KAN-42, KAN-102; RN-SEC-005, RNF-004):** A migração do consumo de partidas para o backend via Firestore (`matches`) foi concluída (KAN-42). O token da Football-Data.org foi purgado do código Flutter e dos novos APKs (KAN-21). A credencial antiga exposta no histórico foi formalmente revogada/invalidada e rotacionada (KAN-102), residindo exclusivamente no Google Secret Manager do backend.
