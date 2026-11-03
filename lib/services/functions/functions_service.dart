@@ -17,6 +17,9 @@ abstract final class CallableNames {
   /// com `motivo` `saldo-reservado`, `saldo-suficiente`,
   /// `intervalo-nao-cumprido` ou `perfil-inexistente`. A tela é da KAN-71.
   static const String claimRecoveryBonus = 'claimRecoveryBonus';
+
+  /// Busca pública de outros usuários (RF-004, RN-PROF-002, RN-FRD-002, RN-AUTH-006).
+  static const String searchUsers = 'searchUsers';
 }
 
 /// Ponto único de acesso às Callable Functions do backend.

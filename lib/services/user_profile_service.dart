@@ -2,7 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart' show User;
 
 import '../data/firestore/user_profile_repository.dart';
 import '../models/user_profile.dart';
+import '../models/usuario_publico.dart';
 import 'auth_service.dart';
+import 'user_search_service.dart';
 import 'functions/functions_service.dart';
 
 /// Liga o perfil ao usuário autenticado: o UID e o e-mail vêm sempre do
@@ -30,6 +32,15 @@ class UserProfileService {
 
   Stream<PerfilObservado> observarPerfilAtual() {
     return _repository.observarPorUid(_usuarioAtual().uid);
+  }
+
+  UserSearchService? _userSearchServiceSobDemanda;
+  UserSearchService get _searchService => _userSearchServiceSobDemanda ??=
+      UserSearchService(authService: _authService, functionsService: _functions);
+
+  /// Busca outros usuários cadastrados no BetFriends (RF-004, RN-PROF-002, RN-FRD-002, RN-AUTH-006).
+  Future<List<UsuarioPublico>> buscarUsuarios(String termo, {int limite = 20}) {
+    return _searchService.buscarUsuarios(termo, limite: limite);
   }
 
   /// Cria o perfil do usuário logado pela Callable `createUserProfile`
