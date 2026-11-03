@@ -6,6 +6,7 @@ import 'package:betfriends/provider/partidas_provider.dart';
 import 'package:betfriends/services/user_profile_service.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
 import 'package:betfriends/tela_perfil/tela_perfil.dart';
+import 'package:betfriends/tela_academica/tela_partidas_rest.dart';
 import 'package:betfriends/widgets_homePage/appbarDasPartidas.dart';
 import 'package:betfriends/widgets_homePage/cardDeDesafio.dart';
 import 'package:betfriends/widgets_homePage/cardDeDesafiosAtivos.dart';
@@ -504,9 +505,35 @@ class _HomepageState extends State<Homepage> {
         side: const BorderSide(color: Color(0xFF1B2536)),
       ),
       onSelected: (opcao) {
-        if (opcao == 'sair') _confirmarLogout();
+        if (opcao == 'sair') {
+          _confirmarLogout();
+        } else if (opcao == 'api_rest') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const TelaPartidasRest(),
+            ),
+          );
+        }
       },
       itemBuilder: (context) => const [
+        PopupMenuItem<String>(
+          value: 'api_rest',
+          child: Row(
+            children: [
+              Icon(Icons.school, color: Color(0xFF00D084), size: 20),
+              SizedBox(width: 10),
+              Text(
+                'Partidas REST (Acadêmico)',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
         PopupMenuItem<String>(
           value: 'sair',
           child: Row(
