@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../data/firestore/user_profile_repository.dart';
 import '../models/user_profile.dart';
 import '../services/user_profile_service.dart';
+import '../tela_academica/tela_partidas_rest.dart';
+import '../tela_amigos/tela_buscar_usuarios.dart';
 import '../telas_autenticacao/cadastro_page.dart';
 
 /// Perfil do usuário autenticado (KAN-28).
@@ -258,6 +260,48 @@ class _DadosDoPerfil extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 48,
+          child: ElevatedButton.icon(
+            key: const Key('perfil_buscar_usuarios'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TelaBuscarUsuarios()),
+            ),
+            icon: const Icon(Icons.person_search, size: 18),
+            label: const Text(
+              'BUSCAR AMIGOS',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF151E2E),
+              foregroundColor: primaryGreen,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: primaryGreen.withValues(alpha: 0.4)),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 48,
+          child: TextButton.icon(
+            key: const Key('perfil_partidas_rest'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TelaPartidasRest()),
+            ),
+            icon: const Icon(Icons.school_outlined, size: 18),
+            label: const Text(
+              'PARTIDAS REST (ACADÊMICO)',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF94A3B8),
             ),
           ),
         ),

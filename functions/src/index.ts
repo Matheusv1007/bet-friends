@@ -7,3 +7,4 @@ export { createUserProfile } from "./perfil/createUserProfile";
 export { claimRecoveryBonus } from "./betcoins/claimRecoveryBonus";
 export { syncMatches } from "./partidas/syncMatches";
 export { getMatchesRest } from "./partidas/getMatchesRest";
+export { searchUsers } from "./perfil/searchUsers";
