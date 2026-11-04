@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../models/carteira.dart';
 import '../../models/user_profile.dart';
 import 'firestore_collections.dart';
 import 'gravacao_no_servidor.dart';
@@ -64,11 +65,15 @@ class PerfilObservado {
   /// `null` enquanto o documento não existir.
   final UserProfile? perfil;
 
+  /// Carteira com os saldos lidos de `users/{uid}` (KAN-69; RF-003, RN-BET-004, RNF-007).
+  /// `null` se o documento não existir ou os saldos não constarem.
+  final Carteira? carteira;
+
   /// `true` quando o servidor não confirmou o dado, por falta de conexão: é o
   /// último perfil conhecido neste aparelho e pode estar desatualizado.
   final bool doCache;
 
-  const PerfilObservado(this.perfil, {this.doCache = false});
+  const PerfilObservado(this.perfil, {this.carteira, this.doCache = false});
 }
 
 /// Acesso ao documento `users/{uid}`.
@@ -126,6 +131,7 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
       }
       return PerfilObservado(
         _converter(snapshot),
+        carteira: _converterCarteira(snapshot),
         doCache: snapshot.metadata.isFromCache,
       );
     }).handleError(
@@ -159,6 +165,16 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
       return UserProfile.fromMap(snapshot.id, data);
     } on FormatException catch (e) {
       throw UserProfileException(UserProfileErrorCode.invalidData, e.message);
+    }
+  }
+
+  Carteira? _converterCarteira(DocumentSnapshot<Map<String, dynamic>> snapshot) {
+    final data = snapshot.data();
+    if (!snapshot.exists || data == null) return null;
+    try {
+      return Carteira.fromMap(data);
+    } catch (_) {
+      return null;
     }
   }
 

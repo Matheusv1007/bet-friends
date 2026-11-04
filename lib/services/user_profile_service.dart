@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart' show User;
 
 import '../data/firestore/user_profile_repository.dart';
+import '../models/carteira.dart';
 import '../models/user_profile.dart';
 import '../models/usuario_publico.dart';
 import 'auth_service.dart';
@@ -32,6 +33,11 @@ class UserProfileService {
 
   Stream<PerfilObservado> observarPerfilAtual() {
     return _repository.observarPorUid(_usuarioAtual().uid);
+  }
+
+  /// Observa a carteira e saldos de BetCoins do usuário logado (KAN-69; RF-003, RN-BET-004).
+  Stream<Carteira?> observarCarteiraAtual() {
+    return observarPerfilAtual().map((p) => p.carteira);
   }
 
   UserSearchService? _userSearchServiceSobDemanda;
