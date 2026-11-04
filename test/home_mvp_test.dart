@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:betfriends/app.dart';
 import 'package:betfriends/data/firestore/user_profile_repository.dart';
+import 'package:betfriends/models/carteira.dart';
 import 'package:betfriends/models/user_profile.dart';
 import 'package:betfriends/provider/partidas_provider.dart';
 import 'package:betfriends/services/user_profile_service.dart';
@@ -21,7 +22,8 @@ import 'support/fake_auth.dart';
 class _RepositorioControlado implements UserProfileRepository {
   final _emissoes = StreamController<PerfilObservado>.broadcast();
 
-  void emitir(UserProfile? perfil) => _emissoes.add(PerfilObservado(perfil));
+  void emitir(UserProfile? perfil, {Carteira? carteira, bool doCache = false}) =>
+      _emissoes.add(PerfilObservado(perfil, carteira: carteira, doCache: doCache));
 
   void falhar(UserProfileException erro) => _emissoes.addError(erro);
 
@@ -186,6 +188,26 @@ void main() {
 
       expect(_saudacao(tester), 'Olá!');
       expect(tester.widget<Text>(find.byKey(const Key('home_saldo'))).data, 'Saldo indisponível');
+
+      await encerrar(tester);
+    });
+
+    testWidgets('mostra o saldo da carteira quando disponível e abre os detalhes', (tester) async {
+      await abrirHome(tester);
+      expect(tester.widget<Text>(find.byKey(const Key('home_saldo'))).data, 'Saldo indisponível');
+
+      repositorio.emitir(
+        _perfil('Ana Lima'),
+        carteira: Carteira(saldoTotal: 1000, saldoReservado: 250),
+      );
+      await entregar(tester);
+
+      expect(tester.widget<Text>(find.byKey(const Key('home_saldo'))).data, '750 BetCoins');
+      expect(find.byKey(const Key('card_carteira_container')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('home_saldo')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('carteira_saldo_disponivel')), findsWidgets);
 
       await encerrar(tester);
     });

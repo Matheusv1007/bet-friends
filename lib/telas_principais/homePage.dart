@@ -10,6 +10,8 @@ import 'package:betfriends/tela_academica/tela_partidas_rest.dart';
 import 'package:betfriends/widgets_homePage/appbarDasPartidas.dart';
 import 'package:betfriends/widgets_homePage/cardDeDesafio.dart';
 import 'package:betfriends/widgets_homePage/cardDeDesafiosAtivos.dart';
+import 'package:betfriends/models/carteira.dart';
+import 'package:betfriends/widgets_homePage/cardDeCarteira.dart';
 import 'package:betfriends/widgets_homePage/cardDePartidas.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -80,7 +82,8 @@ class _HomepageState extends State<Homepage> {
     // Leitura opcional, como no menu da conta: a Home também é montada sem o serviço
     final service = context.read<UserProfileService?>();
     try {
-      return service?.observarPerfilAtual();
+      final s = service?.observarPerfilAtual();
+      return s == null ? null : (s.isBroadcast ? s : s.asBroadcastStream());
     } catch (_) {
       // Sem sessão ou sem Firebase: a saudação fica neutra
       return null;
@@ -128,7 +131,23 @@ class _HomepageState extends State<Homepage> {
                   // CARD DESAFIO RÁPIDO 1V1
                   const Carddedesafio(),
 
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 18),
+
+                  // CARTEIRA BETCOINS REAL (KAN-69; RF-003, RN-BET-004)
+                  StreamBuilder<PerfilObservado>(
+                    stream: _perfil,
+                    builder: (context, snapshot) {
+                      final carteira = snapshot.hasError ? null : snapshot.data?.carteira;
+                      if (carteira == null) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 18.0),
+                        child: Carddecarteira(
+                          carteira: carteira,
+                          semConexao: snapshot.data?.doCache ?? false,
+                        ),
+                      );
+                    },
+                  ),
 
                   // TÍTULO "PARTIDAS" E "Ver todas" (Com indicador de tempo real e última atualização)
                   Consumer<PartidasProvider>(
@@ -516,19 +535,22 @@ class _HomepageState extends State<Homepage> {
           );
         }
       },
-      itemBuilder: (context) => const [
+      itemBuilder: (context) => [
         PopupMenuItem<String>(
           value: 'api_rest',
           child: Row(
-            children: [
+            children: const [
               Icon(Icons.school, color: Color(0xFF00D084), size: 20),
               SizedBox(width: 10),
-              Text(
-                'Partidas REST (Acadêmico)',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+              Flexible(
+                child: Text(
+                  'Partidas REST',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -635,6 +657,25 @@ class _HomepageState extends State<Homepage> {
     }
   }
 
+  void _exibirDetalhesCarteira(BuildContext context, Carteira carteira, bool semConexao) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF151E2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Carddecarteira(carteira: carteira, semConexao: semConexao),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Cabeçalho com o avatar (menu da conta), saudação, saldo e logo do BetFriends
   Widget _buildHeader() {
     return Row(
@@ -644,16 +685,18 @@ class _HomepageState extends State<Homepage> {
         const SizedBox(width: 12),
 
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Nome do perfil quando disponível; sem perfil, sem conexão ou
-              // com erro, uma saudação neutra
-              StreamBuilder<PerfilObservado>(
-                stream: _perfil,
-                builder: (context, snapshot) {
-                  final nome = snapshot.hasError ? null : snapshot.data?.perfil?.displayName;
-                  return Text(
+          child: StreamBuilder<PerfilObservado>(
+            stream: _perfil,
+            builder: (context, snapshot) {
+              final nome = snapshot.hasError ? null : snapshot.data?.perfil?.displayName;
+              final carteira = snapshot.hasError ? null : snapshot.data?.carteira;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Nome do perfil quando disponível; sem perfil, sem conexão ou
+                  // com erro, uma saudação neutra
+                  Text(
                     nome == null ? "Olá!" : "Olá, $nome",
                     key: const Key('home_saudacao'),
                     maxLines: 1,
@@ -663,21 +706,40 @@ class _HomepageState extends State<Homepage> {
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
                     ),
-                  );
-                },
-              ),
-              const SizedBox(height: 2),
-              // A carteira real ainda não é exibida (KAN-69); nenhum valor fictício
-              const Text(
-                "Saldo indisponível",
-                key: Key('home_saldo'),
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+                  ),
+                  const SizedBox(height: 2),
+                  // Exibição da carteira real (KAN-69; RF-003, RN-BET-004)
+                  if (carteira == null)
+                    const Text(
+                      "Saldo indisponível",
+                      key: Key('home_saldo'),
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  else
+                    GestureDetector(
+                      key: const Key('home_saldo_interativo'),
+                      onTap: () => _exibirDetalhesCarteira(
+                        context,
+                        carteira,
+                        snapshot.data?.doCache ?? false,
+                      ),
+                      child: Text(
+                        "${carteira.saldoDisponivel} BetCoins",
+                        key: const Key('home_saldo'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ),
 
