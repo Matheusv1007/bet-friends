@@ -8,3 +8,5 @@ export { claimRecoveryBonus } from "./betcoins/claimRecoveryBonus";
 export { syncMatches } from "./partidas/syncMatches";
 export { getMatchesRest } from "./partidas/getMatchesRest";
 export { searchUsers } from "./perfil/searchUsers";
+export { sendFriendRequest } from "./amigos/sendFriendRequest";
+export { acceptFriendRequest } from "./amigos/acceptFriendRequest";
