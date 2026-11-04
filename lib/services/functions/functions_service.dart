@@ -20,6 +20,8 @@ abstract final class CallableNames {
 
   /// Busca pública de outros usuários (RF-004, RN-PROF-002, RN-FRD-002, RN-AUTH-006).
   static const String searchUsers = 'searchUsers';
+  static const String sendFriendRequest = 'sendFriendRequest';
+  static const String acceptFriendRequest = 'acceptFriendRequest';
 }
 
 /// Ponto único de acesso às Callable Functions do backend.

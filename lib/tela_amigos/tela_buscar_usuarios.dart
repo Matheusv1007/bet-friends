@@ -2,21 +2,33 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/firestore/friendship_repository.dart';
 import '../data/firestore/user_profile_repository.dart';
+import '../models/friendship_model.dart';
 import '../models/usuario_publico.dart';
+import '../services/friendship_service.dart';
 import '../services/user_search_service.dart';
 
-/// Tela para buscar outros usuários cadastrados no BetFriends (RF-004).
+/// Tela para buscar outros usuários cadastrados no BetFriends (RF-004),
+/// enviar solicitações de amizade e aceitar solicitações pendentes (RF-005, RN-FRD-001, RN-FRD-005).
 ///
 /// Diretrizes de Privacidade e Regras:
 /// - Exibe apenas dados públicos: nome e @username (RN-PROF-002).
 /// - Não exibe e-mail, saldos nem transações (RN-PROF-002).
 /// - O próprio usuário logado nunca é exibido como resultado (RN-FRD-002).
 /// - Utiliza o identificador estável `userId` internamente (RN-AUTH-006).
+/// - Trata solicitações válidas, duplicadas, cruzadas e aceites (RN-FRD-001, RN-FRD-003, RN-FRD-004, RN-FRD-005).
 class TelaBuscarUsuarios extends StatefulWidget {
   final UserSearchService? searchService;
+  final FriendshipService? friendshipService;
+  final Set<String>? solicitacoesRecebidas;
 
-  const TelaBuscarUsuarios({super.key, this.searchService});
+  const TelaBuscarUsuarios({
+    super.key,
+    this.searchService,
+    this.friendshipService,
+    this.solicitacoesRecebidas,
+  });
 
   @override
   State<TelaBuscarUsuarios> createState() => _TelaBuscarUsuariosState();
@@ -24,6 +36,8 @@ class TelaBuscarUsuarios extends StatefulWidget {
 
 class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
   late final UserSearchService _searchService;
+  late final FriendshipService _friendshipService;
+  late final Set<String> _solicitacoesRecebidas;
   final TextEditingController _controller = TextEditingController();
   Timer? _debounceTimer;
 
@@ -31,11 +45,17 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
   String? _errorMessage;
   List<UsuarioPublico> _resultados = [];
   bool _pesquisaRealizada = false;
+  final Set<String> _enviandoIds = {};
+  final Map<String, FriendshipStatus> _statusAmizade = {};
 
   @override
   void initState() {
     super.initState();
     _searchService = widget.searchService ?? UserSearchService();
+    _friendshipService = widget.friendshipService ?? FriendshipService();
+    _solicitacoesRecebidas = widget.solicitacoesRecebidas != null
+        ? Set.from(widget.solicitacoesRecebidas!)
+        : <String>{};
   }
 
   @override
@@ -91,6 +111,109 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
         _errorMessage = 'Não foi possível buscar usuários. Tente novamente.';
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _enviarSolicitacao(UsuarioPublico usuario) async {
+    if (_enviandoIds.contains(usuario.userId)) return;
+
+    setState(() {
+      _enviandoIds.add(usuario.userId);
+    });
+
+    try {
+      final resultado = await _friendshipService.enviarSolicitacaoAmizade(usuario.userId);
+      if (!mounted) return;
+
+      setState(() {
+        _statusAmizade[usuario.userId] = resultado.status;
+      });
+
+      final mensagem = resultado.autoAccepted
+          ? 'Amizade aceita automaticamente com ${usuario.displayName}!'
+          : 'Solicitação de amizade enviada para ${usuario.displayName}!';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(mensagem),
+          backgroundColor: const Color(0xFF00D084),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } on FriendshipException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível enviar a solicitação. Tente novamente.'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _enviandoIds.remove(usuario.userId);
+        });
+      }
+    }
+  }
+
+  Future<void> _aceitarSolicitacao(UsuarioPublico usuario) async {
+    if (_enviandoIds.contains(usuario.userId)) return;
+
+    setState(() {
+      _enviandoIds.add(usuario.userId);
+    });
+
+    try {
+      final resultado = await _friendshipService.aceitarSolicitacaoAmizade(usuario.userId);
+      if (!mounted) return;
+
+      setState(() {
+        _solicitacoesRecebidas.remove(usuario.userId);
+        _statusAmizade[usuario.userId] = resultado.status;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Agora você e ${usuario.displayName} são amigos!'),
+          backgroundColor: const Color(0xFF00D084),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } on FriendshipException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: const Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível aceitar a solicitação. Tente novamente.'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _enviandoIds.remove(usuario.userId);
+        });
+      }
     }
   }
 
@@ -395,33 +518,157 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
             ),
           ),
 
-          // Ação (Convidar / Adicionar amigo)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F2624),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: primaryGreen.withValues(alpha: 0.3),
+          // Ação (Convidar / Aceitar / Amigos / Pendente)
+          _buildBotaoAcao(usuario),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBotaoAcao(UsuarioPublico usuario) {
+    const primaryGreen = Color(0xFF00D084);
+    final estaEnviando = _enviandoIds.contains(usuario.userId);
+    final status = _statusAmizade[usuario.userId];
+
+    if (estaEnviando) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F2624),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: primaryGreen.withValues(alpha: 0.3),
+          ),
+        ),
+        child: const SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: primaryGreen,
+          ),
+        ),
+      );
+    }
+
+    if (status == FriendshipStatus.accepted) {
+      return Container(
+        key: Key('btn_amigos_${usuario.userId}'),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: primaryGreen.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: primaryGreen,
+          ),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check, color: primaryGreen, size: 16),
+            SizedBox(width: 6),
+            Text(
+              'Amigos',
+              style: TextStyle(
+                color: primaryGreen,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
               ),
             ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.person_add_alt_1, color: primaryGreen, size: 16),
-                SizedBox(width: 6),
-                Text(
-                  'Convidar',
-                  style: TextStyle(
-                    color: primaryGreen,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
+          ],
+        ),
+      );
+    }
+
+    if (status == FriendshipStatus.pending) {
+      return Container(
+        key: Key('btn_pendente_${usuario.userId}'),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: const Color(0xFF64748B).withValues(alpha: 0.5),
           ),
-        ],
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.schedule, color: Color(0xFF94A3B8), size: 16),
+            SizedBox(width: 6),
+            Text(
+              'Pendente',
+              style: TextStyle(
+                color: Color(0xFF94A3B8),
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Se o usuário atual recebeu solicitação pendente deste jogador
+    final recebeuSolicitacao = _solicitacoesRecebidas.contains(usuario.userId);
+    if (recebeuSolicitacao) {
+      return InkWell(
+        key: Key('btn_aceitar_${usuario.userId}'),
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => _aceitarSolicitacao(usuario),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: primaryGreen,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check, color: Color(0xFF062319), size: 16),
+              SizedBox(width: 6),
+              Text(
+                'Aceitar',
+                style: TextStyle(
+                  color: Color(0xFF062319),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return InkWell(
+      key: Key('btn_convidar_${usuario.userId}'),
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => _enviarSolicitacao(usuario),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0F2624),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: primaryGreen.withValues(alpha: 0.3),
+          ),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.person_add_alt_1, color: primaryGreen, size: 16),
+            SizedBox(width: 6),
+            Text(
+              'Convidar',
+              style: TextStyle(
+                color: primaryGreen,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
