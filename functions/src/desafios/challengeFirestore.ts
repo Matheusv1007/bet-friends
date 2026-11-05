@@ -75,7 +75,6 @@ export function criarDesafioNaTransacao(
   ref: DocumentReference = db.collection(COLECAO_DE_DESAFIOS).doc(),
 ): string {
   const d = validarNovoDesafio(novo);
-  // ref já fornecido ou gerado como padrão pelo argumento
   transacao.create(ref, {
     challengerId: d.challengerId,
     challengedId: d.challengedId,
@@ -171,6 +170,31 @@ export function transicionarDesafio(db: Firestore, id: string, evento: EventoDoD
   return db.runTransaction((t) => transicionarDesafioNaTransacao(t, db, id, evento));
 }
 
+/**
+ * Verifica se um usuário possui algum desafio ativo (estados não terminais)
+ * associado a uma partida (RN-CHL-010, RN-CHL-011, RN-CHL-012, D-010).
+ * Considera ambos os papéis (criador ou desafiado em participants).
+ * Se [ignorarChallengeId] for informado, esse desafio específico é desconsiderado.
+ */
+export async function temDesafioAtivoNaPartida(
+  transacao: Transaction,
+  db: Firestore,
+  userId: string,
+  matchId: string,
+  ignorarChallengeId?: string,
+): Promise<boolean> {
+  const snapshot = await transacao.get(
+    db
+      .collection(COLECAO_DE_DESAFIOS)
+      .where("participants", "array-contains", userId)
+      .where("matchId", "==", matchId),
+  );
+  return snapshot.docs.some((doc) => {
+    if (ignorarChallengeId && doc.id === ignorarChallengeId) return false;
+    const status = doc.data().status as StatusDoDesafio;
+    return !STATUS_TERMINAL[status];
+  });
+}
 
 export interface CriarDesafioParams {
   readonly challengerId: string;
@@ -211,13 +235,13 @@ export interface ResultadoAceitarDesafio {
 /**
  * Criação atômica de desafio para um amigo dentro de uma transação Firestore.
  *
- * Validações sensíveis (RN-FRD-001, RN-MAT-003, RN-MAT-004, RN-PRD-001, RN-BET-002, RN-BET-003, RN-BET-004, RN-CHL-001, RN-CHL-011):
+ * Validações sensíveis (RN-FRD-001, RN-MAT-003, RN-MAT-004, RN-PRD-001, RN-BET-002, RN-BET-003, RN-BET-004, RN-CHL-001, RN-CHL-010, RN-CHL-011, RN-CHL-012):
  * 1. Criador e desafiado são usuários diferentes (RN-CHL-001).
  * 2. Palpite do criador é válido (RN-PRD-001: HOME_WIN, DRAW ou AWAY_WIN).
  * 3. Valor é inteiro válido de 10 a 500 (RN-BET-002, RN-BET-003).
  * 4. Partida existe, está agendada e não atingiu o corte de 5 minutos (RN-MAT-003, RN-MAT-004).
  * 5. Amizade entre criador e desafiado está aceita (RN-FRD-001).
- * 6. Não existe outro desafio ativo do criador para a mesma partida (RN-CHL-011).
+ * 6. Não existe outro desafio ativo do criador para a mesma partida, em qualquer papel (RN-CHL-010, RN-CHL-011, RN-CHL-012).
  * 7. Saldo disponível é suficiente e BetCoins são reservadas antes da criação (RN-BET-004).
  * 8. Desafio é criado em PENDING (RN-CHL-006).
  */
@@ -259,15 +283,9 @@ export async function criarDesafioParaAmigoNaTransacao(
     throw new ErroDeDesafio("É necessário ter amizade aceita com o usuário para criar um desafio.", "amizade-necessaria");
   }
 
-  const snapshotAtivos = await transacao.get(
-    db.collection(COLECAO_DE_DESAFIOS).where("challengerId", "==", challengerId).where("matchId", "==", matchId),
-  );
-  const temAtivo = snapshotAtivos.docs.some((doc) => {
-    const status = doc.data().status as StatusDoDesafio;
-    return !STATUS_TERMINAL[status];
-  });
-  if (temAtivo) {
-    throw new ErroDeDesafio("Já existe um desafio ativo do criador para esta partida.", "desafio-ativo-existente");
+  const criadorTemAtivo = await temDesafioAtivoNaPartida(transacao, db, challengerId, matchId);
+  if (criadorTemAtivo) {
+    throw new ErroDeDesafio("Você já possui um desafio ativo para esta partida.", "desafio-ativo-existente");
   }
 
   // ESCRITAS: Reserva no ledger e criação do desafio em PENDING
@@ -314,15 +332,16 @@ export async function criarDesafioParaAmigo(
 /**
  * Aceite atômico de desafio pendente dentro de uma transação Firestore.
  *
- * Critérios e validações (RN-PRD-001, RN-PRD-003, RN-BET-004, RN-CHL-004, RN-CHL-008, RN-CHL-016, RN-MAT-004):
+ * Critérios e validações (RN-PRD-001, RN-PRD-003, RN-BET-004, RN-CHL-004, RN-CHL-008, RN-CHL-010, RN-CHL-011, RN-CHL-012, RN-CHL-016, RN-MAT-004):
  * 1. Desafio precisa existir e estar em PENDING (RN-CHL-008).
  * 2. Somente o desafiado pode aceitar (RN-CHL-004).
  * 3. Desafiado escolhe HOME_WIN, DRAW ou AWAY_WIN (RN-PRD-001).
  * 4. Palpite do desafiado é diferente do palpite do criador (RN-PRD-003).
  * 5. Partida não pode ter atingido o corte de 5 minutos antes do início (RN-MAT-004, RN-CHL-008).
- * 6. Valor do desafio é preservado sem alteração (challenge.amount).
- * 7. BetCoins do desafiado são reservadas antes da mudança de estado (RN-BET-004).
- * 8. Estado passa para ACCEPTED apenas após sucesso da reserva (RN-CHL-016).
+ * 6. Desafiado não pode participar de mais de um desafio ativo na mesma partida (RN-CHL-010, RN-CHL-011, RN-CHL-012).
+ * 7. Valor do desafio é preservado sem alteração (challenge.amount).
+ * 8. BetCoins do desafiado são reservadas antes da mudança de estado (RN-BET-004).
+ * 9. Estado passa para ACCEPTED apenas após sucesso da reserva (RN-CHL-016).
  */
 export async function aceitarDesafioNaTransacao(
   transacao: Transaction,
@@ -360,6 +379,17 @@ export async function aceitarDesafioNaTransacao(
   }
   if (match.status !== "AGENDADA" || atingiuCorte(match.startsAtUtc, agora)) {
     throw new ErroDeDesafio("A partida atingiu o corte de 5 minutos antes do início.", "partida-no-corte");
+  }
+
+  const desafiadoTemAtivo = await temDesafioAtivoNaPartida(
+    transacao,
+    db,
+    challengedId,
+    challenge.matchId,
+    challenge.id,
+  );
+  if (desafiadoTemAtivo) {
+    throw new ErroDeDesafio("Você já possui outro desafio ativo para esta partida.", "desafio-ativo-existente");
   }
 
   // ESCRITAS: Reserva no ledger do desafiado e transição para ACCEPTED

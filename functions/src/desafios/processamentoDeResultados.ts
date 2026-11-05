@@ -3,6 +3,7 @@ import { logger } from "firebase-functions";
 
 import { moverDesafiosParaAguardandoResultado } from "./aguardarResultado";
 import { identificarDesafiosAptos } from "./aptosParaLiquidacao";
+import { expirarDesafiosPendentes } from "./expirarDesafios";
 import { finalizarDesafio } from "./finalizacao";
 
 /**
@@ -12,10 +13,11 @@ import { finalizarDesafio } from "./finalizacao";
  * que já está em `matches`: nenhuma chamada ao provedor, nenhum
  * processamento por usuário ou por tela.
  *
- * 1. desafios `IN_PROGRESS` com partida fora de campo → `WAITING_RESULT` (KAN-67);
- * 2. desafios aptos: partida `FINALIZADA` com resultado (KAN-82); casos
+ * 1. desafios `PENDING` que atingiram o corte de 5 minutos → `EXPIRED` (KAN-65);
+ * 2. desafios `IN_PROGRESS` com partida fora de campo → `WAITING_RESULT` (KAN-67);
+ * 3. desafios aptos: partida `FINALIZADA` com resultado (KAN-82); casos
  *    excepcionais ficam aguardando e vão para o log (KAN-87);
- * 3. cada apto passa pela finalização idempotente (KAN-85), uma transação
+ * 4. cada apto passa pela finalização idempotente (KAN-85), uma transação
  *    por desafio.
  *
  * A falha de um desafio não impede os demais e não deixa efeito parcial
@@ -40,6 +42,7 @@ export interface ResumoDoProcessamento {
 }
 
 export async function processarResultados(db: Firestore): Promise<ResumoDoProcessamento> {
+  await expirarDesafiosPendentes(db);
   const { movidos } = await moverDesafiosParaAguardandoResultado(db);
   const { aptos, aguardando } = await identificarDesafiosAptos(db);
 

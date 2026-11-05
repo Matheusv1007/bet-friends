@@ -95,7 +95,7 @@ describe(
       );
     });
 
-    test("solicitação duplicada: rejeita segunda solicitação ativa (RN-FRD-004)", async () => {
+    test("solicitação duplicada sequencial: rejeita segunda solicitação ativa (RN-FRD-003, RN-FRD-004)", async () => {
       // Primeira solicitação
       await db.runTransaction((t) => enviarSolicitacaoAmizadeNaTransacao(t, db, ALICE, BOB));
 
@@ -103,6 +103,59 @@ describe(
       await assert.rejects(
         () => db.runTransaction((t) => enviarSolicitacaoAmizadeNaTransacao(t, db, ALICE, BOB)),
         (err: unknown) => err instanceof ErroDeAmizade && err.code === "solicitacao-duplicada",
+      );
+    });
+
+    test("duplicata concorrente: tentativas simultâneas não geram duplicidade (RN-FRD-003, RN-AUTH-006)", async () => {
+      // Duas transações simultâneas tentando criar a mesma solicitação
+      const resultados = await Promise.allSettled([
+        db.runTransaction((t) => enviarSolicitacaoAmizadeNaTransacao(t, db, ALICE, BOB)),
+        db.runTransaction((t) => enviarSolicitacaoAmizadeNaTransacao(t, db, ALICE, BOB)),
+      ]);
+
+      const sucessos = resultados.filter((r) => r.status === "fulfilled");
+      const falhas = resultados.filter((r) => r.status === "rejected");
+
+      // Exatamente uma deve ter sucesso
+      assert.equal(sucessos.length, 1, "exatamente uma transação deve ter sucesso");
+      assert.ok(falhas.length >= 1, "pelo menos uma transação deve falhar");
+
+      // A que falhou deve ter código solicitacao-duplicada ou ser conflito de transação
+      for (const falha of falhas) {
+        if (falha.status === "rejected") {
+          const err = falha.reason;
+          // Pode ser ErroDeAmizade (solicitacao-duplicada) ou erro de contention do Firestore
+          const isExpected =
+            (err instanceof ErroDeAmizade && err.code === "solicitacao-duplicada") ||
+            (err instanceof Error && err.message.includes("contention"));
+          assert.ok(isExpected, `Erro inesperado: ${err}`);
+        }
+      }
+
+      // Firestore deve ter exatamente 1 documento de amizade
+      const snap = await db.collection(COLECAO_DE_AMIZADES).get();
+      assert.equal(snap.size, 1, "deve existir exatamente 1 documento de amizade no Firestore");
+      assert.equal(snap.docs[0].data().status, "PENDING");
+      assert.equal(snap.docs[0].data().requesterId, ALICE);
+    });
+
+    test("validação usando os mesmos userIds: rejeita envio usando e-mail ou username (RN-AUTH-006)", async () => {
+      // Tentativa com e-mail em vez de userId
+      await assert.rejects(
+        () =>
+          db.runTransaction((t) =>
+            enviarSolicitacaoAmizadeNaTransacao(t, db, "alice@email.com", BOB),
+          ),
+        (err: unknown) => err instanceof ErroDeAmizade && err.code === "uid-invalido",
+      );
+
+      // Tentativa com path em vez de userId
+      await assert.rejects(
+        () =>
+          db.runTransaction((t) =>
+            enviarSolicitacaoAmizadeNaTransacao(t, db, ALICE, "users/bob"),
+          ),
+        (err: unknown) => err instanceof ErroDeAmizade && err.code === "uid-invalido",
       );
     });
 
