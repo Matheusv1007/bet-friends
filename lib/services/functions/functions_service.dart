@@ -22,6 +22,8 @@ abstract final class CallableNames {
   static const String searchUsers = 'searchUsers';
   static const String sendFriendRequest = 'sendFriendRequest';
   static const String acceptFriendRequest = 'acceptFriendRequest';
+  static const String createChallenge = 'createChallenge';
+  static const String acceptChallenge = 'acceptChallenge';
 }
 
 /// Ponto único de acesso às Callable Functions do backend.

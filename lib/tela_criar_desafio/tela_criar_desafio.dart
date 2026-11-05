@@ -1,34 +1,106 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../data/firestore/challenge_repository.dart';
+import '../models/challenge_model.dart';
 import '../models/partida_model.dart';
 import '../provider/partidas_provider.dart';
+import '../services/challenge_service.dart';
 import '../telas_principais/homePage.dart';
 
 class CriarDesafioScreen extends StatefulWidget {
-  const CriarDesafioScreen({super.key});
+  final String? preSelectedFriendId;
+  final String? preSelectedFriendName;
+  final String? preSelectedMatchId;
+  final ChallengeService? challengeService;
+  final List<AmigoItem>? amigosIniciais;
+  final int? saldoInicial;
+
+  const CriarDesafioScreen({
+    super.key,
+    this.preSelectedFriendId,
+    this.preSelectedFriendName,
+    this.preSelectedMatchId,
+    this.challengeService,
+    this.amigosIniciais,
+    this.saldoInicial,
+  });
 
   @override
   State<CriarDesafioScreen> createState() => _CriarDesafioScreenState();
 }
 
 class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
+  late final ChallengeService _challengeService;
+
   int valor = 50;
   String? partidaId;
-  final amigos = <int>{0};
+  Palpite palpiteSelecionado = Palpite.homeWin;
+  String? amigoId;
+  String? amigoNome;
+
+  List<AmigoItem> amigosAceitos = [];
+  bool isLoadingAmigos = false;
+  bool isSubmitting = false;
+
+  int? saldoDisponivel;
 
   @override
   void initState() {
     super.initState();
+    _challengeService = widget.challengeService ?? ChallengeService();
+
+    partidaId = widget.preSelectedMatchId;
+    amigoId = widget.preSelectedFriendId;
+    amigoNome = widget.preSelectedFriendName;
+
+    if (widget.amigosIniciais != null) {
+      amigosAceitos = widget.amigosIniciais!;
+    }
+    if (widget.saldoInicial != null) {
+      saldoDisponivel = widget.saldoInicial;
+    }
+
     // Garante o carregamento das partidas reais da API
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<PartidasProvider>();
       if (provider.partidas.isEmpty) {
         provider.carregarPartidas();
       }
+      _carregarAmigosESaldo();
     });
   }
 
-  /// Reconcilia a seleção de forma segura sem mutação colateral dentro do build
+  Future<void> _carregarAmigosESaldo() async {
+    setState(() => isLoadingAmigos = true);
+
+    try {
+      final saldo = await _challengeService.buscarSaldoDisponivel();
+      final amigos = await _challengeService.listarAmigosAceitos();
+
+      if (mounted) {
+        setState(() {
+          if (saldo != null) {
+            saldoDisponivel = saldo;
+          }
+          if (amigos.isNotEmpty) {
+            amigosAceitos = amigos;
+            if (amigoId == null) {
+              amigoId = amigos.first.uid;
+              amigoNome = amigos.first.displayName;
+            }
+          }
+        });
+      }
+    } catch (_) {
+      // Falha silenciosa de carregamento inicial
+    } finally {
+      if (mounted) {
+        setState(() => isLoadingAmigos = false);
+      }
+    }
+  }
+
   void _reconciliarSelecao(List<PartidaModel> elegiveis) {
     if (elegiveis.isEmpty) {
       if (partidaId != null) {
@@ -49,6 +121,94 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
           setState(() => partidaId = primeiroId);
         }
       });
+    }
+  }
+
+  Future<void> _enviarDesafio() async {
+    if (partidaId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione uma partida válida para criar o desafio.'),
+          backgroundColor: Color(0xFFEF4444),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    if (amigoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione um amigo para desafiar.'),
+          backgroundColor: Color(0xFFEF4444),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    if (valor < 10 || valor > 500) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('O valor deve ser entre 10 e 500 BetCoins.'),
+          backgroundColor: Color(0xFFEF4444),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    setState(() => isSubmitting = true);
+
+    try {
+      await _challengeService.criarDesafio(
+        challengedId: amigoId!,
+        matchId: partidaId!,
+        challengerPrediction: palpiteSelecionado,
+        amount: valor,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Desafio criado com sucesso! BetCoins reservadas.'),
+          backgroundColor: Color(0xFF00D084),
+          duration: Duration(seconds: 3),
+        ),
+      );
+
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context, true);
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const Homepage()),
+          (route) => false,
+        );
+      }
+    } on ChallengeException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: const Color(0xFFEF4444),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível criar o desafio. Tente novamente.'),
+          backgroundColor: Color(0xFFEF4444),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => isSubmitting = false);
+      }
     }
   }
 
@@ -146,8 +306,8 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                     const SizedBox(width: 12),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           'SALDO DISPONÍVEL',
                           style: TextStyle(
                             color: textMuted,
@@ -156,10 +316,11 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                             letterSpacing: 0.5,
                           ),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
-                          '1.500 fichas',
-                          style: TextStyle(
+                          saldoDisponivel != null ? '$saldoDisponivel BetCoins' : 'Carregando...',
+                          key: const Key('criar_desafio_saldo'),
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16.5,
                             fontWeight: FontWeight.bold,
@@ -220,12 +381,10 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
               ),
               const SizedBox(height: 10),
 
-              // Lista dinâmica com partidas reais da API
+              // Lista dinâmica com partidas
               Consumer<PartidasProvider>(
                 builder: (context, partidasProvider, child) {
-                  // 1. Estado de Carregamento
-                  if (partidasProvider.isLoading &&
-                      partidasProvider.partidas.isEmpty) {
+                  if (partidasProvider.isLoading && partidasProvider.partidas.isEmpty) {
                     return const Center(
                       child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 32),
@@ -234,57 +393,44 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                     );
                   }
 
-                  // 2. Estado de Erro de Conexão / API (alinhado com KAN-100)
-                  if (partidasProvider.errorMessage != null &&
-                      partidasProvider.partidas.isEmpty) {
+                  if (partidasProvider.errorMessage != null && partidasProvider.partidas.isEmpty) {
                     return Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 24,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                       decoration: BoxDecoration(
                         color: cardBg,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.05),
-                        ),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
-                            Icons.error_outline,
-                            color: Color(0xFFEF4444),
-                            size: 32,
-                          ),
-                          const SizedBox(height: 8),
+                          const Icon(Icons.wifi_off_rounded, size: 40, color: Color(0xFFEF4444)),
+                          const SizedBox(height: 12),
                           const Text(
                             'Erro ao carregar partidas',
                             style: TextStyle(
                               color: Colors.white,
+                              fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
                             ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             partidasProvider.errorMessage!,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: textMuted,
-                              fontSize: 12,
-                            ),
+                            style: const TextStyle(color: textMuted, fontSize: 12.5),
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
                           ElevatedButton.icon(
-                            onPressed: () =>
-                                partidasProvider.carregarPartidas(),
+                            onPressed: () => partidasProvider.carregarPartidas(),
                             icon: const Icon(Icons.refresh, size: 16),
                             label: const Text('Tentar novamente'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: primaryGreen,
                               foregroundColor: const Color(0xFF062319),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                           ),
                         ],
@@ -294,24 +440,16 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
 
                   final partidas = partidasProvider.partidas;
 
-                  // 3. Nenhuma partida retornada pela API
                   if (partidas.isEmpty) {
                     return Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         color: cardBg,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.05),
-                        ),
                       ),
                       child: Column(
                         children: [
-                          const Icon(
-                            Icons.sports_soccer,
-                            color: Color(0xFF64748B),
-                            size: 32,
-                          ),
+                          const Icon(Icons.sports_soccer, size: 32, color: Color(0xFF64748B)),
                           const SizedBox(height: 8),
                           const Text(
                             'Nenhuma partida encontrada no momento',
@@ -320,8 +458,7 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                           ),
                           const SizedBox(height: 12),
                           ElevatedButton.icon(
-                            onPressed: () =>
-                                partidasProvider.carregarPartidas(),
+                            onPressed: () => partidasProvider.carregarPartidas(),
                             icon: const Icon(Icons.refresh, size: 16),
                             label: const Text('Carregar partidas'),
                             style: ElevatedButton.styleFrom(
@@ -334,141 +471,43 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                     );
                   }
 
-                  // Filtra apenas as partidas elegíveis para novo desafio (exclui finalizadas, canceladas e adiadas)
-                  final elegiveis =
-                      partidas.where((p) => p.podeCriarDesafio).toList();
-
-                  // Reconcilia a seleção de forma segura fora do fluxo síncrono do build
+                  final elegiveis = partidas.where((p) => p.podeCriarDesafio).toList();
                   _reconciliarSelecao(elegiveis);
 
-                  // 4. Lista sem nenhuma partida elegível para desafio
                   if (elegiveis.isEmpty) {
                     return Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         color: cardBg,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.05),
-                        ),
                       ),
-                      child: Column(
-                        children: [
-                          const Icon(
-                            Icons.event_busy,
-                            color: Color(0xFFF59E0B),
-                            size: 32,
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Nenhuma partida elegível para novo desafio',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Partidas finalizadas, canceladas ou adiadas não podem ser selecionadas.',
-                            style: TextStyle(color: textMuted, fontSize: 12),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 12),
-                          ElevatedButton.icon(
-                            onPressed: () =>
-                                partidasProvider.carregarPartidas(),
-                            icon: const Icon(Icons.refresh, size: 16),
-                            label: const Text('Atualizar partidas'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryGreen,
-                              foregroundColor: const Color(0xFF062319),
-                            ),
-                          ),
-                        ],
+                      child: const Center(
+                        child: Text(
+                          'Nenhuma partida agendada disponível para apostas no momento.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: textMuted, fontSize: 13),
+                        ),
                       ),
                     );
                   }
 
-                  // Determina ID ativo sem mutação do estado local durante a renderização
-                  final partidaAtivaId =
-                      elegiveis.any((p) => p.id == partidaId)
-                          ? partidaId
-                          : elegiveis.first.id;
+                  final partidaAtivaId = partidaId ?? elegiveis.first.id;
 
                   return Column(
-                    children: [
-                      if (partidasProvider.hasRefreshError) ...[
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2A1C14),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: const Color(0xFFF59E0B)
-                                  .withValues(alpha: 0.3),
-                              width: 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.sync_problem,
-                                color: Color(0xFFF59E0B),
-                                size: 18,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  partidasProvider.refreshErrorMessage ??
-                                      "Falha ao atualizar dados mais recentes.",
-                                  style: const TextStyle(
-                                    color: Color(0xFFFDE68A),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () => partidasProvider.carregarPartidas(),
-                                child: const Text(
-                                  "Recarregar",
-                                  style: TextStyle(
-                                    color: Color(0xFFF59E0B),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      ...elegiveis.map((PartidaModel p) {
-                        final sel = partidaAtivaId == p.id;
-                        final horarioOuStatus = p.horario ?? p.status;
+                    children: elegiveis.map((PartidaModel p) {
+                      final sel = partidaAtivaId == p.id;
+                      final horarioOuStatus = p.horario ?? p.status;
 
                       return GestureDetector(
                         onTap: () => setState(() => partidaId = p.id),
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 14,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                           decoration: BoxDecoration(
                             color: sel ? const Color(0xFF0E2924) : cardBg,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: sel
-                                  ? primaryGreen
-                                  : Colors.white.withValues(alpha: 0.05),
+                              color: sel ? primaryGreen : Colors.white.withValues(alpha: 0.05),
                               width: sel ? 1.5 : 1,
                             ),
                           ),
@@ -477,9 +516,7 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                               Icon(
                                 Icons.sports_soccer,
                                 size: 20,
-                                color: sel
-                                    ? primaryGreen
-                                    : const Color(0xFF64748B),
+                                color: sel ? primaryGreen : const Color(0xFF64748B),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
@@ -527,24 +564,71 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                               Icon(
                                 Icons.sports_soccer,
                                 size: 20,
-                                color: sel
-                                    ? primaryGreen
-                                    : const Color(0xFF64748B),
+                                color: sel ? primaryGreen : const Color(0xFF64748B),
                               ),
                             ],
                           ),
                         ),
                       );
-                    }),
-                  ],
-                );
-              },
-            ),
+                    }).toList(),
+                  );
+                },
+              ),
               const SizedBox(height: 18),
+
+              // Seção Palpite do Criador (RN-PRD-001)
+              const Text(
+                'SEU PALPITE NO JOGO',
+                style: TextStyle(
+                  color: textMuted,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Consumer<PartidasProvider>(
+                builder: (context, provider, _) {
+                  PartidaModel? partidaAtual;
+                  try {
+                    partidaAtual = provider.partidas.firstWhere((p) => p.id == partidaId);
+                  } catch (_) {
+                    partidaAtual = provider.partidas.isNotEmpty
+                        ? provider.partidas.first
+                        : null;
+                  }
+
+                  final labelMandante = partidaAtual != null ? 'Vitória ${partidaAtual.timeMandante}' : 'Mandante';
+                  final labelVisitante = partidaAtual != null ? 'Vitória ${partidaAtual.timeVisitante}' : 'Visitante';
+
+                  return Row(
+                    children: [
+                      _buildPredictionButton(
+                        Palpite.homeWin,
+                        labelMandante,
+                        key: const Key('palpite_home_win'),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildPredictionButton(
+                        Palpite.draw,
+                        'Empate',
+                        key: const Key('palpite_draw'),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildPredictionButton(
+                        Palpite.awayWin,
+                        labelVisitante,
+                        key: const Key('palpite_away_win'),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 22),
 
               // Seção Valor do Desafio
               const Text(
-                'VALOR DO DESAFIO',
+                'VALOR DO DESAFIO (BetCoins)',
                 style: TextStyle(
                   color: textMuted,
                   fontSize: 11.5,
@@ -554,10 +638,7 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
               ),
               const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: cardBg,
                   borderRadius: BorderRadius.circular(14),
@@ -570,7 +651,7 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Fichas apostadas',
+                      'BetCoins apostadas',
                       style: TextStyle(
                         color: textMuted,
                         fontSize: 13,
@@ -578,7 +659,8 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                       ),
                     ),
                     Text(
-                      '$valor fichas',
+                      '$valor BetCoins',
+                      key: const Key('valor_selecionado_label'),
                       style: const TextStyle(
                         color: primaryGreen,
                         fontWeight: FontWeight.bold,
@@ -594,6 +676,7 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                   final sel = valor == v;
                   return Expanded(
                     child: GestureDetector(
+                      key: Key('chip_valor_$v'),
                       onTap: () => setState(() => valor = v),
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 3),
@@ -602,17 +685,14 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                           color: sel ? primaryGreen : cardBg,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: sel
-                                ? primaryGreen
-                                : Colors.white.withValues(alpha: 0.06),
+                            color: sel ? primaryGreen : Colors.white.withValues(alpha: 0.06),
                           ),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           '$v',
                           style: TextStyle(
-                            color:
-                                sel ? const Color(0xFF062319) : Colors.white,
+                            color: sel ? const Color(0xFF062319) : Colors.white,
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
                           ),
@@ -625,158 +705,55 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
               const SizedBox(height: 22),
 
               // Seção Convidar Amigo
-              Row(
-                children: [
-                  const Text(
-                    'CONVIDAR AMIGO',
-                    style: TextStyle(
-                      color: textMuted,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'DEMONSTRATIVO',
-                      style: TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                enabled: false,
-                style: const TextStyle(color: Color(0xFF64748B), fontSize: 13.5),
-                decoration: InputDecoration(
-                  hintText: 'Busca de amigos ainda indisponível (demonstrativo)',
-                  hintStyle: const TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 12.5,
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    color: Color(0xFF64748B),
-                    size: 18,
-                  ),
-                  filled: true,
-                  fillColor: cardBg,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  disabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.05),
-                    ),
-                  ),
+              const Text(
+                'SELECIONE O AMIGO',
+                style: TextStyle(
+                  color: textMuted,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.8,
                 ),
               ),
               const SizedBox(height: 10),
-              ...['Lucas Silva', 'Guilherme Santos'].asMap().entries.map((e) {
-                final sel = amigos.contains(e.key);
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
+
+              if (isLoadingAmigos)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: CircularProgressIndicator(color: primaryGreen),
                   ),
+                )
+              else if (amigosAceitos.isEmpty && amigoId == null)
+                Container(
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: cardBg,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      width: 1,
-                    ),
                   ),
-                  child: Row(
-                    children: [
-                      const CircleAvatar(
-                        radius: 15,
-                        backgroundColor: Color(0xFF334155),
-                        child: Icon(
-                          Icons.person_outline,
-                          size: 17,
-                          color: Colors.white70,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          e.value,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => setState(
-                          () => sel
-                              ? amigos.remove(e.key)
-                              : amigos.add(e.key),
-                        ),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: sel ? 10 : 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color:
-                                sel ? primaryGreen : const Color(0xFF0F2624),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: primaryGreen
-                                  .withValues(alpha: sel ? 1.0 : 0.3),
-                            ),
-                          ),
-                          child: sel
-                              ? const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.check,
-                                      size: 14,
-                                      color: Color(0xFF062319),
-                                    ),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'Adicionado',
-                                      style: TextStyle(
-                                        color: Color(0xFF062319),
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : const Text(
-                                  'Convidar',
-                                  style: TextStyle(
-                                    color: primaryGreen,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
+                  child: const Text(
+                    'Você ainda não possui amigos aceitos. Adicione amigos na aba Amigos para poder criar desafios.',
+                    style: TextStyle(color: textMuted, fontSize: 13),
+                    textAlign: TextAlign.center,
                   ),
-                );
-              }),
-              const SizedBox(height: 10),
+                )
+              else ...[
+                if (amigoId != null && !amigosAceitos.any((a) => a.uid == amigoId))
+                  _buildAmigoCard(
+                    uid: amigoId!,
+                    displayName: amigoNome ?? 'Amigo Selecionado',
+                    isSelected: true,
+                  ),
+                ...amigosAceitos.map((amigo) {
+                  final sel = amigoId == amigo.uid;
+                  return _buildAmigoCard(
+                    uid: amigo.uid,
+                    displayName: amigo.displayName,
+                    username: amigo.username,
+                    isSelected: sel,
+                  );
+                }),
+              ],
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -795,6 +772,7 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
         child: SizedBox(
           height: 48,
           child: ElevatedButton(
+            key: const Key('btn_enviar_desafio'),
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryGreen,
               foregroundColor: const Color(0xFF062319),
@@ -803,48 +781,129 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            onPressed: () {
-              if (partidaId == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Selecione uma partida válida para criar o desafio.'),
-                    backgroundColor: Color(0xFFEF4444),
-                    duration: Duration(seconds: 2),
+            onPressed: isSubmitting ? null : _enviarDesafio,
+            child: isSubmitting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF062319),
+                    ),
+                  )
+                : const Text(
+                    'ENVIAR DESAFIO',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                    ),
                   ),
-                );
-                return;
-              }
+          ),
+        ),
+      ),
+    );
+  }
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Modo demonstrativo: nenhum desafio foi salvo no banco.',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  backgroundColor: Color(0xFF1E293B),
-                  duration: Duration(seconds: 2),
-                ),
-              );
+  Widget _buildPredictionButton(Palpite p, String label, {Key? key}) {
+    final sel = palpiteSelecionado == p;
+    const primaryGreen = Color(0xFF00D084);
+    const cardBg = Color(0xFF151E2E);
 
-              if (Navigator.canPop(context)) {
-                Navigator.pop(context);
-              } else {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const Homepage()),
-                  (route) => false,
-                );
-              }
-            },
-            child: const Text(
-              'ENVIAR DESAFIO',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.8,
-              ),
+    return Expanded(
+      child: GestureDetector(
+        key: key,
+        onTap: () => setState(() => palpiteSelecionado = p),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+          decoration: BoxDecoration(
+            color: sel ? primaryGreen : cardBg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: sel ? primaryGreen : Colors.white.withValues(alpha: 0.08),
+              width: sel ? 1.5 : 1,
             ),
           ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: sel ? const Color(0xFF062319) : Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAmigoCard({
+    required String uid,
+    required String displayName,
+    String? username,
+    required bool isSelected,
+  }) {
+    const primaryGreen = Color(0xFF00D084);
+    const cardBg = Color(0xFF151E2E);
+
+    return GestureDetector(
+      key: Key('amigo_item_$uid'),
+      onTap: () => setState(() {
+        amigoId = uid;
+        amigoNome = displayName;
+      }),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF0E2924) : cardBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? primaryGreen : Colors.white.withValues(alpha: 0.05),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            const CircleAvatar(
+              radius: 15,
+              backgroundColor: Color(0xFF334155),
+              child: Icon(Icons.person_outline, size: 17, color: Colors.white70),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName,
+                    style: TextStyle(
+                      color: isSelected ? primaryGreen : Colors.white,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (username != null)
+                    Text(
+                      '@$username',
+                      style: const TextStyle(
+                        color: Color(0xFF8E9CAB),
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Icon(
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: isSelected ? primaryGreen : const Color(0xFF64748B),
+              size: 20,
+            ),
+          ],
         ),
       ),
     );

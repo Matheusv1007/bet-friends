@@ -10,3 +10,5 @@ export { getMatchesRest } from "./partidas/getMatchesRest";
 export { searchUsers } from "./perfil/searchUsers";
 export { sendFriendRequest } from "./amigos/sendFriendRequest";
 export { acceptFriendRequest } from "./amigos/acceptFriendRequest";
+export { createChallenge } from "./desafios/createChallenge";
+export { acceptChallenge } from "./desafios/acceptChallenge";

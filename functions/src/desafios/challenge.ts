@@ -93,7 +93,39 @@ export type CodigoErroDeDesafio =
   | "campo-imutavel"
   | "desafio-inexistente"
   /** Desafio ou partida sem resultado oficial confiável para decidir o desfecho (KAN-83). */
-  | "resultado-indisponivel";
+  | "resultado-indisponivel"
+  /** Criação de desafio para si mesmo (RN-CHL-001). */
+  | "auto-desafio"
+  /** Criação exige amizade aceita (RN-FRD-001). */
+  | "amizade-necessaria"
+  /** Partida atingiu o corte de 5 minutos antes do início (RN-MAT-004, RN-CHL-008). */
+  | "partida-no-corte"
+  /** Partida não está agendada ou válida para apostas (RN-MAT-003). */
+  | "partida-invalida"
+  /** Já existe desafio ativo do criador para a mesma partida (RN-CHL-011). */
+  | "desafio-ativo-existente"
+  /** Aceite exige que o desafio esteja pendente (RN-CHL-008). */
+  | "desafio-nao-pendente"
+  /** Apenas o desafiado pode aceitar o desafio (RN-CHL-004). */
+  | "nao-desafiado"
+  /** Palpite do desafiado não pode ser igual ao do criador (RN-PRD-003). */
+  | "palpite-duplicado"
+  /** Palpite fora dos valores permitidos (RN-PRD-001). */
+  | "palpite-invalido"
+  /** Saldo disponível insuficiente (RN-BET-004). */
+  | "saldo-insuficiente";
+
+/** Minutos de antecedência mínima em relação ao início da partida para criar/aceitar desafios (RN-MAT-004). */
+export const MINUTOS_DO_CORTE = 5;
+export const MS_DO_CORTE = MINUTOS_DO_CORTE * 60 * 1000;
+
+export function limiteDoCorte(startsAtUtc: Date): Date {
+  return new Date(startsAtUtc.getTime() - MS_DO_CORTE);
+}
+
+export function atingiuCorte(startsAtUtc: Date, agora: Date = new Date()): boolean {
+  return agora.getTime() >= limiteDoCorte(startsAtUtc).getTime();
+}
 
 export class ErroDeDesafio extends Error {
   constructor(
