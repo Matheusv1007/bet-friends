@@ -1,6 +1,20 @@
-import { DocumentData, FieldValue, Firestore, Timestamp, Transaction } from "firebase-admin/firestore";
+import { DocumentData, DocumentReference, FieldValue, Firestore, Timestamp, Transaction } from "firebase-admin/firestore";
 
-import { Challenge, ErroDeDesafio, NovoDesafio, validarDesafio, validarNovoDesafio } from "./challenge";
+import {
+  Challenge,
+  ErroDeDesafio,
+  NovoDesafio,
+  Palpite,
+  STATUS_TERMINAL,
+  StatusDoDesafio,
+  atingiuCorte,
+  validarDesafio,
+  validarNovoDesafio,
+} from "./challenge";
+import { reservarBetCoinsNaTransacao, validarValorDaAposta } from "../betcoins/reserva";
+import { verificarAmizadeAceitaNaTransacao } from "../amigos/friendshipFirestore";
+import { lerMatchNaTransacao } from "../partidas/matchFirestore";
+import { RESULTADOS_DA_PARTIDA } from "../partidas/match";
 import { EventoDoDesafio, aplicarEvento } from "./maquinaDeEstados";
 
 /**
@@ -54,9 +68,14 @@ export function desafioDoDocumento(id: string, dados: DocumentData): Challenge {
  * precisam vir antes, como o Firestore exige. O mesmo ID pode ser usado na
  * reserva de BetCoins da mesma transação (KAN-74).
  */
-export function criarDesafioNaTransacao(transacao: Transaction, db: Firestore, novo: NovoDesafio): string {
+export function criarDesafioNaTransacao(
+  transacao: Transaction,
+  db: Firestore,
+  novo: NovoDesafio,
+  ref: DocumentReference = db.collection(COLECAO_DE_DESAFIOS).doc(),
+): string {
   const d = validarNovoDesafio(novo);
-  const ref = db.collection(COLECAO_DE_DESAFIOS).doc();
+  // ref já fornecido ou gerado como padrão pelo argumento
   transacao.create(ref, {
     challengerId: d.challengerId,
     challengedId: d.challengedId,
@@ -150,4 +169,233 @@ export async function transicionarDesafioNaTransacao(
 /** Atalho: abre a própria transação para aplicar o evento. */
 export function transicionarDesafio(db: Firestore, id: string, evento: EventoDoDesafio): Promise<Challenge> {
   return db.runTransaction((t) => transicionarDesafioNaTransacao(t, db, id, evento));
+}
+
+
+export interface CriarDesafioParams {
+  readonly challengerId: string;
+  readonly challengedId: string;
+  readonly matchId: string;
+  readonly challengerPrediction: Palpite;
+  readonly amount: number;
+}
+
+export interface ResultadoCriarDesafio {
+  readonly challengeId: string;
+  readonly status: "PENDING";
+  readonly challengerId: string;
+  readonly challengedId: string;
+  readonly matchId: string;
+  readonly challengerPrediction: Palpite;
+  readonly amount: number;
+}
+
+export interface AceitarDesafioParams {
+  readonly challengeId: string;
+  readonly challengedId: string;
+  readonly challengedPrediction: Palpite;
+}
+
+export interface ResultadoAceitarDesafio {
+  readonly challengeId: string;
+  readonly status: "ACCEPTED";
+  readonly challengerId: string;
+  readonly challengedId: string;
+  readonly matchId: string;
+  readonly challengerPrediction: Palpite;
+  readonly challengedPrediction: Palpite;
+  readonly amount: number;
+  readonly acceptedAt: Date;
+}
+
+/**
+ * Criação atômica de desafio para um amigo dentro de uma transação Firestore.
+ *
+ * Validações sensíveis (RN-FRD-001, RN-MAT-003, RN-MAT-004, RN-PRD-001, RN-BET-002, RN-BET-003, RN-BET-004, RN-CHL-001, RN-CHL-011):
+ * 1. Criador e desafiado são usuários diferentes (RN-CHL-001).
+ * 2. Palpite do criador é válido (RN-PRD-001: HOME_WIN, DRAW ou AWAY_WIN).
+ * 3. Valor é inteiro válido de 10 a 500 (RN-BET-002, RN-BET-003).
+ * 4. Partida existe, está agendada e não atingiu o corte de 5 minutos (RN-MAT-003, RN-MAT-004).
+ * 5. Amizade entre criador e desafiado está aceita (RN-FRD-001).
+ * 6. Não existe outro desafio ativo do criador para a mesma partida (RN-CHL-011).
+ * 7. Saldo disponível é suficiente e BetCoins são reservadas antes da criação (RN-BET-004).
+ * 8. Desafio é criado em PENDING (RN-CHL-006).
+ */
+export async function criarDesafioParaAmigoNaTransacao(
+  transacao: Transaction,
+  db: Firestore,
+  params: CriarDesafioParams,
+  agora: Date = new Date(),
+): Promise<ResultadoCriarDesafio> {
+  const { challengerId, challengedId, matchId, challengerPrediction, amount } = params;
+
+  if (challengerId === challengedId) {
+    throw new ErroDeDesafio("Não é permitido criar um desafio para si mesmo.", "auto-desafio");
+  }
+
+  if (!RESULTADOS_DA_PARTIDA.includes(challengerPrediction)) {
+    throw new ErroDeDesafio("Palpite inválido. Escolha HOME_WIN, DRAW ou AWAY_WIN.", "palpite-invalido");
+  }
+
+  validarValorDaAposta(amount);
+
+  const challengeRef = db.collection(COLECAO_DE_DESAFIOS).doc();
+  const challengeId = challengeRef.id;
+
+  // LEITURAS OBRIGATÓRIAS ANTES DE QUALQUER ESCRITA
+  const match = await lerMatchNaTransacao(transacao, db, matchId);
+  if (match === null) {
+    throw new ErroDeDesafio("Partida não encontrada.", "desafio-invalido");
+  }
+  if (match.status !== "AGENDADA") {
+    throw new ErroDeDesafio("A partida não está disponível para criação de desafios.", "partida-invalida");
+  }
+  if (atingiuCorte(match.startsAtUtc, agora)) {
+    throw new ErroDeDesafio("A partida já atingiu o corte de 5 minutos antes do início.", "partida-no-corte");
+  }
+
+  const amizadeAceita = await verificarAmizadeAceitaNaTransacao(transacao, db, challengerId, challengedId);
+  if (!amizadeAceita) {
+    throw new ErroDeDesafio("É necessário ter amizade aceita com o usuário para criar um desafio.", "amizade-necessaria");
+  }
+
+  const snapshotAtivos = await transacao.get(
+    db.collection(COLECAO_DE_DESAFIOS).where("challengerId", "==", challengerId).where("matchId", "==", matchId),
+  );
+  const temAtivo = snapshotAtivos.docs.some((doc) => {
+    const status = doc.data().status as StatusDoDesafio;
+    return !STATUS_TERMINAL[status];
+  });
+  if (temAtivo) {
+    throw new ErroDeDesafio("Já existe um desafio ativo do criador para esta partida.", "desafio-ativo-existente");
+  }
+
+  // ESCRITAS: Reserva no ledger e criação do desafio em PENDING
+  await reservarBetCoinsNaTransacao(transacao, db, {
+    userId: challengerId,
+    challengeId,
+    valor: amount,
+    matchId,
+  });
+
+  criarDesafioNaTransacao(
+    transacao,
+    db,
+    {
+      challengerId,
+      challengedId,
+      matchId,
+      challengerPrediction,
+      amount,
+    },
+    challengeRef,
+  );
+
+  return {
+    challengeId,
+    status: "PENDING",
+    challengerId,
+    challengedId,
+    matchId,
+    challengerPrediction,
+    amount,
+  };
+}
+
+/** Atalho: abre transação para criar desafio para amigo. */
+export async function criarDesafioParaAmigo(
+  db: Firestore,
+  params: CriarDesafioParams,
+  agora: Date = new Date(),
+): Promise<ResultadoCriarDesafio> {
+  return db.runTransaction((t) => criarDesafioParaAmigoNaTransacao(t, db, params, agora));
+}
+
+/**
+ * Aceite atômico de desafio pendente dentro de uma transação Firestore.
+ *
+ * Critérios e validações (RN-PRD-001, RN-PRD-003, RN-BET-004, RN-CHL-004, RN-CHL-008, RN-CHL-016, RN-MAT-004):
+ * 1. Desafio precisa existir e estar em PENDING (RN-CHL-008).
+ * 2. Somente o desafiado pode aceitar (RN-CHL-004).
+ * 3. Desafiado escolhe HOME_WIN, DRAW ou AWAY_WIN (RN-PRD-001).
+ * 4. Palpite do desafiado é diferente do palpite do criador (RN-PRD-003).
+ * 5. Partida não pode ter atingido o corte de 5 minutos antes do início (RN-MAT-004, RN-CHL-008).
+ * 6. Valor do desafio é preservado sem alteração (challenge.amount).
+ * 7. BetCoins do desafiado são reservadas antes da mudança de estado (RN-BET-004).
+ * 8. Estado passa para ACCEPTED apenas após sucesso da reserva (RN-CHL-016).
+ */
+export async function aceitarDesafioNaTransacao(
+  transacao: Transaction,
+  db: Firestore,
+  params: AceitarDesafioParams,
+  agora: Date = new Date(),
+): Promise<ResultadoAceitarDesafio> {
+  const { challengeId, challengedId, challengedPrediction } = params;
+
+  if (!RESULTADOS_DA_PARTIDA.includes(challengedPrediction)) {
+    throw new ErroDeDesafio("Palpite inválido. Escolha HOME_WIN, DRAW ou AWAY_WIN.", "palpite-invalido");
+  }
+
+  // LEITURAS OBRIGATÓRIAS ANTES DE QUALQUER ESCRITA
+  const challenge = await lerDesafioNaTransacao(transacao, db, challengeId);
+  if (challenge === null) {
+    throw new ErroDeDesafio("Desafio não encontrado.", "desafio-inexistente");
+  }
+
+  if (challenge.status !== "PENDING") {
+    throw new ErroDeDesafio("Somente desafios pendentes podem ser aceitos.", "desafio-nao-pendente");
+  }
+
+  if (challenge.challengedId !== challengedId) {
+    throw new ErroDeDesafio("Somente o usuário desafiado pode aceitar o desafio.", "nao-desafiado");
+  }
+
+  if (challengedPrediction === challenge.challengerPrediction) {
+    throw new ErroDeDesafio("O palpite do desafiado deve ser diferente do palpite do criador.", "palpite-duplicado");
+  }
+
+  const match = await lerMatchNaTransacao(transacao, db, challenge.matchId);
+  if (match === null) {
+    throw new ErroDeDesafio("Partida não encontrada.", "desafio-invalido");
+  }
+  if (match.status !== "AGENDADA" || atingiuCorte(match.startsAtUtc, agora)) {
+    throw new ErroDeDesafio("A partida atingiu o corte de 5 minutos antes do início.", "partida-no-corte");
+  }
+
+  // ESCRITAS: Reserva no ledger do desafiado e transição para ACCEPTED
+  await reservarBetCoinsNaTransacao(transacao, db, {
+    userId: challengedId,
+    challengeId: challenge.id,
+    valor: challenge.amount,
+    matchId: challenge.matchId,
+  });
+
+  const desafioAceito = gravarTransicaoNaTransacao(
+    transacao,
+    db,
+    challenge,
+    { tipo: "ACEITAR", challengedPrediction },
+    agora,
+  );
+
+  return {
+    challengeId: desafioAceito.id,
+    status: "ACCEPTED",
+    challengerId: desafioAceito.challengerId,
+    challengedId: desafioAceito.challengedId,
+    matchId: desafioAceito.matchId,
+    challengerPrediction: desafioAceito.challengerPrediction,
+    challengedPrediction: desafioAceito.challengedPrediction!,
+    amount: desafioAceito.amount,
+    acceptedAt: desafioAceito.acceptedAt!,
+  };
+}
+
+/** Atalho: abre transação para aceitar desafio. */
+export async function aceitarDesafio(
+  db: Firestore,
+  params: AceitarDesafioParams,
+  agora: Date = new Date(),
+): Promise<ResultadoAceitarDesafio> {
+  return db.runTransaction((t) => aceitarDesafioNaTransacao(t, db, params, agora));
 }
