@@ -78,6 +78,14 @@ export function gerarFriendshipId(
   const u1 = uid1.trim();
   const u2 = uid2.trim();
 
+  // RN-AUTH-006: Identificação da relação utiliza userId e não username ou e-mail
+  if (u1.includes("@") || u2.includes("@") || u1.includes("/") || u2.includes("/")) {
+    throw new ErroDeAmizade(
+      "uid-invalido",
+      "Identificador de usuário inválido. Utilize o userId e não username ou e-mail.",
+    );
+  }
+
   // RN-FRD-002: Usuário não pode enviar solicitação para si mesmo
   if (u1 === u2) {
     throw new ErroDeAmizade(
@@ -122,7 +130,7 @@ export function avaliarSolicitacaoAmizade(
 
   // Tratamento de solicitação já ativa (PENDING)
   if (amizadeExistente.status === "PENDING") {
-    // RN-FRD-004: Segunda solicitação ativa equivalente não é criada
+    // RN-FRD-003 / RN-FRD-004: Segunda solicitação ativa equivalente não é criada
     if (amizadeExistente.requesterId === requesterId) {
       throw new ErroDeAmizade(
         "solicitacao-duplicada",

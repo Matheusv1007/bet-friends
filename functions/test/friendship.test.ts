@@ -41,6 +41,36 @@ describe("Regras de Amizade (RF-005, RN-FRD-001, RN-FRD-002, RN-FRD-003, RN-FRD-
         (err) => err instanceof ErroDeAmizade && err.code === "uid-invalido",
       );
     });
+
+    test("rejeita e-mail como identificador (RN-AUTH-006, RN-FRD-003)", () => {
+      assert.throws(
+        () => gerarFriendshipId("alice@email.com", USER_B),
+        (err) => err instanceof ErroDeAmizade && err.code === "uid-invalido",
+      );
+      assert.throws(
+        () => gerarFriendshipId(USER_A, "bob@gmail.com"),
+        (err) => err instanceof ErroDeAmizade && err.code === "uid-invalido",
+      );
+    });
+
+    test("rejeita username com / como identificador (RN-AUTH-006)", () => {
+      assert.throws(
+        () => gerarFriendshipId("users/alice", USER_B),
+        (err) => err instanceof ErroDeAmizade && err.code === "uid-invalido",
+      );
+      assert.throws(
+        () => gerarFriendshipId(USER_A, "profiles/bob"),
+        (err) => err instanceof ErroDeAmizade && err.code === "uid-invalido",
+      );
+    });
+
+    test("validação usando os mesmos userIds: IDs válidos são aceitos (RN-AUTH-006)", () => {
+      // UIDs Firebase-like são aceitos normalmente
+      const result = gerarFriendshipId("abc123XYZ", "def456UVW");
+      assert.equal(result.friendshipId, "abc123XYZ_def456UVW");
+      assert.equal(result.userAId, "abc123XYZ");
+      assert.equal(result.userBId, "def456UVW");
+    });
   });
 
   describe("Validações de envio de solicitação", () => {
@@ -86,7 +116,7 @@ describe("Regras de Amizade (RF-005, RN-FRD-001, RN-FRD-002, RN-FRD-003, RN-FRD-
       );
     });
 
-    test("solicitação duplicada: segunda solicitação ativa equivalente não é criada (RN-FRD-004)", () => {
+    test("solicitação duplicada sequencial: segunda solicitação ativa equivalente não é criada (RN-FRD-003, RN-FRD-004)", () => {
       const amizadePendente: FriendshipData = {
         userAId: USER_A,
         userBId: USER_B,
@@ -102,6 +132,32 @@ describe("Regras de Amizade (RF-005, RN-FRD-001, RN-FRD-002, RN-FRD-003, RN-FRD-
         () => avaliarSolicitacaoAmizade(USER_A, USER_B, amizadePendente),
         (err) => err instanceof ErroDeAmizade && err.code === "solicitacao-duplicada",
       );
+    });
+
+    test("solicitação duplicada: validação usando os mesmos userIds em ordem inversa (RN-AUTH-006)", () => {
+      // Mesmo par de usuários, ordem inversa — deve gerar o mesmo friendshipId
+      // e detectar a duplicata igualmente
+      const amizadePendente: FriendshipData = {
+        userAId: USER_A,
+        userBId: USER_B,
+        participants: [USER_A, USER_B],
+        requesterId: USER_A,
+        status: "PENDING",
+        createdAt: new Date(),
+        respondedAt: null,
+        updatedAt: new Date(),
+      };
+
+      // USER_A envia novamente para USER_B (mesmo par, já PENDING com requesterId=USER_A)
+      assert.throws(
+        () => avaliarSolicitacaoAmizade(USER_A, USER_B, amizadePendente),
+        (err) => err instanceof ErroDeAmizade && err.code === "solicitacao-duplicada",
+      );
+
+      // Confirmação: friendshipId é determinístico para ambas as ordens
+      const id1 = gerarFriendshipId(USER_A, USER_B);
+      const id2 = gerarFriendshipId(USER_B, USER_A);
+      assert.equal(id1.friendshipId, id2.friendshipId);
     });
 
     test("solicitação cruzada: aceitação automática quando o destino já enviou (RN-FRD-005)", () => {
