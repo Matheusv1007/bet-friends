@@ -5,6 +5,7 @@ import 'provider/auth_provider.dart';
 import 'provider/partidas_provider.dart';
 import 'services/api/partidas_service.dart';
 import 'services/auth_service.dart';
+import 'services/challenge_service.dart';
 import 'services/user_profile_service.dart';
 
 // simon = login / sessão
@@ -18,12 +19,14 @@ class App extends StatelessWidget {
   final AuthService? authService;
   final PartidasService? partidasService;
   final UserProfileService? userProfileService;
+  final ChallengeService? challengeService;
 
   const App({
     super.key,
     this.authService,
     this.partidasService,
     this.userProfileService,
+    this.challengeService,
   });
 
   @override
@@ -35,6 +38,16 @@ class App extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => PartidasProvider(partidasService: partidasService),
+        ),
+        Provider<ChallengeService?>(
+          create: (_) {
+            if (challengeService != null) return challengeService;
+            try {
+              return ChallengeService(authService: authService);
+            } catch (_) {
+              return null;
+            }
+          },
         ),
         // Mesma fonte de sessão do AuthProvider: o perfil é sempre o do UID logado
         Provider(
