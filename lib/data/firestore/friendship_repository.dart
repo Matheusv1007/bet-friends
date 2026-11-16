@@ -135,6 +135,12 @@ abstract interface class FriendshipRepository {
 
   /// Aceita solicitação de amizade pendente identificado por [identificador] (friendshipId ou UID).
   Future<ResultadoAceiteAmizade> aceitarSolicitacaoAmizade(String identificador);
+
+  /// Recusa solicitação de amizade pendente identificada por [identificador] (friendshipId ou UID).
+  Future<ResultadoRecusaAmizade> recusarSolicitacaoAmizade(String identificador);
+
+  /// Lista solicitações de amizade pendentes recebidas pelo usuário logado (RF-005, RN-PROF-002).
+  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes();
 }
 
 /// Implementação padrão recomendada via Callable Function do backend.
@@ -194,6 +200,51 @@ class FunctionsFriendshipRepository implements FriendshipRepository {
       throw const FriendshipException(
         FriendshipErrorCode.unknown,
         'Não foi possível aceitar a solicitação. Tente novamente.',
+      );
+    }
+  }
+
+  @override
+  Future<ResultadoRecusaAmizade> recusarSolicitacaoAmizade(String identificador) async {
+    final cleanId = identificador.trim();
+    if (cleanId.isEmpty) {
+      throw const FriendshipException(
+        FriendshipErrorCode.invalidData,
+        'Identificador de amizade ou usuário inválido.',
+      );
+    }
+
+    try {
+      final response = await _functions.call(CallableNames.rejectFriendRequest, {
+        'friendshipId': cleanId,
+      });
+
+      return ResultadoRecusaAmizade.fromMap(response);
+    } on FunctionsException catch (e) {
+      throw FriendshipException.fromFunctionsException(e);
+    } catch (_) {
+      throw const FriendshipException(
+        FriendshipErrorCode.unknown,
+        'Não foi possível recusar a solicitação. Tente novamente.',
+      );
+    }
+  }
+
+  @override
+  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
+    try {
+      final response = await _functions.call(CallableNames.getFriendRequests);
+      final rawRequests = response['requests'] as List? ?? [];
+      return rawRequests
+          .whereType<Map>()
+          .map((item) => SolicitacaoAmizade.fromMap(Map<String, dynamic>.from(item)))
+          .toList();
+    } on FunctionsException catch (e) {
+      throw FriendshipException.fromFunctionsException(e);
+    } catch (_) {
+      throw const FriendshipException(
+        FriendshipErrorCode.unknown,
+        'Não foi possível carregar as solicitações de amizade. Tente novamente.',
       );
     }
   }

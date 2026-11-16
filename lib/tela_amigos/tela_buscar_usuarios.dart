@@ -8,6 +8,7 @@ import '../models/friendship_model.dart';
 import '../models/usuario_publico.dart';
 import '../services/friendship_service.dart';
 import '../services/user_search_service.dart';
+import 'tela_comunicacoes_amizade.dart';
 
 /// Tela para buscar outros usuários cadastrados no BetFriends (RF-004),
 /// enviar solicitações de amizade e aceitar solicitações pendentes (RF-005, RN-FRD-001, RN-FRD-005).
@@ -246,6 +247,16 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
             color: Colors.white,
           ),
         ),
+        actions: [
+          IconButton(
+            key: const Key('btn_abrir_solicitacoes_amizade'),
+            tooltip: 'Solicitações de Amizade',
+            icon: const Icon(Icons.mark_email_unread_outlined, color: Color(0xFF00D084), size: 22),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TelaComunicacoesAmizade()),
+            ),
+          ),
+        ],
       ),
       body: Container(
         height: double.infinity,

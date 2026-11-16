@@ -71,6 +71,63 @@ void main() {
     });
   });
 
+  group('ResultadoRecusaAmizade', () {
+    test('serializa e desserializa corretamente', () {
+      final mapa = {
+        'friendshipId': 'userA_userB',
+        'status': 'REJECTED',
+        'userAId': 'userA',
+        'userBId': 'userB',
+      };
+
+      final res = ResultadoRecusaAmizade.fromMap(mapa);
+      expect(res.friendshipId, 'userA_userB');
+      expect(res.status, FriendshipStatus.rejected);
+      expect(res.userAId, 'userA');
+      expect(res.userBId, 'userB');
+
+      final toMap = res.toMap();
+      expect(toMap['friendshipId'], 'userA_userB');
+      expect(toMap['status'], 'REJECTED');
+      expect(toMap['userAId'], 'userA');
+      expect(toMap['userBId'], 'userB');
+    });
+  });
+
+  group('SolicitacaoAmizade', () {
+    test('serializa e desserializa garantindo privacidade (RN-PROF-002)', () {
+      final mapa = {
+        'friendshipId': 'userA_userB',
+        'status': 'PENDING',
+        'createdAt': '2026-11-16T12:00:00.000Z',
+        'remetente': {
+          'userId': 'userA',
+          'displayName': 'Alice Silva',
+          'username': 'alicesilva',
+          // Campos privados hipotéticos no payload bruto NÃO devem vazar
+          'email': 'alice@example.com',
+          'saldoTotal': 5000,
+        },
+      };
+
+      final solicitacao = SolicitacaoAmizade.fromMap(mapa);
+      expect(solicitacao.friendshipId, 'userA_userB');
+      expect(solicitacao.status, FriendshipStatus.pending);
+      expect(solicitacao.remetente.userId, 'userA');
+      expect(solicitacao.remetente.displayName, 'Alice Silva');
+      expect(solicitacao.remetente.username, 'alicesilva');
+      expect(solicitacao.remetente.usernameComArroba, '@alicesilva');
+
+      final exportado = solicitacao.toMap();
+      expect(exportado['friendshipId'], 'userA_userB');
+      expect(exportado['status'], 'PENDING');
+      expect(exportado['remetente']['displayName'], 'Alice Silva');
+      expect(exportado['remetente']['username'], 'alicesilva');
+      expect(exportado['remetente'].containsKey('email'), isFalse);
+      expect(exportado['remetente'].containsKey('saldoTotal'), isFalse);
+    });
+  });
+
   group('FriendshipModel', () {
     test('converte documento Firestore para FriendshipModel e de volta', () {
       final agora = DateTime.now();

@@ -78,6 +78,27 @@ class _FakeFriendshipRepoForWidget implements FriendshipRepository {
       userBId: 'uid-meu-usuario',
     );
   }
+
+  @override
+  Future<ResultadoRecusaAmizade> recusarSolicitacaoAmizade(String identificador) async {
+    if (throwError) {
+      throw FriendshipException(
+        FriendshipErrorCode.alreadyResolved,
+        errorMessage ?? 'Esta solicitação de amizade já foi resolvida.',
+      );
+    }
+    return const ResultadoRecusaAmizade(
+      friendshipId: 'amizade_recusada',
+      status: FriendshipStatus.rejected,
+      userAId: 'uid-amigo-1',
+      userBId: 'uid-meu-usuario',
+    );
+  }
+
+  @override
+  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
+    return [];
+  }
 }
 
 void main() {
