@@ -82,4 +82,46 @@ class FriendshipService {
 
     return _repository.aceitarSolicitacaoAmizade(cleanId);
   }
+
+  /// Recusa uma solicitação de amizade pendente identificada por [identificador] (friendshipId ou UID).
+  ///
+  /// Critérios (RF-005, RN-FRD-001):
+  /// - Somente solicitação pendente pode ser recusada pelo destinatário.
+  /// - A pendência deixa de constar na lista de pendências.
+  Future<ResultadoRecusaAmizade> recusarSolicitacaoAmizade(String identificador) async {
+    final usuarioLogado = _authService.currentUser;
+    if (usuarioLogado == null) {
+      throw const FriendshipException(
+        FriendshipErrorCode.unauthenticated,
+        'É necessário estar autenticado para recusar solicitação de amizade.',
+      );
+    }
+
+    final cleanId = identificador.trim();
+    if (cleanId.isEmpty) {
+      throw const FriendshipException(
+        FriendshipErrorCode.invalidData,
+        'Identificador de solicitação ou usuário inválido.',
+      );
+    }
+
+    return _repository.recusarSolicitacaoAmizade(cleanId);
+  }
+
+  /// Lista as solicitações de amizade pendentes recebidas pelo usuário logado (RF-005, RN-PROF-002).
+  ///
+  /// Diretrizes de Privacidade:
+  /// - Retorna apenas o remetente público (nome e @username).
+  /// - Dados privados (e-mail, saldos e transações) nunca são expostos.
+  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
+    final usuarioLogado = _authService.currentUser;
+    if (usuarioLogado == null) {
+      throw const FriendshipException(
+        FriendshipErrorCode.unauthenticated,
+        'É necessário estar autenticado para visualizar solicitações de amizade.',
+      );
+    }
+
+    return _repository.listarSolicitacoesPendentes();
+  }
 }

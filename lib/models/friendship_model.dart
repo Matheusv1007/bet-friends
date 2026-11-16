@@ -1,3 +1,5 @@
+import 'usuario_publico.dart';
+
 /// Status possíveis de uma amizade (docs/firestore-schema.md §3.3).
 enum FriendshipStatus {
   pending('PENDING'),
@@ -80,6 +82,102 @@ class ResultadoAceiteAmizade {
       'userBId': userBId,
     };
   }
+}
+
+/// Resultado da recusa de solicitação de amizade (RF-005, RN-FRD-001).
+class ResultadoRecusaAmizade {
+  final String friendshipId;
+  final FriendshipStatus status;
+  final String userAId;
+  final String userBId;
+
+  const ResultadoRecusaAmizade({
+    required this.friendshipId,
+    required this.status,
+    required this.userAId,
+    required this.userBId,
+  });
+
+  factory ResultadoRecusaAmizade.fromMap(Map<String, dynamic> map) {
+    return ResultadoRecusaAmizade(
+      friendshipId: map['friendshipId'] as String? ?? '',
+      status: FriendshipStatus.fromString(map['status'] as String? ?? 'REJECTED'),
+      userAId: map['userAId'] as String? ?? '',
+      userBId: map['userBId'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'friendshipId': friendshipId,
+      'status': status.valor,
+      'userAId': userAId,
+      'userBId': userBId,
+    };
+  }
+}
+
+/// Representa uma solicitação de amizade pendente recebida pelo usuário (RF-005, RN-PROF-002).
+///
+/// Proteção de Privacidade (RN-PROF-002):
+/// - O remetente é representado exclusivamente via [UsuarioPublico] (apenas displayName e username).
+/// - E-mail, saldos e dados sensíveis não são expostos.
+class SolicitacaoAmizade {
+  final String friendshipId;
+  final UsuarioPublico remetente;
+  final DateTime? createdAt;
+  final FriendshipStatus status;
+
+  const SolicitacaoAmizade({
+    required this.friendshipId,
+    required this.remetente,
+    this.createdAt,
+    this.status = FriendshipStatus.pending,
+  });
+
+  factory SolicitacaoAmizade.fromMap(Map<String, dynamic> map) {
+    DateTime? parseDate(dynamic v) {
+      if (v == null) return null;
+      if (v is DateTime) return v;
+      if (v is String) return DateTime.tryParse(v);
+      try {
+        return (v as dynamic).toDate() as DateTime?;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final rawRemetente = map['remetente'];
+    final remetenteMap = rawRemetente is Map<String, dynamic>
+        ? rawRemetente
+        : Map<String, dynamic>.from(rawRemetente as Map? ?? {});
+
+    return SolicitacaoAmizade(
+      friendshipId: map['friendshipId'] as String? ?? '',
+      remetente: UsuarioPublico.fromMap(remetenteMap),
+      createdAt: parseDate(map['createdAt']),
+      status: FriendshipStatus.fromString(map['status'] as String? ?? 'PENDING'),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'friendshipId': friendshipId,
+      'remetente': remetente.toMap(),
+      'createdAt': createdAt?.toIso8601String(),
+      'status': status.valor,
+    };
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SolicitacaoAmizade &&
+          runtimeType == other.runtimeType &&
+          friendshipId == other.friendshipId;
+
+  @override
+  int get hashCode => friendshipId.hashCode;
 }
 
 /// Modelo da relação de amizade entre dois usuários no Firestore (docs/firestore-schema.md §3.3).

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:betfriends/data/firestore/challenge_repository.dart';
 import 'package:betfriends/models/challenge_model.dart';
 import 'package:betfriends/models/partida_model.dart';
 import 'package:betfriends/provider/partidas_provider.dart';

@@ -5,6 +5,7 @@ import {
   FriendshipData,
   FriendshipStatus,
   avaliarAceiteAmizade,
+  avaliarRecusaAmizade,
   avaliarSolicitacaoAmizade,
   gerarFriendshipId,
 } from "./friendship";
@@ -24,6 +25,25 @@ export interface ResultadoAceiteAmizade {
   readonly userAId: string;
   readonly userBId: string;
   readonly requesterId: string;
+}
+
+export interface ResultadoRecusaAmizade {
+  readonly friendshipId: string;
+  readonly status: "REJECTED";
+  readonly userAId: string;
+  readonly userBId: string;
+  readonly requesterId: string;
+}
+
+export interface SolicitacaoPendenteDto {
+  readonly friendshipId: string;
+  readonly remetente: {
+    readonly userId: string;
+    readonly displayName: string;
+    readonly username: string;
+  };
+  readonly createdAt: string | null;
+  readonly status: "PENDING";
 }
 
 /**
@@ -208,4 +228,146 @@ export async function verificarAmizadeAceita(
   if (!doc.exists) return false;
   const data = doc.data() as FriendshipData;
   return data.status === "ACCEPTED";
+}
+
+/**
+ * Recusa uma solicitação de amizade pendente dentro de uma transação do Firestore.
+ *
+ * Garante:
+ * - Somente solicitação com status PENDING pode ser recusada (RF-005).
+ * - Apenas o destinatário pode recusar.
+ * - Atualiza status para REJECTED e marca respondedAt.
+ * - Deixa de constar como pendente.
+ */
+export async function recusarSolicitacaoAmizadeNaTransacao(
+  transacao: Transaction,
+  db: Firestore,
+  userId: string,
+  identificador: string,
+): Promise<ResultadoRecusaAmizade> {
+  const cleanId = identificador.trim();
+  if (!cleanId) {
+    throw new ErroDeAmizade("uid-invalido", "Identificador de amizade ou usuário inválido.");
+  }
+
+  const friendshipId = cleanId.includes("_")
+    ? cleanId
+    : gerarFriendshipId(userId, cleanId).friendshipId;
+
+  const friendshipRef = db.collection(COLECAO_DE_AMIZADES).doc(friendshipId);
+  const doc = await transacao.get(friendshipRef);
+
+  if (!doc.exists) {
+    throw new ErroDeAmizade("solicitacao-inexistente", "Solicitação de amizade não encontrada.");
+  }
+
+  const amizade = doc.data() as FriendshipData;
+  const validacao = avaliarRecusaAmizade(userId, amizade);
+
+  transacao.update(friendshipRef, {
+    status: "REJECTED",
+    respondedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  return {
+    friendshipId: validacao.friendshipId,
+    status: "REJECTED",
+    userAId: validacao.userAId,
+    userBId: validacao.userBId,
+    requesterId: validacao.requesterId,
+  };
+}
+
+/**
+ * Ponto de entrada transacional para recusa de solicitação de amizade.
+ */
+export async function recusarSolicitacaoAmizade(
+  db: Firestore,
+  userId: string,
+  identificador: string,
+): Promise<ResultadoRecusaAmizade> {
+  return db.runTransaction((transacao) =>
+    recusarSolicitacaoAmizadeNaTransacao(transacao, db, userId, identificador),
+  );
+}
+
+/**
+ * Consulta as solicitações de amizade pendentes recebidas pelo usuário logado (RF-005, RN-PROF-002).
+ *
+ * Diretrizes de Privacidade:
+ * - Filtra por status PENDING onde o usuário atual é participante mas NÃO é o requester.
+ * - Carrega os perfis dos remetentes e extrai EXCLUSIVAMENTE dados públicos (displayName e username).
+ * - E-mail, saldos e transações financeiras NUNCA são retornados (RN-PROF-002).
+ */
+export async function obterSolicitacoesPendentesRecebidas(
+  db: Firestore,
+  userId: string,
+): Promise<SolicitacaoPendenteDto[]> {
+  const snapshot = await db
+    .collection(COLECAO_DE_AMIZADES)
+    .where("participants", "array-contains", userId)
+    .where("status", "==", "PENDING")
+    .get();
+
+  const recebidas = snapshot.docs.filter((doc) => {
+    const data = doc.data() as FriendshipData;
+    return data.requesterId !== userId;
+  });
+
+  if (recebidas.length === 0) {
+    return [];
+  }
+
+  // Carrega em batch os usuários remetentes
+  const requesterRefs = recebidas.map((doc) => {
+    const data = doc.data() as FriendshipData;
+    return db.collection(COLECAO_DE_USUARIOS).doc(data.requesterId);
+  });
+
+  const userDocs = await db.getAll(...requesterRefs);
+  const userMap = new Map<string, { displayName: string; username: string }>();
+
+  for (const uDoc of userDocs) {
+    if (uDoc.exists) {
+      const uData = uDoc.data();
+      userMap.set(uDoc.id, {
+        displayName: typeof uData?.displayName === "string" && uData.displayName.trim()
+          ? uData.displayName.trim()
+          : "Usuário",
+        username: typeof uData?.username === "string" && uData.username.trim()
+          ? uData.username.trim()
+          : "usuario",
+      });
+    }
+  }
+
+  return recebidas.map((doc) => {
+    const data = doc.data() as FriendshipData;
+    const remetenteInfo = userMap.get(data.requesterId) ?? {
+      displayName: "Usuário",
+      username: "usuario",
+    };
+
+    let createdAtStr: string | null = null;
+    const rawCreatedAt = data.createdAt;
+    if (rawCreatedAt && typeof (rawCreatedAt as any).toDate === "function") {
+      createdAtStr = (rawCreatedAt as any).toDate().toISOString();
+    } else if (rawCreatedAt instanceof Date) {
+      createdAtStr = rawCreatedAt.toISOString();
+    } else if (typeof rawCreatedAt === "string") {
+      createdAtStr = rawCreatedAt;
+    }
+
+    return {
+      friendshipId: doc.id,
+      remetente: {
+        userId: data.requesterId,
+        displayName: remetenteInfo.displayName,
+        username: remetenteInfo.username,
+      },
+      createdAt: createdAtStr,
+      status: "PENDING",
+    };
+  });
 }

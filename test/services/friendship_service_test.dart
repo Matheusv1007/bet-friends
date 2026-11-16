@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:betfriends/data/firestore/friendship_repository.dart';
 import 'package:betfriends/models/friendship_model.dart';
+import 'package:betfriends/models/usuario_publico.dart';
 import 'package:betfriends/services/friendship_service.dart';
 import 'package:betfriends/services/functions/functions_service.dart';
 
@@ -114,6 +115,68 @@ class _FakeFriendshipRepository implements FriendshipRepository {
       userAId: parts[0],
       userBId: parts[1],
     );
+  }
+
+  @override
+  Future<ResultadoRecusaAmizade> recusarSolicitacaoAmizade(String identificador) async {
+    if (simularErroConexao) {
+      throw const FriendshipException(
+        FriendshipErrorCode.unavailable,
+        'Serviço temporariamente indisponível. Verifique sua conexão.',
+      );
+    }
+
+    final friendshipId = identificador.contains('_')
+        ? identificador
+        : _calcFriendshipId(_currentCallingUid, identificador);
+
+    final statusAtual = statusAmizades[friendshipId];
+    final reqAtual = requesterIds[friendshipId];
+
+    if (statusAtual == null) {
+      throw const FriendshipException(
+        FriendshipErrorCode.requestNotFound,
+        'Solicitação de amizade não encontrada.',
+      );
+    }
+
+    if (statusAtual == 'ACCEPTED' || statusAtual == 'REJECTED') {
+      throw const FriendshipException(
+        FriendshipErrorCode.alreadyResolved,
+        'Esta solicitação de amizade já foi resolvida.',
+      );
+    }
+
+    if (reqAtual == _currentCallingUid) {
+      throw const FriendshipException(
+        FriendshipErrorCode.notTheRecipient,
+        'Apenas o destinatário pode recusar a solicitação.',
+      );
+    }
+
+    // Recusa válida
+    statusAmizades[friendshipId] = 'REJECTED';
+    final parts = friendshipId.split('_');
+
+    return ResultadoRecusaAmizade(
+      friendshipId: friendshipId,
+      status: FriendshipStatus.rejected,
+      userAId: parts[0],
+      userBId: parts[1],
+    );
+  }
+
+  final List<SolicitacaoAmizade> solicitacoesFake = [];
+
+  @override
+  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
+    if (simularErroConexao) {
+      throw const FriendshipException(
+        FriendshipErrorCode.unavailable,
+        'Serviço temporariamente indisponível. Verifique sua conexão.',
+      );
+    }
+    return List.from(solicitacoesFake);
   }
 
   String _currentCallingUid = '';
@@ -337,6 +400,86 @@ void main() {
       // Verificação pelo lado de outroUid
       repository.setCaller(outroUid);
       expect(repository.statusAmizades[friendshipId], 'ACCEPTED');
+    });
+
+    test('recusa válida: destinatário recusa solicitação pendente', () async {
+      final friendshipId = repository._calcFriendshipId(meuUid, outroUid);
+      repository.statusAmizades[friendshipId] = 'PENDING';
+      repository.requesterIds[friendshipId] = outroUid;
+
+      final resultado = await service.recusarSolicitacaoAmizade(friendshipId);
+
+      expect(resultado.status, FriendshipStatus.rejected);
+      expect(resultado.friendshipId, friendshipId);
+      expect(repository.statusAmizades[friendshipId], 'REJECTED');
+    });
+
+    test('recusa: autor da solicitação não pode recusá-la', () async {
+      final friendshipId = repository._calcFriendshipId(meuUid, outroUid);
+      repository.statusAmizades[friendshipId] = 'PENDING';
+      repository.requesterIds[friendshipId] = meuUid;
+
+      expect(
+        () => service.recusarSolicitacaoAmizade(friendshipId),
+        throwsA(
+          isA<FriendshipException>().having(
+            (e) => e.code,
+            'code',
+            FriendshipErrorCode.notTheRecipient,
+          ),
+        ),
+      );
+    });
+
+    test('recusa: tentativa de recusar solicitação já resolvida', () async {
+      final friendshipId = repository._calcFriendshipId(meuUid, outroUid);
+      repository.statusAmizades[friendshipId] = 'ACCEPTED';
+      repository.requesterIds[friendshipId] = outroUid;
+
+      expect(
+        () => service.recusarSolicitacaoAmizade(friendshipId),
+        throwsA(
+          isA<FriendshipException>().having(
+            (e) => e.code,
+            'code',
+            FriendshipErrorCode.alreadyResolved,
+          ),
+        ),
+      );
+    });
+
+    test('listar solicitações pendentes: retorna lista de pendências recebidas', () async {
+      repository.solicitacoesFake.addAll([
+        const SolicitacaoAmizade(
+          friendshipId: 'amizade_1',
+          remetente: UsuarioPublico(userId: 'u1', displayName: 'Lucas', username: 'lucas'),
+        ),
+        const SolicitacaoAmizade(
+          friendshipId: 'amizade_2',
+          remetente: UsuarioPublico(userId: 'u2', displayName: 'Juliana', username: 'jupaes'),
+        ),
+      ]);
+
+      final pendencias = await service.listarSolicitacoesPendentes();
+      expect(pendencias.length, 2);
+      expect(pendencias[0].remetente.displayName, 'Lucas');
+      expect(pendencias[1].remetente.displayName, 'Juliana');
+    });
+
+    test('listar solicitações pendentes: exige usuário autenticado', () async {
+      final authDeslogado = FakeAuthService(usuarioInicial: null);
+      final servicoSemAuth = FriendshipService(authService: authDeslogado, repository: repository);
+
+      expect(
+        () => servicoSemAuth.listarSolicitacoesPendentes(),
+        throwsA(
+          isA<FriendshipException>().having(
+            (e) => e.code,
+            'code',
+            FriendshipErrorCode.unauthenticated,
+          ),
+        ),
+      );
     });
 
     test('tradução de erro de conexão/indisponibilidade', () async {

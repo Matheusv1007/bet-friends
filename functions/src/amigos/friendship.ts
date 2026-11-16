@@ -227,3 +227,71 @@ export function avaliarAceiteAmizade(
     requesterId: amizade.requesterId,
   };
 }
+
+export interface RecusaAmizadeValida {
+  readonly valido: true;
+  readonly friendshipId: string;
+  readonly userAId: string;
+  readonly userBId: string;
+  readonly requesterId: string;
+}
+
+/**
+ * Avalia a recusa de uma solicitação de amizade.
+ *
+ * Critérios:
+ * - Somente solicitação pendente pode ser recusada.
+ * - Tentativa de recusar solicitação já resolvida (ACCEPTED ou REJECTED) é rejeitada.
+ * - Somente o destinatário pode recusar (o requester original não pode recusar a própria solicitação).
+ * - Usuário deve ser participante da relação.
+ */
+export function avaliarRecusaAmizade(
+  userId: string,
+  amizade: FriendshipData | null,
+): RecusaAmizadeValida {
+  if (!amizade) {
+    throw new ErroDeAmizade(
+      "solicitacao-inexistente",
+      "Solicitação de amizade não encontrada.",
+    );
+  }
+
+  if (!amizade.participants.includes(userId)) {
+    throw new ErroDeAmizade(
+      "nao-participante",
+      "Usuário não participa desta relação de amizade.",
+    );
+  }
+
+  if (amizade.status === "ACCEPTED" || amizade.status === "REJECTED") {
+    throw new ErroDeAmizade(
+      "solicitacao-ja-resolvida",
+      "Esta solicitação de amizade já foi resolvida.",
+    );
+  }
+
+  if (amizade.status !== "PENDING") {
+    throw new ErroDeAmizade(
+      "amizade-inconsistente",
+      "Estado da solicitação de amizade é inválido.",
+    );
+  }
+
+  // Apenas o destinatário da solicitação pode recusar
+  if (amizade.requesterId === userId) {
+    throw new ErroDeAmizade(
+      "nao-destinatario",
+      "O autor da solicitação não pode recusá-la; apenas o destinatário pode recusar.",
+    );
+  }
+
+  const { friendshipId } = gerarFriendshipId(amizade.userAId, amizade.userBId);
+
+  return {
+    valido: true,
+    friendshipId,
+    userAId: amizade.userAId,
+    userBId: amizade.userBId,
+    requesterId: amizade.requesterId,
+  };
+}

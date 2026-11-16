@@ -6,6 +6,7 @@ import {
   ErroDeAmizade,
   FriendshipData,
   avaliarAceiteAmizade,
+  avaliarRecusaAmizade,
   avaliarSolicitacaoAmizade,
   gerarFriendshipId,
 } from "../src/amigos/friendship";
@@ -295,6 +296,106 @@ describe("Regras de Amizade (RF-005, RN-FRD-001, RN-FRD-002, RN-FRD-003, RN-FRD-
     test("rejeita aceite de solicitação inexistente", () => {
       assert.throws(
         () => avaliarAceiteAmizade(USER_B, null),
+        (err) => err instanceof ErroDeAmizade && err.code === "solicitacao-inexistente",
+      );
+    });
+  });
+
+  describe("Validações de recusa de solicitação (Recusar Amizade)", () => {
+    test("recusa válida: destinatário recusa solicitação pendente", () => {
+      const amizadePendente: FriendshipData = {
+        userAId: USER_A,
+        userBId: USER_B,
+        participants: [USER_A, USER_B],
+        requesterId: USER_A,
+        status: "PENDING",
+        createdAt: new Date(),
+        respondedAt: null,
+        updatedAt: new Date(),
+      };
+
+      // USER_B é o destinatário recusando
+      const res = avaliarRecusaAmizade(USER_B, amizadePendente);
+      assert.equal(res.valido, true);
+      assert.equal(res.friendshipId, `${USER_A}_${USER_B}`);
+      assert.equal(res.requesterId, USER_A);
+    });
+
+    test("somente solicitação pendente pode ser recusada: rejeita solicitação já ACCEPTED", () => {
+      const amizadeAceita: FriendshipData = {
+        userAId: USER_A,
+        userBId: USER_B,
+        participants: [USER_A, USER_B],
+        requesterId: USER_A,
+        status: "ACCEPTED",
+        createdAt: new Date(),
+        respondedAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      assert.throws(
+        () => avaliarRecusaAmizade(USER_B, amizadeAceita),
+        (err) => err instanceof ErroDeAmizade && err.code === "solicitacao-ja-resolvida",
+      );
+    });
+
+    test("somente solicitação pendente pode ser recusada: rejeita solicitação já REJECTED", () => {
+      const amizadeRecusada: FriendshipData = {
+        userAId: USER_A,
+        userBId: USER_B,
+        participants: [USER_A, USER_B],
+        requesterId: USER_A,
+        status: "REJECTED",
+        createdAt: new Date(),
+        respondedAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      assert.throws(
+        () => avaliarRecusaAmizade(USER_B, amizadeRecusada),
+        (err) => err instanceof ErroDeAmizade && err.code === "solicitacao-ja-resolvida",
+      );
+    });
+
+    test("o próprio autor da solicitação não pode recusá-la (nao-destinatario)", () => {
+      const amizadePendente: FriendshipData = {
+        userAId: USER_A,
+        userBId: USER_B,
+        participants: [USER_A, USER_B],
+        requesterId: USER_A,
+        status: "PENDING",
+        createdAt: new Date(),
+        respondedAt: null,
+        updatedAt: new Date(),
+      };
+
+      assert.throws(
+        () => avaliarRecusaAmizade(USER_A, amizadePendente),
+        (err) => err instanceof ErroDeAmizade && err.code === "nao-destinatario",
+      );
+    });
+
+    test("usuário não participante não pode recusar (nao-participante)", () => {
+      const amizadePendente: FriendshipData = {
+        userAId: USER_A,
+        userBId: USER_B,
+        participants: [USER_A, USER_B],
+        requesterId: USER_A,
+        status: "PENDING",
+        createdAt: new Date(),
+        respondedAt: null,
+        updatedAt: new Date(),
+      };
+
+      assert.throws(
+        () => avaliarRecusaAmizade(USER_TERCEIRO, amizadePendente),
+        (err) => err instanceof ErroDeAmizade && err.code === "nao-participante",
+      );
+    });
+
+    test("rejeita recusa de solicitação inexistente", () => {
+      assert.throws(
+        () => avaliarRecusaAmizade(USER_B, null),
         (err) => err instanceof ErroDeAmizade && err.code === "solicitacao-inexistente",
       );
     });
