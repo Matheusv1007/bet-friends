@@ -12,12 +12,22 @@ import 'package:betfriends/widgets_homePage/cardDeDesafio.dart';
 import 'package:betfriends/widgets_homePage/cardDeDesafiosAtivos.dart';
 import 'package:betfriends/models/carteira.dart';
 import 'package:betfriends/widgets_homePage/cardDeCarteira.dart';
+import 'package:betfriends/models/challenge_model.dart';
+import 'package:betfriends/services/auth_service.dart';
+import 'package:betfriends/services/challenge_service.dart';
 import 'package:betfriends/widgets_homePage/cardDePartidas.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class Homepage extends StatefulWidget {
-  const Homepage({super.key});
+  final ChallengeService? challengeService;
+  final AuthService? authService;
+
+  const Homepage({
+    super.key,
+    this.challengeService,
+    this.authService,
+  });
 
   @override
   State<Homepage> createState() => _HomepageState();
@@ -30,6 +40,7 @@ class _HomepageState extends State<Homepage> {
 
   /// Perfil do usuário logado, usado só na saudação; `null` se indisponível.
   Stream<PerfilObservado>? _perfil;
+  Stream<List<ChallengeModel>>? _desafios;
 
   // Lista de fallback com o design original (comentada, mantida apenas para testes futuros)
   /*
@@ -64,6 +75,7 @@ class _HomepageState extends State<Homepage> {
   void initState() {
     super.initState();
     _perfil = _observarPerfil();
+    _desafios = _observarDesafios();
 
     // 1. Dispara a primeira busca na API logo que a tela é montada
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -76,6 +88,23 @@ class _HomepageState extends State<Homepage> {
         context.read<PartidasProvider>().carregarPartidas(silencioso: true);
       }
     });
+  }
+
+  Stream<List<ChallengeModel>>? _observarDesafios() {
+    final service = widget.challengeService ?? context.read<ChallengeService?>();
+    try {
+      final s = service?.observarDesafios();
+      return s == null ? null : (s.isBroadcast ? s : s.asBroadcastStream());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _perfil ??= _observarPerfil();
+    _desafios ??= _observarDesafios();
   }
 
   Stream<PerfilObservado>? _observarPerfil() {
@@ -144,6 +173,60 @@ class _HomepageState extends State<Homepage> {
                         child: Carddecarteira(
                           carteira: carteira,
                           semConexao: snapshot.data?.doCache ?? false,
+                        ),
+                      );
+                    },
+                  ),
+
+                  // ALERTA DESTAQUE: DESAFIOS RECEBIDOS AGUARDANDO RESPOSTA (D-003, Plano Mestre v3.2)
+                  StreamBuilder<List<ChallengeModel>>(
+                    stream: _desafios,
+                    builder: (context, snapshot) {
+                      final desafios = snapshot.hasError ? null : snapshot.data;
+                      final authProvider = context.watch<AuthProvider?>();
+                      final currentUid = authProvider?.currentUser?.uid ??
+                          widget.authService?.currentUser?.uid ??
+                          context.read<AuthService?>()?.currentUser?.uid;
+
+                      final pendentesRecebidos = desafios?.where((c) {
+                        final isPending = c.status == StatusDesafio.pending;
+                        final isChallenged = currentUid == null || c.challengedId == currentUid;
+                        return isPending && isChallenged;
+                      }).toList() ?? [];
+
+                      if (pendentesRecebidos.isEmpty) return const SizedBox.shrink();
+
+                      return Container(
+                        key: const Key('home_alerta_desafios_pendentes'),
+                        margin: const EdgeInsets.only(bottom: 18),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2B2213),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.mark_email_unread_outlined,
+                              color: Color(0xFFF59E0B),
+                              size: 22,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                "Você tem ${pendentesRecebidos.length} desafio(s) aguardando sua resposta!",
+                                style: const TextStyle(
+                                  color: Color(0xFFFDE68A),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     },
@@ -434,7 +517,24 @@ class _HomepageState extends State<Homepage> {
                   const SizedBox(height: 24),
 
                   // SEÇÃO DESAFIOS ATIVOS
-                  const DesafiosAtivosWidget(),
+                  // SEÇÃO DESAFIOS RESUMO (D-003, Plano Mestre v3.2)
+                  StreamBuilder<List<ChallengeModel>>(
+                    stream: _desafios,
+                    builder: (context, snapshot) {
+                      final authProvider = context.watch<AuthProvider?>();
+                      final currentUid = authProvider?.currentUser?.uid ??
+                          widget.authService?.currentUser?.uid ??
+                          context.read<AuthService?>()?.currentUser?.uid;
+
+                      final service = widget.challengeService ?? context.read<ChallengeService?>();
+
+                      return DesafiosAtivosWidget(
+                        desafios: snapshot.hasError ? null : snapshot.data,
+                        currentUserId: currentUid,
+                        challengeService: service,
+                      );
+                    },
+                  ),
 
                   const SizedBox(height: 20),
                 ],
