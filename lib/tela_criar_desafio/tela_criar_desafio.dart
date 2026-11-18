@@ -423,7 +423,7 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                           ),
                           const SizedBox(height: 16),
                           ElevatedButton.icon(
-                            onPressed: () => partidasProvider.carregarPartidas(),
+                            onPressed: () => partidasProvider.carregarPartidas(forcar: true),
                             icon: const Icon(Icons.refresh, size: 16),
                             label: const Text('Tentar novamente'),
                             style: ElevatedButton.styleFrom(
@@ -458,7 +458,7 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                           ),
                           const SizedBox(height: 12),
                           ElevatedButton.icon(
-                            onPressed: () => partidasProvider.carregarPartidas(),
+                            onPressed: () => partidasProvider.carregarPartidas(forcar: true),
                             icon: const Icon(Icons.refresh, size: 16),
                             label: const Text('Carregar partidas'),
                             style: ElevatedButton.styleFrom(

@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 import '../models/partida_model.dart';
+import '../services/api/api_client.dart';
 import '../services/api/partidas_service.dart';
 
+/// Provider para gerenciamento do estado das partidas na Home e telas de criação de desafio.
+///
+/// Implementa as diretrizes de KAN-105 (Redução de risco de limite de taxa):
+/// - Cache com TTL para evitar requisições redundantes na navegação Home → Criar Desafio → Home.
+/// - Detecção e tratamento amigável de HTTP 429 (Too Many Requests).
+/// - Cooldown de rate limit para impedir que o polling silencioso bombardeie a API após um 429.
+/// - Suporte a [forcar: true] para que o pull-to-refresh e o botão "Tentar novamente" continuem funcionando.
 class PartidasProvider extends ChangeNotifier {
   final PartidasService _partidasService;
 
@@ -11,6 +19,17 @@ class PartidasProvider extends ChangeNotifier {
   String? _errorMessage;
   String? _refreshErrorMessage;
   DateTime? _ultimaAtualizacao;
+
+  // Controle de cache e rate limit (KAN-105)
+  DateTime? _ultimoFetchSucesso;
+  DateTime? _rateLimitCooldownAte;
+  bool _isRateLimited = false;
+
+  /// Janela de frescor dos dados em memória (60 segundos). Evita re-fetch redundante em transição de telas.
+  static const Duration cacheTtl = Duration(seconds: 60);
+
+  /// Cooldown após HTTP 429 (60 segundos) durante o qual polling automático é pausado.
+  static const Duration rateLimitCooldown = Duration(seconds: 60);
 
   PartidasProvider({PartidasService? partidasService})
       : _partidasService = partidasService ?? PartidasService();
@@ -22,6 +41,13 @@ class PartidasProvider extends ChangeNotifier {
   String? get refreshErrorMessage => _refreshErrorMessage;
   bool get hasRefreshError => _refreshErrorMessage != null;
   DateTime? get ultimaAtualizacao => _ultimaAtualizacao;
+  bool get isRateLimited => _isRateLimited;
+
+  /// Indica se os dados em memória precisam ser atualizados (vazios ou cache expirado).
+  bool get deveAtualizar {
+    if (_partidas.isEmpty || _ultimoFetchSucesso == null) return true;
+    return DateTime.now().difference(_ultimoFetchSucesso!) >= cacheTtl;
+  }
 
   /// Exibe a data/hora da última atualização das partidas (RN-CACHE-002)
   String? get ultimaAtualizacaoFormatada {
@@ -40,9 +66,29 @@ class PartidasProvider extends ChangeNotifier {
     }
   }
 
-  /// Busca as partidas através do repositório/Firestore.
-  /// Se [silencioso] for true, atualiza em segundo plano sem disparar loading em tela cheia.
-  Future<void> carregarPartidas({int limit = 15, bool silencioso = false}) async {
+  /// Busca as partidas através do repositório/Firestore ou serviço.
+  /// - [silencioso]: se true, atualiza em segundo plano sem disparar loading em tela cheia.
+  /// - [forcar]: se true, ignora o cacheTtl e o cooldown de rate limit (ex: pull-to-refresh ou retry).
+  Future<void> carregarPartidas({
+    int limit = 15,
+    bool silencioso = false,
+    bool forcar = false,
+  }) async {
+    // 1. Otimização de navegação (KAN-105): se os dados já estão em memória e frescos,
+    // e a chamada não for forçada nem silenciosa, evita nova requisição
+    if (!forcar && !silencioso && !deveAtualizar && _partidas.isNotEmpty) {
+      return;
+    }
+
+    // 2. Proteção contra polling em rate-limit (KAN-105):
+    // Se estiver em cooldown após 429, rejeita novas chamadas silenciosas automáticas
+    if (!forcar && _isRateLimited) {
+      if (_rateLimitCooldownAte != null &&
+          DateTime.now().isBefore(_rateLimitCooldownAte!)) {
+        return;
+      }
+    }
+
     if (silencioso) {
       _isAutoRefreshing = true;
       notifyListeners();
@@ -69,10 +115,22 @@ class PartidasProvider extends ChangeNotifier {
         }
       }
       _ultimaAtualizacao = latestSynced ?? DateTime.now();
+      _ultimoFetchSucesso = DateTime.now();
+      _isRateLimited = false;
+      _rateLimitCooldownAte = null;
       _errorMessage = null;
       _refreshErrorMessage = null;
     } catch (e) {
       final formattedMsg = PartidasService.formatErrorMessage(e);
+      final is429 = (e is ApiException && e.statusCode == 429) ||
+          formattedMsg.contains('Limite de requisições') ||
+          e.toString().contains('429');
+
+      if (is429) {
+        _isRateLimited = true;
+        _rateLimitCooldownAte = DateTime.now().add(rateLimitCooldown);
+      }
+
       if (_partidas.isEmpty) {
         // Sem dados em cache: define o erro principal da tela
         _errorMessage = formattedMsg;
