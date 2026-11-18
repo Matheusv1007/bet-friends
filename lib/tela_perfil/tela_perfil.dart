@@ -8,6 +8,7 @@ import '../tela_academica/tela_partidas_rest.dart';
 import '../tela_amigos/tela_buscar_usuarios.dart';
 import '../tela_amigos/tela_comunicacoes_amizade.dart';
 import '../tela_amigos/tela_lista_amigos.dart';
+import '../tela_sobre/tela_informacoes_creditos.dart';
 import '../telas_autenticacao/cadastro_page.dart';
 
 /// Perfil do usuário autenticado (KAN-28).
@@ -348,6 +349,26 @@ class _DadosDoPerfil extends StatelessWidget {
             icon: const Icon(Icons.school_outlined, size: 18),
             label: const Text(
               'PARTIDAS REST (ACADÊMICO)',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF94A3B8),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 48,
+          child: TextButton.icon(
+            key: const Key('perfil_informacoes_creditos'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const TelaInformacoesCreditos(),
+              ),
+            ),
+            icon: const Icon(Icons.info_outline, size: 18),
+            label: const Text(
+              'INFORMAÇÕES E CRÉDITOS',
               style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
             ),
             style: TextButton.styleFrom(
