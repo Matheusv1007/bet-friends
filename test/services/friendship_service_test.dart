@@ -167,6 +167,7 @@ class _FakeFriendshipRepository implements FriendshipRepository {
   }
 
   final List<SolicitacaoAmizade> solicitacoesFake = [];
+  final List<UsuarioPublico> amigosFake = [];
 
   @override
   Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
@@ -177,6 +178,17 @@ class _FakeFriendshipRepository implements FriendshipRepository {
       );
     }
     return List.from(solicitacoesFake);
+  }
+
+  @override
+  Future<List<UsuarioPublico>> listarAmigosAceitos() async {
+    if (simularErroConexao) {
+      throw const FriendshipException(
+        FriendshipErrorCode.unavailable,
+        'Serviço temporariamente indisponível. Verifique sua conexão.',
+      );
+    }
+    return List.from(amigosFake);
   }
 
   String _currentCallingUid = '';
@@ -582,6 +594,59 @@ void main() {
       );
       final ex = FriendshipException.fromFunctionsException(fe);
       expect(ex.code, FriendshipErrorCode.permissionDenied);
+    });
+  });
+
+  group('FriendshipService - Visualizar lista de amigos (RF-006, RN-FRD-001, RN-PROF-002)', () {
+    test('exige usuário autenticado', () async {
+      final auth = FakeAuthService(usuarioInicial: null);
+      final repo = _FakeFriendshipRepository();
+      final service = FriendshipService(authService: auth, repository: repo);
+
+      expect(
+        () => service.listarAmigosAceitos(),
+        throwsA(isA<FriendshipException>().having(
+          (e) => e.code,
+          'code',
+          FriendshipErrorCode.unauthenticated,
+        )),
+      );
+    });
+
+    test('retorna exclusivamente amigos com relação aceita e dados públicos permitidos', () async {
+      const currentUid = 'uid-usuario-logado';
+      final auth = FakeAuthService(usuarioInicial: FakeUser(currentUid));
+      final repo = _FakeFriendshipRepository();
+      final service = FriendshipService(authService: auth, repository: repo);
+
+      repo.amigosFake.addAll([
+        const UsuarioPublico(userId: 'uid_bob', displayName: 'Bob Silva', username: 'bobsilva'),
+        const UsuarioPublico(userId: 'uid_carlos', displayName: 'Carlos Souza', username: 'carloss'),
+      ]);
+
+      final resultado = await service.listarAmigosAceitos();
+      expect(resultado.length, 2);
+      expect(resultado[0].userId, 'uid_bob');
+      expect(resultado[0].displayName, 'Bob Silva');
+      expect(resultado[0].username, 'bobsilva');
+      expect(resultado[0].usernameComArroba, '@bobsilva');
+      expect(resultado[1].displayName, 'Carlos Souza');
+    });
+
+    test('repassa erro de conexão ou indisponibilidade', () async {
+      const currentUid = 'uid-usuario-logado';
+      final auth = FakeAuthService(usuarioInicial: FakeUser(currentUid));
+      final repo = _FakeFriendshipRepository()..simularErroConexao = true;
+      final service = FriendshipService(authService: auth, repository: repo);
+
+      expect(
+        () => service.listarAmigosAceitos(),
+        throwsA(isA<FriendshipException>().having(
+          (e) => e.code,
+          'code',
+          FriendshipErrorCode.unavailable,
+        )),
+      );
     });
   });
 }

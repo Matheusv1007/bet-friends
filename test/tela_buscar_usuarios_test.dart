@@ -99,6 +99,9 @@ class _FakeFriendshipRepoForWidget implements FriendshipRepository {
   Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
     return [];
   }
+
+  @override
+  Future<List<UsuarioPublico>> listarAmigosAceitos() async => [];
 }
 
 void main() {

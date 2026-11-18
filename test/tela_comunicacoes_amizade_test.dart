@@ -66,6 +66,9 @@ class _FakeFriendshipRepoForComunicacoes implements FriendshipRepository {
   Future<ResultadoEnvioAmizade> enviarSolicitacaoAmizade(String toUserId) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<List<UsuarioPublico>> listarAmigosAceitos() async => [];
 }
 
 void main() {

@@ -24,6 +24,7 @@ abstract final class CallableNames {
   static const String acceptFriendRequest = 'acceptFriendRequest';
   static const String rejectFriendRequest = 'rejectFriendRequest';
   static const String getFriendRequests = 'getFriendRequests';
+  static const String getFriends = 'getFriends';
   static const String createChallenge = 'createChallenge';
   static const String acceptChallenge = 'acceptChallenge';
 }

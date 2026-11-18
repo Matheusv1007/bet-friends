@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/firestore/friendship_repository.dart';
 import '../models/friendship_model.dart';
 import '../services/friendship_service.dart';
+import 'tela_lista_amigos.dart';
 
 /// Tela para visualização das comunicações de amizade pendentes recebidas (RF-005, RN-PROF-002).
 ///
@@ -203,6 +204,20 @@ class _TelaComunicacoesAmizadeState extends State<TelaComunicacoesAmizade> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
+          IconButton(
+            key: const Key('btn_ver_meus_amigos'),
+            icon: const Icon(Icons.people_alt_outlined, color: Colors.white70, size: 22),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => TelaListaAmigos(
+                    friendshipService: _friendshipService,
+                  ),
+                ),
+              );
+            },
+            tooltip: 'Meus Amigos',
+          ),
           IconButton(
             key: const Key('btn_recarregar_comunicacoes'),
             icon: const Icon(Icons.refresh, color: primaryGreen, size: 22),
