@@ -5,6 +5,7 @@ import { moverDesafiosParaAguardandoResultado } from "./aguardarResultado";
 import { identificarDesafiosAptos } from "./aptosParaLiquidacao";
 import { expirarDesafiosPendentes } from "./expirarDesafios";
 import { finalizarDesafio } from "./finalizacao";
+import { iniciarDesafiosAceitos } from "./iniciarDesafios";
 
 /**
  * Processamento automático de resultados e liquidação (KAN-86;
@@ -33,6 +34,7 @@ export interface DesafioComFalha {
 }
 
 export interface ResumoDoProcessamento {
+  readonly iniciados: readonly string[];
   readonly aguardandoResultado: readonly string[];
   readonly finalizados: readonly string[];
   /** Já estavam `FINISHED` quando a transação releu o desafio (outra execução chegou antes). */
@@ -43,6 +45,7 @@ export interface ResumoDoProcessamento {
 
 export async function processarResultados(db: Firestore): Promise<ResumoDoProcessamento> {
   await expirarDesafiosPendentes(db);
+  const { iniciados } = await iniciarDesafiosAceitos(db);
   const { movidos } = await moverDesafiosParaAguardandoResultado(db);
   const { aptos, aguardando } = await identificarDesafiosAptos(db);
 
@@ -64,8 +67,9 @@ export async function processarResultados(db: Firestore): Promise<ResumoDoProces
     // Nada foi gravado para esses desafios; a próxima execução tenta de novo.
     logger.error("Desafios aptos que não puderam ser liquidados", { falhas });
   }
-  const resumo = { aguardandoResultado: movidos, finalizados, jaFinalizados, aguardando: aguardando.length, falhas };
+  const resumo = { iniciados: [...iniciados], aguardandoResultado: movidos, finalizados, jaFinalizados, aguardando: aguardando.length, falhas };
   logger.info("Processamento de resultados concluído", {
+    iniciados: iniciados.length,
     aguardandoResultado: movidos.length,
     finalizados: finalizados.length,
     jaFinalizados: jaFinalizados.length,
