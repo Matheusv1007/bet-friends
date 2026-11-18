@@ -38,10 +38,20 @@ class FakePartidasProvider extends ChangeNotifier implements PartidasProvider {
   String? get ultimaAtualizacaoFormatada => null;
 
   @override
+  bool get deveAtualizar => false;
+
+  @override
+  bool get isRateLimited => false;
+
+  @override
   void limparErroRefresh() {}
 
   @override
-  Future<void> carregarPartidas({int limit = 15, bool silencioso = false}) async {}
+  Future<void> carregarPartidas({
+    int limit = 15,
+    bool silencioso = false,
+    bool forcar = false,
+  }) async {}
 }
 
 class FakeChallengeService implements ChallengeService {

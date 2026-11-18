@@ -206,9 +206,9 @@ void main() {
       final partidas = CountingPartidasService();
       await abrirApp(tester, auth, partidas: partidas);
 
-      // O polling está ativo antes do logout
+      // O polling está ativo antes do logout (intervalo ajustado KAN-105)
       final iniciais = partidas.chamadas;
-      await tester.pump(const Duration(seconds: 31));
+      await tester.pump(const Duration(seconds: 61));
       expect(partidas.chamadas, greaterThan(iniciais));
 
       await sairPeloMenu(tester);

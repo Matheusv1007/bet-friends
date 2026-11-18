@@ -23,11 +23,16 @@ import 'package:provider/provider.dart';
 class Homepage extends StatefulWidget {
   final ChallengeService? challengeService;
   final AuthService? authService;
+  final Duration? pollingInterval;
+
+  /// Intervalo ajustado de polling em segundo plano (KAN-105: reduz consumo da API)
+  static const Duration intervalPollingPadrao = Duration(seconds: 60);
 
   const Homepage({
     super.key,
     this.challengeService,
     this.authService,
+    this.pollingInterval,
   });
 
   @override
@@ -78,13 +83,17 @@ class _HomepageState extends State<Homepage> {
     _perfil = _observarPerfil();
     _desafios = _observarDesafios();
 
-    // 1. Dispara a primeira busca na API logo que a tela é montada
+    // 1. Dispara a primeira busca na API logo que a tela é montada se necessário
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<PartidasProvider>().carregarPartidas();
+      final provider = context.read<PartidasProvider>();
+      if (provider.partidas.isEmpty || provider.deveAtualizar) {
+        provider.carregarPartidas();
+      }
     });
 
-    // 2. POLLING EM TEMPO REAL: Atualiza os dados a cada 30 segundos silenciosamente
-    _realTimeTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    // 2. POLLING EM TEMPO REAL AJUSTADO (KAN-105): Atualiza periodicamente com consumo reduzido
+    final intervalo = widget.pollingInterval ?? Homepage.intervalPollingPadrao;
+    _realTimeTimer = Timer.periodic(intervalo, (_) {
       if (mounted) {
         context.read<PartidasProvider>().carregarPartidas(silencioso: true);
       }
@@ -146,7 +155,7 @@ class _HomepageState extends State<Homepage> {
             color: const Color(0xFF00D084),
             backgroundColor: const Color(0xFF151E2E),
             onRefresh: () =>
-                context.read<PartidasProvider>().carregarPartidas(),
+                context.read<PartidasProvider>().carregarPartidas(forcar: true),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -312,7 +321,7 @@ class _HomepageState extends State<Homepage> {
                               ElevatedButton.icon(
                                 onPressed: () => context
                                     .read<PartidasProvider>()
-                                    .carregarPartidas(),
+                                    .carregarPartidas(forcar: true),
                                 icon: const Icon(Icons.refresh, size: 16),
                                 label: const Text(
                                   "TENTAR NOVAMENTE",
@@ -386,7 +395,7 @@ class _HomepageState extends State<Homepage> {
                               ElevatedButton.icon(
                                 onPressed: () => context
                                     .read<PartidasProvider>()
-                                    .carregarPartidas(),
+                                    .carregarPartidas(forcar: true),
                                 icon: const Icon(Icons.refresh, size: 16),
                                 label: const Text(
                                   "ATUALIZAR",
@@ -460,7 +469,7 @@ class _HomepageState extends State<Homepage> {
                                   GestureDetector(
                                     onTap: () => context
                                         .read<PartidasProvider>()
-                                        .carregarPartidas(),
+                                        .carregarPartidas(forcar: true),
                                     child: const Text(
                                       "Recarregar",
                                       style: TextStyle(
