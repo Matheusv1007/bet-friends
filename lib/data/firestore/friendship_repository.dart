@@ -1,4 +1,5 @@
 import '../../models/friendship_model.dart';
+import '../../models/usuario_publico.dart';
 import '../../services/functions/functions_service.dart';
 
 enum FriendshipErrorCode {
@@ -141,6 +142,9 @@ abstract interface class FriendshipRepository {
 
   /// Lista solicitações de amizade pendentes recebidas pelo usuário logado (RF-005, RN-PROF-002).
   Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes();
+
+  /// Lista os amigos com relação aceita do usuário logado (RF-006, RN-FRD-001, RN-PROF-002).
+  Future<List<UsuarioPublico>> listarAmigosAceitos();
 }
 
 /// Implementação padrão recomendada via Callable Function do backend.
@@ -245,6 +249,25 @@ class FunctionsFriendshipRepository implements FriendshipRepository {
       throw const FriendshipException(
         FriendshipErrorCode.unknown,
         'Não foi possível carregar as solicitações de amizade. Tente novamente.',
+      );
+    }
+  }
+
+  @override
+  Future<List<UsuarioPublico>> listarAmigosAceitos() async {
+    try {
+      final response = await _functions.call(CallableNames.getFriends);
+      final rawFriends = response['friends'] as List? ?? [];
+      return rawFriends
+          .whereType<Map>()
+          .map((item) => UsuarioPublico.fromMap(Map<String, dynamic>.from(item)))
+          .toList();
+    } on FunctionsException catch (e) {
+      throw FriendshipException.fromFunctionsException(e);
+    } catch (_) {
+      throw const FriendshipException(
+        FriendshipErrorCode.unknown,
+        'Não foi possível carregar a lista de amigos. Tente novamente.',
       );
     }
   }

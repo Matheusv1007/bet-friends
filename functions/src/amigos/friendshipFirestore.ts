@@ -371,3 +371,82 @@ export async function obterSolicitacoesPendentesRecebidas(
     };
   });
 }
+
+/**
+ * DTO público de um amigo aceito (RF-006, RN-PROF-002, RN-FRD-001).
+ *
+ * Contém exclusivamente identificador estável, nome e @username.
+ * E-mail, saldos e dados privados nunca são expostos.
+ */
+export interface AmigoPublicoDto {
+  readonly userId: string;
+  readonly displayName: string;
+  readonly username: string;
+}
+
+/**
+ * Consulta as amizades aceitas do usuário logado (RF-006, RN-FRD-001, RN-PROF-002).
+ *
+ * Diretrizes de Negócio e Privacidade:
+ * - Filtra por status ACCEPTED onde o usuário é participante (RN-FRD-001).
+ * - Relações pendentes ou recusadas nunca aparecem (RN-FRD-001).
+ * - Carrega os perfis dos amigos e extrai EXCLUSIVAMENTE dados públicos: displayName e username (RN-PROF-002).
+ * - E-mail, saldos detalhados de BetCoins e transações NUNCA são expostos (RN-PROF-002).
+ */
+export async function obterAmigosAceitos(
+  db: Firestore,
+  userId: string,
+): Promise<AmigoPublicoDto[]> {
+  const snapshot = await db
+    .collection(COLECAO_DE_AMIZADES)
+    .where("participants", "array-contains", userId)
+    .where("status", "==", "ACCEPTED")
+    .get();
+
+  if (snapshot.empty) {
+    return [];
+  }
+
+  // Identifica o ID do amigo para cada amizade aceita
+  const friendUids: string[] = [];
+  for (const doc of snapshot.docs) {
+    const data = doc.data() as FriendshipData;
+    // Validação adicional de consistência de status
+    if (data.status !== "ACCEPTED") continue;
+    const friendId = data.userAId === userId ? data.userBId : data.userAId;
+    if (friendId && friendId !== userId) {
+      friendUids.push(friendId);
+    }
+  }
+
+  if (friendUids.length === 0) {
+    return [];
+  }
+
+  // Carrega em batch os documentos dos usuários
+  const friendRefs = friendUids.map((uid) =>
+    db.collection(COLECAO_DE_USUARIOS).doc(uid),
+  );
+
+  const userDocs = await db.getAll(...friendRefs);
+  const amigos: AmigoPublicoDto[] = [];
+
+  for (const uDoc of userDocs) {
+    if (uDoc.exists) {
+      const uData = uDoc.data();
+      amigos.push({
+        userId: uDoc.id,
+        displayName:
+          typeof uData?.displayName === "string" && uData.displayName.trim()
+            ? uData.displayName.trim()
+            : "Usuário",
+        username:
+          typeof uData?.username === "string" && uData.username.trim()
+            ? uData.username.trim()
+            : "usuario",
+      });
+    }
+  }
+
+  return amigos;
+}

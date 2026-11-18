@@ -1,5 +1,6 @@
 import '../data/firestore/friendship_repository.dart';
 import '../models/friendship_model.dart';
+import '../models/usuario_publico.dart';
 import 'auth_service.dart';
 import 'functions/functions_service.dart';
 
@@ -123,5 +124,23 @@ class FriendshipService {
     }
 
     return _repository.listarSolicitacoesPendentes();
+  }
+
+  /// Lista os amigos com relação de amizade aceita (RF-006, RN-FRD-001, RN-PROF-002).
+  ///
+  /// Critérios de Aceitação:
+  /// - Somente relações aceitas aparecem (RN-FRD-001).
+  /// - Nome e nome de usuário do amigo são exibidos (RN-PROF-002).
+  /// - E-mail, saldos e transações financeiras nunca são expostos (RN-PROF-002).
+  Future<List<UsuarioPublico>> listarAmigosAceitos() async {
+    final usuarioLogado = _authService.currentUser;
+    if (usuarioLogado == null) {
+      throw const FriendshipException(
+        FriendshipErrorCode.unauthenticated,
+        'É necessário estar autenticado para visualizar a lista de amigos.',
+      );
+    }
+
+    return _repository.listarAmigosAceitos();
   }
 }

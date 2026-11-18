@@ -7,6 +7,7 @@ import '../services/user_profile_service.dart';
 import '../tela_academica/tela_partidas_rest.dart';
 import '../tela_amigos/tela_buscar_usuarios.dart';
 import '../tela_amigos/tela_comunicacoes_amizade.dart';
+import '../tela_amigos/tela_lista_amigos.dart';
 import '../telas_autenticacao/cadastro_page.dart';
 
 /// Perfil do usuário autenticado (KAN-28).
@@ -260,6 +261,30 @@ class _DadosDoPerfil extends StatelessWidget {
               side: const BorderSide(color: primaryGreen, width: 1.2),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 48,
+          child: ElevatedButton.icon(
+            key: const Key('perfil_meus_amigos'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TelaListaAmigos()),
+            ),
+            icon: const Icon(Icons.people_alt_outlined, size: 18),
+            label: const Text(
+              'MEUS AMIGOS',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF151E2E),
+              foregroundColor: primaryGreen,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: primaryGreen.withValues(alpha: 0.4)),
               ),
             ),
           ),

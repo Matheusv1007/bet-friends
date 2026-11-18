@@ -11,10 +11,12 @@ import {
   gerarFriendshipId,
 } from "../src/amigos/friendship";
 import { acceptFriendRequest } from "../src/amigos/acceptFriendRequest";
+import { getFriends } from "../src/amigos/getFriends";
 import { sendFriendRequest } from "../src/amigos/sendFriendRequest";
 
 type SendCallableRequest = Parameters<typeof sendFriendRequest.run>[0];
 type AcceptCallableRequest = Parameters<typeof acceptFriendRequest.run>[0];
+type GetFriendsCallableRequest = Parameters<typeof getFriends.run>[0];
 
 const USER_A = "uid_alice_123";
 const USER_B = "uid_bob_456";
@@ -461,6 +463,18 @@ describe("Regras de Amizade (RF-005, RN-FRD-001, RN-FRD-002, RN-FRD-003, RN-FRD-
           auth: { uid: USER_B, rawToken: "t", token: { uid: USER_B } },
         } as AcceptCallableRequest),
         (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument",
+      );
+    });
+  });
+
+  describe("Callable Function getFriends (RF-006, RN-FRD-001, RN-PROF-002)", () => {
+    test("exige autenticação", async () => {
+      await assert.rejects(
+        getFriends.run({
+          data: undefined,
+          auth: undefined,
+        } as GetFriendsCallableRequest),
+        (err: unknown) => err instanceof HttpsError && err.code === "unauthenticated",
       );
     });
   });
