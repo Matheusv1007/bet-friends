@@ -7,7 +7,7 @@ Convenção: **Status** começa como `Aberto`; ao corrigir, trocar para `Corrigi
 ## A-01 — Fundos reservados podem ficar presos
 
 - **Severidade:** Alta
-- **Status:** Corrigido no código (branch `fix/A-01-cancelar-rejeitar-desafio`), exceto o item 4. Código publicado em 19/11/2026, mas as funções novas ainda não aceitam chamadas (ver pendências).
+- **Status:** Corrigido no código (branch `fix/A-01-cancelar-rejeitar-desafio`) e publicado, exceto o item 4 (suspensa e em revisão), que depende de decisão de negócio.
 - **Onde:** `functions/src/desafios/` (`maquinaDeEstados.ts`, `aguardarResultado.ts`, `iniciarDesafios.ts`, `aptosParaLiquidacao.ts`, `processamentoDeResultados.ts`)
 
 ### O que foi encontrado
@@ -42,10 +42,10 @@ Saldo reservado permanentemente para o usuário. Isso também bloqueia o bônus 
 
 ### Pendências do A-01
 
-- **Funções ainda sem permissão de invocação (19/11/2026).** O deploy criou `rejectChallenge` e `cancelChallenge` (e as demais callables novas), mas o passo que libera a invocação pública do serviço no Cloud Run falhou com `403 run.services.setIamPolicy` para a conta que fez o deploy. Enquanto isso o app não consegue chamá-las. Corrige-se com uma conta com permissão (Proprietário, ou papel Cloud Run Admin) repetindo o deploy; ver `docs/callable-functions.md` §7.
+- ~~Funções sem permissão de invocação.~~ Resolvido: o Matheus deu a permissão (`run.services.setIamPolicy`) e o deploy foi refeito.
 - Confirmar com o Plano Mestre a regra de adiamento (limite de 7 dias da data original). É uma inferência de RN-MAT-007/008; a constante é `DIAS_DE_ADIAMENTO_TOLERADO`.
 - Partida `SUSPENSA` ou `REVISAO_NECESSARIA` continua mantendo o desafio em `WAITING_RESULT` sem prazo de saída (item 4 acima): precisa de decisão de negócio.
-- Falha pré-existente, fora do A-01: `activeChallengeAndExpiration` teste 5 (convite recebido conta como desafio ativo ao aceitar).
+- ~~Falha pré-existente, fora do A-01: `activeChallengeAndExpiration` teste 5.~~ Corrigida na branch `fix/convite-recebido-nao-e-desafio-ativo`: convite `PENDING` recebido deixou de contar como desafio ativo para o desafiado (D-SCH-11), com testes novos de regra e de concorrência. A suíte de emulador passa inteira.
 
 ---
 
@@ -133,7 +133,7 @@ APK/AAB de release não publicável e assinado com chave pública conhecida.
 ## A-05 — Sem App Check; `searchUsers` permite varredura
 
 - **Severidade:** Média
-- **Status:** Corrigido no código (branches `fix/A-05-app-check-busca` e `fix/A-05-enforce-app-check-env`). App Check fica enviado pelo app e **não exigido** pelo backend (decisão de configuração, ver pendências). Publicada, aguardando a permissão de invocação.
+- **Status:** Corrigido no código (branches `fix/A-05-app-check-busca` e `fix/A-05-enforce-app-check-env`) e publicado. App Check fica enviado pelo app e **não exigido** pelo backend (decisão de configuração, ver pendências).
 - **Onde:** `functions/src/core/callable.ts`, `functions/src/perfil/searchUsers.ts`
 
 ### O que foi encontrado
@@ -160,7 +160,7 @@ Enumeração de usuários e uso abusivo das funções por clientes não oficiais
 ### Pendências do A-05
 
 - **Exigir** o App Check é decisão e configuração fora do código, e **não deve ser ligado se o app não for publicado na Google Play**: o Play Integrity não atesta APK instalado à mão e a exigência derrubaria o app. Enquanto isso, o app envia o token e o backend o ignora.
-- `searchUsers` foi publicada em 19/11/2026, mas ainda sem permissão de invocação (mesma pendência do A-01, `403 run.services.setIamPolicy`): o limite e o mínimo da busca só valem para o app depois de repetir o deploy com uma conta autorizada.
+- `searchUsers` foi publicada em 19/11/2026 sem a permissão de invocação (`403 run.services.setIamPolicy`); o Matheus deu a permissão e o deploy foi refeito, então o limite e o mínimo da busca já valem.
 - Correção feita durante o deploy: `ENFORCE_APP_CHECK` era um parâmetro do Firebase (`defineBoolean`), que o SDK não aceita em `enforceAppCheck` e que fazia o deploy sem terminal parar pedindo valor. Passou a variável de ambiente (`functions/.env.<projeto>`), como as da sincronização.
 
 ---

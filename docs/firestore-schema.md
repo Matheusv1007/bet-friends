@@ -332,7 +332,7 @@ Regras do cancelamento pela partida (`motivoDeCancelamentoPelaPartida`): partida
 
 **Processamento automático (KAN-86):** `functions/src/desafios/processamentoDeResultados.ts`. `processarResultados` roda na função agendada `syncMatches`, logo depois da sincronização: cancelamento pela partida (A-01) → expiração (KAN-65) → início (KAN-66) → KAN-67 (`WAITING_RESULT`) → KAN-82/87 (aptos e casos excepcionais) → KAN-85 (finalização) para cada apto. Usa só dados de `matches`; não existe processamento por usuário ou por tela. Desafio que falha fica como estava e entra em `falhas`; a próxima execução tenta de novo.
 
-"Desafio ativo" (RN-CHL-010/011, KAN-64) = estados **não terminais**.
+"Desafio ativo" (RN-CHL-010/011/012, KAN-64, D-SCH-11) para um usuário numa partida = desafio **não terminal**, **exceto o convite `PENDING` que ele recebeu** (`contaComoDesafioAtivo`, `challengeFirestore.ts`). Quem foi convidado ainda não reservou BetCoins nem se comprometeu; só passa a ter desafio ativo ao aceitar. Quem criou o convite tem desafio ativo desde a criação, porque já reservou. A checagem roda dentro da transação de criar e de aceitar, lendo todos os desafios do usuário na partida: aceitar dois convites da mesma partida ao mesmo tempo deixa só um aceito (teste 13 de `activeChallengeAndExpiration`).
 
 **Integridade:**
 - `challengerId ≠ challengedId`; amizade `ACCEPTED` no momento da criação (RN-CHL-002).
@@ -580,7 +580,7 @@ O app nunca grava saldo, transação, estado de desafio, resultado ou vencedor (
 | D-SCH-08 | IDs determinísticos em `friendships` e `betCoinTransactions` | IDs automáticos + consultas | Duplicidade sob concorrência (KAN-40, KAN-65, KAN-85) | Matheus, Guilherme |
 | D-SCH-09 | Remoção de amizade apaga o documento | Estado novo (ex.: `REMOVED`) — não previsto no Plano | — | Guilherme |
 | D-SCH-10 | Leitura de nome/username de outros usuários via Callable | Desnormalizar em `friendships`/`challenges` | Muda KAN-33/38/56/57 | Kauê, Guilherme |
-| D-SCH-11 | Convite `PENDING` conta como "desafio ativo" também para o **desafiado** (RN-CHL-011) | Contar só a partir do aceite | Plano não detalha; afeta KAN-64 | Guilherme |
+| D-SCH-11 | **Alterada em 19/11/2026:** convite `PENDING` **não** conta como "desafio ativo" para o **desafiado**; só passa a contar a partir do aceite (para quem criou, conta desde a criação) | A proposta original: o convite `PENDING` contar também para o desafiado | Com a proposta original, quem recebe dois convites para a mesma partida não consegue aceitar nenhum, e um amigo bloqueia o outro de criar desafio. Se a alternativa for rejeitada, reverter `contaComoDesafioAtivo` e o teste 5 de `activeChallengeAndExpiration` | Guilherme |
 
 ---
 
