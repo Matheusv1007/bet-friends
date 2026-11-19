@@ -1,5 +1,7 @@
 # Auditoria Técnica do BetFriends
 
+> **Segunda auditoria (2026-11-19):** novos achados N-01 a N-30 em [segunda-auditoria.md](segunda-auditoria.md). Este documento descreve a primeira auditoria (A-01 a A-13), já corrigida.
+
 | Campo | Valor |
 |---|---|
 | Data | 2026-11-19 |
