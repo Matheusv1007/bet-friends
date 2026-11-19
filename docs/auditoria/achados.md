@@ -133,7 +133,7 @@ APK/AAB de release não publicável e assinado com chave pública conhecida.
 ## A-05 — Sem App Check; `searchUsers` permite varredura
 
 - **Severidade:** Média
-- **Status:** Aberto
+- **Status:** Corrigido no código (branch `fix/A-05-app-check-busca`). App Check fica enviado pelo app e **não exigido** pelo backend (decisão de configuração, ver pendências). Falta publicar `searchUsers`.
 - **Onde:** `functions/src/core/callable.ts`, `functions/src/perfil/searchUsers.ts`
 
 ### O que foi encontrado
@@ -149,6 +149,18 @@ Enumeração de usuários e uso abusivo das funções por clientes não oficiais
 - Habilitar App Check no app e `enforceAppCheck: true` em `authedCallable` (opção configurável para o emulador).
 - Exigir mínimo de 2 ou 3 caracteres na busca.
 - Avaliar limite de taxa por UID.
+
+### O que foi feito
+
+- **App Check:** o app envia o token em toda chamada (`firebase_app_check`, ativado em `main.dart`; provedor de depuração em debug e Play Integrity em release; fora dos emuladores). Todas as callables passam por `authedCallable`, que lê o parâmetro `ENFORCE_APP_CHECK` (padrão `false`). Ligar é configuração de deploy, não código; passos em `docs/callable-functions.md` §12.
+- **Busca:** só consulta com 3 caracteres ou mais (o mínimo de um username), no máximo 20 resultados, e o app nem chama o backend com termo menor.
+- **Limite de uso:** 60 buscas por minuto por usuário (`core/limiteDeUso.ts`, contador em `rateLimits/{funcao}_{uid}`, `resource-exhausted` acima disso). O mecanismo serve a qualquer outra callable.
+- Teste de Security Rules que já falhava (`o índice composto da consulta está declarado`) estava desatualizado desde que `challenges` ganhou mais índices; passou a checar só o índice do histórico.
+
+### Pendências do A-05
+
+- **Exigir** o App Check é decisão e configuração fora do código, e **não deve ser ligado se o app não for publicado na Google Play**: o Play Integrity não atesta APK instalado à mão e a exigência derrubaria o app. Enquanto isso, o app envia o token e o backend o ignora.
+- Publicar as funções para o limite e o mínimo da busca valerem em produção (`firebase deploy --only functions:searchUsers`).
 
 ---
 

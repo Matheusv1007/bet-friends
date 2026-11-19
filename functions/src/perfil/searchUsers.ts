@@ -1,16 +1,18 @@
 import { authedCallable } from "../core/callable";
 import { db } from "../core/firebase";
+import { consumirLimiteDeUso } from "../core/limiteDeUso";
 import { requireObject } from "../core/validation";
+import {
+  BUSCAS_POR_MINUTO,
+  PublicUserData,
+  buscarUsuariosPorUsername,
+  limiteDaBusca,
+  termoDeBusca,
+} from "./buscaDeUsuarios";
 
 export interface SearchUsersRequest {
   readonly query: unknown;
   readonly limit?: unknown;
-}
-
-export interface PublicUserData {
-  readonly userId: string;
-  readonly displayName: string;
-  readonly username: string;
 }
 
 export interface SearchUsersResponse {
@@ -26,49 +28,27 @@ export interface SearchUsersResponse {
  * - Retorna EXCLUSIVAMENTE dados públicos permitidos: userId, displayName e username (RN-PROF-002).
  * - E-mail, saldos, transações e dados internos NUNCA são expostos (RN-PROF-002).
  * - O próprio usuário solicitante é EXCLUÍDO dos resultados (RN-FRD-002).
+ *
+ * Contra varredura da base (A-05):
+ * - Termo com menos de 3 caracteres (o mínimo de um username) devolve lista vazia, sem consultar.
+ * - No máximo 20 resultados por busca.
+ * - No máximo 60 buscas por minuto por usuário; acima disso, `resource-exhausted`
+ *   com `details.motivo = "limite-de-uso"`.
  */
 export const searchUsers = authedCallable<SearchUsersRequest, SearchUsersResponse>(
   async (data, auth) => {
-    const rawQuery = typeof data.query === "string" ? data.query.trim() : "";
-    if (!rawQuery) {
+    const termo = termoDeBusca(data.query);
+    if (termo === null) {
       return { users: [] };
     }
 
-    const maxLimit =
-      typeof data.limit === "number" && data.limit > 0 && data.limit <= 50
-        ? data.limit
-        : 20;
-
-    const queryNormalized = rawQuery.toLowerCase().replace(/^@/, "");
-
-    // Consulta no Firestore por usernameNormalized
-    const snapshot = await db
-      .collection("users")
-      .orderBy("usernameNormalized")
-      .startAt(queryNormalized)
-      .endAt(queryNormalized + "\uf8ff")
-      .limit(maxLimit)
-      .get();
-
-    // Filtra para excluir o próprio usuário autenticado (RN-FRD-002)
-    // e mapeia estritamente os campos públicos (RN-PROF-002, RN-AUTH-006)
-    const users: PublicUserData[] = snapshot.docs
-      .filter((doc) => doc.id !== auth.uid)
-      .map((doc) => {
-        const d = doc.data();
-        return {
-          userId: doc.id,
-          displayName: typeof d.displayName === "string" ? d.displayName : "Usuário",
-          username: typeof d.username === "string" ? d.username : "",
-        };
-      });
-
-    return { users };
+    await consumirLimiteDeUso(db, `searchUsers_${auth.uid}`, { maximo: BUSCAS_POR_MINUTO, janelaMs: 60_000 });
+    return { users: await buscarUsuariosPorUsername(db, auth.uid, termo, limiteDaBusca(data.limit)) };
   },
   {
     parse: (raw) => {
       const data = requireObject(raw);
       return { query: data.query, limit: data.limit };
     },
-  }
+  },
 );

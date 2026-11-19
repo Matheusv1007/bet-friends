@@ -547,16 +547,19 @@ describe("challenges/{challengeId}", () => {
 
     test("o índice composto da consulta está declarado", () => {
       const { indexes } = JSON.parse(readFileSync(new URL("../../firestore.indexes.json", import.meta.url), "utf8"));
-      const campos = indexes
-        .filter((i) => i.collectionGroup === "challenges" && i.queryScope === "COLLECTION")
-        .map((i) => i.fields);
-      assert.deepEqual(campos, [
-        [
-          { fieldPath: "participants", arrayConfig: "CONTAINS" },
-          { fieldPath: "status", order: "ASCENDING" },
-          { fieldPath: "finishedAt", order: "DESCENDING" },
-        ],
-      ]);
+      const historico = [
+        { fieldPath: "participants", arrayConfig: "CONTAINS" },
+        { fieldPath: "status", order: "ASCENDING" },
+        { fieldPath: "finishedAt", order: "DESCENDING" },
+      ];
+      // outras consultas de desafios têm índices próprios: só este precisa existir para o histórico
+      const declarado = indexes.some(
+        (i) =>
+          i.collectionGroup === "challenges" &&
+          i.queryScope === "COLLECTION" &&
+          JSON.stringify(i.fields) === JSON.stringify(historico),
+      );
+      assert.ok(declarado, "índice do histórico (participants, status, finishedAt desc) não declarado");
     });
   });
 
@@ -677,5 +680,11 @@ describe("caminhos não declarados", () => {
   test("estado da sincronização (system/matchSync) é só do backend", async () => {
     await expectDenied(getDoc(ANA, "system/matchSync"));
     await expectDenied(commit(ANA, [setWrite("system/matchSync", { consecutiveFailures: 0 })]));
+  });
+
+  test("contadores de limite de uso (rateLimits) são só do backend: o app não lê nem zera o próprio", async () => {
+    await commit(ADMIN, [setWrite(`rateLimits/searchUsers_${ANA}`, { count: 60, windowStart: T0 })]);
+    await expectDenied(getDoc(ANA, `rateLimits/searchUsers_${ANA}`));
+    await expectDenied(commit(ANA, [setWrite(`rateLimits/searchUsers_${ANA}`, { count: 0, windowStart: T0 })]));
   });
 });

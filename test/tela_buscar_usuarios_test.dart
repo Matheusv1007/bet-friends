@@ -14,6 +14,7 @@ import 'support/fake_auth.dart';
 class _FakeSearchRepository implements UserSearchRepository {
   final List<UsuarioPublico> database;
   bool throwError = false;
+  int chamadas = 0;
 
   _FakeSearchRepository(this.database);
 
@@ -23,6 +24,7 @@ class _FakeSearchRepository implements UserSearchRepository {
     required String usuarioAtualUid,
     int limite = 20,
   }) async {
+    chamadas++;
     if (throwError) {
       throw Exception('Falha de conexão com o servidor');
     }
@@ -184,6 +186,28 @@ void main() {
 
       expect(find.byKey(const Key('search_users_empty')), findsOneWidget);
       expect(find.text('Nenhum usuário encontrado'), findsOneWidget);
+    });
+
+    testWidgets('termo com menos de 3 caracteres não chama o backend e mantém a orientação (A-05)', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: TelaBuscarUsuarios(searchService: searchService),
+      ));
+
+      for (final curto in ['j', 'ju', '@ju']) {
+        await tester.enterText(find.byKey(const Key('search_users_input')), curto);
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpAndSettle();
+      }
+
+      expect(repository.chamadas, 0);
+      expect(find.text('Encontre amigos no BetFriends'), findsOneWidget);
+      expect(find.byKey(const Key('search_users_empty')), findsNothing);
+
+      // com 3 caracteres a busca acontece
+      await tester.enterText(find.byKey(const Key('search_users_input')), 'jul');
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+      expect(repository.chamadas, 1);
     });
 
     testWidgets('exibe mensagem amigável e botão tentar novamente em caso de erro', (tester) async {

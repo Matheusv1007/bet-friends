@@ -1,6 +1,7 @@
 import { logger } from "firebase-functions";
 import { CallableOptions, CallableRequest, HttpsError, onCall } from "firebase-functions/https";
 
+import { ENFORCE_APP_CHECK } from "./appCheck";
 import { AuthContext, requireAuth } from "./auth";
 
 export type AuthedHandler<Req, Res> = (
@@ -21,13 +22,14 @@ export interface AuthedCallableConfig<Req> {
  *
  * Fluxo: autenticação -> validação do payload -> handler (regras de negócio).
  * Erros que não forem HttpsError são logados e devolvidos ao app como "internal",
- * sem vazar detalhes internos.
+ * sem vazar detalhes internos. Todas passam pela exigência de App Check
+ * configurada em [ENFORCE_APP_CHECK] (desligada por padrão); `options` pode sobrescrever.
  */
 export function authedCallable<Req = unknown, Res = unknown>(
   handler: AuthedHandler<Req, Res>,
   { parse, options = {} }: AuthedCallableConfig<Req> = {},
 ) {
-  return onCall<unknown, Promise<Res>>(options, async (request) => {
+  return onCall<unknown, Promise<Res>>({ enforceAppCheck: ENFORCE_APP_CHECK, ...options }, async (request) => {
     const auth = requireAuth(request);
     const data = parse ? parse(request.data) : (request.data as Req);
 
