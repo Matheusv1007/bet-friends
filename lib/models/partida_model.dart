@@ -1,11 +1,79 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Modelo de partida no domínio da aplicação (KAN-42, KAN-46; docs/firestore-schema.md §3.4).
+/// Status de domínio interno de partida (RF-008, RN-MAT-002, RNF-013; docs/firestore-schema.md §3.4).
+enum StatusPartida {
+  agendada('AGENDADA', 'Agendada'),
+  emAndamento('EM_ANDAMENTO', 'Em Andamento'),
+  finalizada('FINALIZADA', 'Finalizada'),
+  adiada('ADIADA', 'Adiada'),
+  cancelada('CANCELADA', 'Cancelada'),
+  suspensa('SUSPENSA', 'Suspensa'),
+  revisaoNecessaria('REVISAO_NECESSARIA', 'Revisão Necessária');
+
+  final String codigo;
+  final String rotulo;
+  const StatusPartida(this.codigo, this.rotulo);
+
+  static StatusPartida deCodigo(dynamic codigo) {
+    if (codigo == null) return StatusPartida.agendada;
+    final str = codigo.toString().trim().toUpperCase();
+    for (final s in StatusPartida.values) {
+      if (s.codigo == str) return s;
+    }
+    // Mapeamentos para segurança e normalização (RN-MAT-002, RNF-013)
+    if (str == 'SCHEDULED' || str == 'TIMED' || str.contains('PRÓXIMO') || str.contains('PROXIMO')) {
+      return StatusPartida.agendada;
+    }
+    if (str == 'IN_PLAY' || str == 'PAUSED' || str == 'LIVE' || str.contains('AO VIVO') || str.contains('ANDAMENTO')) {
+      return StatusPartida.emAndamento;
+    }
+    if (str == 'FINISHED' || str.contains('FINALIZAD')) {
+      return StatusPartida.finalizada;
+    }
+    if (str == 'POSTPONED' || str.contains('ADIAD')) {
+      return StatusPartida.adiada;
+    }
+    if (str == 'CANCELLED' || str.contains('CANCELAD')) {
+      return StatusPartida.cancelada;
+    }
+    if (str == 'SUSPENDED' || str.contains('SUSPENS')) {
+      return StatusPartida.suspensa;
+    }
+    if (str == 'AWARDED' || str.contains('REVIS')) {
+      return StatusPartida.revisaoNecessaria;
+    }
+    return StatusPartida.agendada;
+  }
+}
+
+/// Resultado normalizado de domínio interno de partida (RF-008, RNF-013; docs/firestore-schema.md §3.4).
+enum ResultadoPartida {
+  homeWin('HOME_WIN', 'Vitória do Mandante'),
+  draw('DRAW', 'Empate'),
+  awayWin('AWAY_WIN', 'Vitória do Visitante');
+
+  final String codigo;
+  final String rotulo;
+  const ResultadoPartida(this.codigo, this.rotulo);
+
+  static ResultadoPartida? deCodigo(dynamic codigo) {
+    if (codigo == null) return null;
+    final str = codigo.toString().trim().toUpperCase();
+    for (final r in ResultadoPartida.values) {
+      if (r.codigo == str) return r;
+    }
+    if (str == 'HOME_TEAM') return ResultadoPartida.homeWin;
+    if (str == 'AWAY_TEAM') return ResultadoPartida.awayWin;
+    return null;
+  }
+}
+
+/// Modelo de partida no domínio da aplicação (KAN-42, KAN-43, KAN-46; docs/firestore-schema.md §3.4).
 ///
 /// Diretrizes de Domínio e Segurança:
 /// - O armazenamento no backend e Firestore é estritamente em UTC (`startsAtUtc`).
-/// - A conversão de data/hora para o fuso local do dispositivo ocorre apenas na exibição (RN-MAT-005).
-/// - Nunca expõe ou armazena enums brutos do provedor (RN-MAT-002).
+/// - A conversão de data/hora para o fuso local do dispositivo ocorre apenas na exibição (RN-MAT-005, RF-008).
+/// - Nunca expõe ou armazena enums brutos do provedor (RN-MAT-002, RNF-013).
 class PartidaModel {
   final String id;
   final String timeMandante;
@@ -13,6 +81,8 @@ class PartidaModel {
   final int? golsMandante;
   final int? golsVisitante;
   final String status;
+  final StatusPartida statusDominio;
+  final ResultadoPartida? resultado;
   final String? campeonato;
   final String? horario;
   final String? minuto;
@@ -30,7 +100,9 @@ class PartidaModel {
     required this.timeVisitante,
     this.golsMandante,
     this.golsVisitante,
-    this.status = 'PRÓXIMO JOGO',
+    String? status,
+    StatusPartida? statusDominio,
+    ResultadoPartida? resultado,
     this.campeonato,
     String? horario,
     this.minuto,
@@ -41,27 +113,55 @@ class PartidaModel {
     this.matchday,
     this.competitionCode,
     this.season,
-  }) : horario = horario ?? formatarHorarioExibicao(startsAtUtc);
+  })  : statusDominio = statusDominio ?? StatusPartida.deCodigo(status),
+        status = status ??
+            (statusDominio != null
+                ? mapearStatusDominio(statusDominio.codigo)
+                : 'PRÓXIMO JOGO'),
+        resultado = resultado ??
+            _deduzirResultado(
+              statusDominio ?? StatusPartida.deCodigo(status),
+              golsMandante,
+              golsVisitante,
+            ),
+        horario = horario ?? formatarHorarioExibicao(startsAtUtc);
+
+  static ResultadoPartida? _deduzirResultado(
+    StatusPartida status,
+    int? homeGoals,
+    int? awayGoals,
+  ) {
+    if (status != StatusPartida.finalizada) return null;
+    if (homeGoals == null || awayGoals == null) return null;
+    if (homeGoals > awayGoals) return ResultadoPartida.homeWin;
+    if (homeGoals < awayGoals) return ResultadoPartida.awayWin;
+    return ResultadoPartida.draw;
+  }
 
   bool get isFinalizado =>
+      statusDominio == StatusPartida.finalizada ||
       status.toUpperCase().contains('FINALIZADO') ||
       status.toUpperCase().contains('FINISHED');
 
   bool get isCancelado =>
+      statusDominio == StatusPartida.cancelada ||
       status.toUpperCase().contains('CANCELADO') ||
       status.toUpperCase().contains('CANCELLED');
 
   bool get isAdiado =>
+      statusDominio == StatusPartida.adiada ||
       status.toUpperCase().contains('ADIADO') ||
       status.toUpperCase().contains('POSTPONED');
 
   bool get isAoVivo =>
+      statusDominio == StatusPartida.emAndamento ||
       status.toUpperCase().contains('AO VIVO') ||
       status.toUpperCase().contains('ANDAMENTO') ||
       status.toUpperCase().contains('IN_PLAY') ||
       status.toUpperCase().contains('INTERVALO');
 
   bool get isAgendado =>
+      statusDominio == StatusPartida.agendada ||
       status.toUpperCase().contains('AGENDAD') ||
       status.toUpperCase().contains('PRÓXIMO') ||
       status.toUpperCase().contains('PROXIMO') ||
@@ -178,8 +278,10 @@ class PartidaModel {
         ? formatarHorarioExibicao(startsAtUtc)
         : (data['horario']?.toString() ?? 'A definir');
 
-    // 3. Status amigável de domínio em português (RN-MAT-002)
-    final statusAmigavel = mapearStatusDominio(data['status']?.toString());
+    // 3. Status amigável de domínio em português (RN-MAT-002, RNF-013)
+    final rawStatus = data['status']?.toString();
+    final statusDominio = StatusPartida.deCodigo(rawStatus);
+    final statusAmigavel = mapearStatusDominio(rawStatus);
 
     // 4. Identificação dos times
     final homeTeam = data['homeTeam'];
@@ -205,6 +307,21 @@ class PartidaModel {
           (data['golsVisitante'] as num?)?.toInt();
     }
 
+    // 6. Resultado do domínio (KAN-43; docs/firestore-schema.md §3.4)
+    final rawResult = data['result'] ?? data['resultado'];
+    var resultado = ResultadoPartida.deCodigo(rawResult);
+    if (resultado == null && statusDominio == StatusPartida.finalizada) {
+      if (homeGoals != null && awayGoals != null) {
+        if (homeGoals > awayGoals) {
+          resultado = ResultadoPartida.homeWin;
+        } else if (homeGoals < awayGoals) {
+          resultado = ResultadoPartida.awayWin;
+        } else {
+          resultado = ResultadoPartida.draw;
+        }
+      }
+    }
+
     return PartidaModel(
       id: id.isNotEmpty ? id : (data['id']?.toString() ?? ''),
       timeMandante: mandante.toString(),
@@ -212,6 +329,8 @@ class PartidaModel {
       golsMandante: homeGoals,
       golsVisitante: awayGoals,
       status: statusAmigavel,
+      statusDominio: statusDominio,
+      resultado: resultado,
       campeonato: data['competitionCode']?.toString() ??
           data['competition']?['name']?.toString() ??
           data['campeonato']?.toString() ??
@@ -241,6 +360,31 @@ class PartidaModel {
     return '0 - 0';
   }
 
+  /// Descrição legível e normalizada do resultado da partida (ex: "Vitória do Mandante (Flamengo)").
+  String? get resultadoNormalizadoDescricao {
+    if (resultado == null) return null;
+    switch (resultado!) {
+      case ResultadoPartida.homeWin:
+        return 'Vitória do Mandante ($timeMandante)';
+      case ResultadoPartida.awayWin:
+        return 'Vitória do Visitante ($timeVisitante)';
+      case ResultadoPartida.draw:
+        return 'Empate';
+    }
+  }
+
+  /// Data e hora exibida no fuso horário do dispositivo (RN-MAT-005, RF-008).
+  String get dataHoraLocalFormatada {
+    if (startsAtUtc == null) return horario ?? 'A definir';
+    final local = startsAtUtc!.toLocal();
+    final dia = local.day.toString().padLeft(2, '0');
+    final mes = local.month.toString().padLeft(2, '0');
+    final ano = local.year.toString();
+    final hora = local.hour.toString().padLeft(2, '0');
+    final minuto = local.minute.toString().padLeft(2, '0');
+    return '$dia/$mes/$ano às $hora:$minuto';
+  }
+
   /// Converte a instância para JSON
   Map<String, dynamic> toJson() {
     return {
@@ -250,6 +394,8 @@ class PartidaModel {
       'golsMandante': golsMandante,
       'golsVisitante': golsVisitante,
       'status': status,
+      'statusDominio': statusDominio.codigo,
+      'resultado': resultado?.codigo,
       'campeonato': campeonato,
       'horario': horario,
       'minuto': minuto,
