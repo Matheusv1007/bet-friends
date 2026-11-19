@@ -46,6 +46,14 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "competitionCode", "order": "ASCENDING" },
+        { "fieldPath": "startsAtUtc", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "matches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "competitionCode", "order": "ASCENDING" },
         { "fieldPath": "startsAtUtc", "order": "ASCENDING" }
       ]
     }

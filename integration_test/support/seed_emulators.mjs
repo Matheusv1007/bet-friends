@@ -118,4 +118,17 @@ await Promise.all([
   desafio("hist-terc", "uidIvo", "uidJoao", "FINISHED", hora(13), { ...iniciado, winnerId: "uidIvo", settledResult: "HOME_WIN" }),
 ]);
 
+// Temporada extensa: os primeiros documentos não podem esconder os jogos futuros.
+const agoraPartidas = Date.now();
+await Promise.all(Array.from({ length: 65 }, (_, i) => {
+  const dias = i < 60 ? i - 100 : i - 59;
+  return db.doc(`matches/temporada_${i}`).set({
+    competitionCode: "BSA",
+    status: dias < 0 ? "FINALIZADA" : "AGENDADA",
+    startsAtUtc: Timestamp.fromMillis(agoraPartidas + dias * 86400000),
+    homeTeam: { name: `Mandante ${i}` },
+    awayTeam: { name: `Visitante ${i}` },
+  });
+}));
+
 console.log(`[seed] ${contas.length} contas no Auth Emulator e ${contas.filter((c) => c.doc).length} perfis no Firestore Emulator (${PROJECT}).`);
