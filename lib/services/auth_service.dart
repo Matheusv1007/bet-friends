@@ -1,9 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
   final FirebaseAuth? firebaseAuth;
 
-  AuthService({this.firebaseAuth});
+  final FirebaseFirestore? firestore;
+
+  AuthService({this.firebaseAuth, this.firestore});
 
   // Resolvido sob demanda para permitir fakes em testes sem Firebase inicializado
   FirebaseAuth get _auth => firebaseAuth ?? FirebaseAuth.instance;
@@ -32,7 +35,12 @@ class AuthService {
     );
   }
 
-  Future<void> signOut() {
-    return _auth.signOut();
+  Future<void> signOut() async {
+    final db = firestore ?? FirebaseFirestore.instanceFor(app: _auth.app);
+    await _auth.signOut();
+    // O plugin Android remove o cliente encerrado de seu cache; o próximo
+    // login obtém um cliente novo, sem os dados persistidos da sessão anterior.
+    await db.terminate();
+    await db.clearPersistence();
   }
 }

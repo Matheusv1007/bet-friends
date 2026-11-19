@@ -1,4 +1,5 @@
 import 'package:betfriends/app.dart';
+import 'package:betfriends/services/registro_de_erros.dart';
 import 'package:betfriends/services/functions/functions_service.dart';
 import 'package:betfriends/services/functions/functions_smoke_test.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
@@ -8,6 +9,13 @@ import 'package:flutter/material.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FlutterError.onError = (details) {
+    registrarErro('executar framework Flutter', details.exception, details.stack);
+  };
+  PlatformDispatcher.instance.onError = (erro, pilha) {
+    registrarErro('executar operação assíncrona não tratada', erro, pilha);
+    return true;
+  };
 
   // Inicialização do Firebase (se estiver usando)
   await Firebase.initializeApp();
