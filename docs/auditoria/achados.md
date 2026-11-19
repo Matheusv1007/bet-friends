@@ -88,7 +88,7 @@ O cliente esconde a falta do índice de `matches` com `catch (_)` e uma consulta
 ## A-04 — Release Android assinado com chave de debug
 
 - **Severidade:** Média
-- **Status:** Aberto
+- **Status:** Corrigido no código (branch `fix/A-04-assinatura-release`). Falta gerar o keystore real e criar `android/key.properties` (ação manual, ver `README.md` "Build de release"). Sem o arquivo, o release continua assinado com a chave de debug.
 - **Onde:** `android/app/build.gradle.kts:37-39`
 
 ### O que foi encontrado

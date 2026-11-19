@@ -83,6 +83,26 @@ flutter test                    # testes de unidade e de widget
 flutter build apk --debug       # gera build/app/outputs/flutter-apk/app-debug.apk
 ```
 
+### Build de release (Android)
+
+O release é assinado com o keystore descrito em `android/key.properties`, que **não vai para o git** (já ignorado, assim como `*.jks` e `*.keystore`). Para gerar o keystore uma única vez (guarde o arquivo e as senhas fora do repositório):
+
+```bash
+keytool -genkeypair -v -keystore ~/betfriends-release.jks -alias betfriends \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Crie `android/key.properties`:
+
+```properties
+storeFile=/caminho/absoluto/betfriends-release.jks
+storePassword=<senha do keystore>
+keyAlias=betfriends
+keyPassword=<senha da chave>
+```
+
+Depois, `flutter build apk --release` ou `flutter build appbundle --release`. Sem `android/key.properties`, o Gradle avisa e assina com a chave de debug (útil só para `flutter run --release`; o artefato não é publicável). Se mudar de keystore, registre o novo SHA-1 no Firebase e na restrição da chave de API (ver "Configuração do Firebase").
+
 ### Backend (opcional)
 
 Com o Node 22 no PATH, sem trocar o Node do sistema (ver [`docs/callable-functions.md`](docs/callable-functions.md) §9):
