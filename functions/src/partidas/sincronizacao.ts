@@ -55,7 +55,7 @@ export type ResultadoDaSincronizacao =
       readonly divergencias: readonly DivergenciaPosLiquidacao[];
       /** Partidas que o Adapter não conseguiu converter; não foram gravadas. */
       readonly descartadas: readonly PartidaDescartada[];
-      /** Documentos existentes fora do schema; ficam como estão para revisão. */
+      /** Documentos fora do schema ou gravações que falharam; ficam como estão para revisão/nova sincronização. */
       readonly recusadas: readonly PartidaRecusada[];
     }
   | {
@@ -115,15 +115,22 @@ export async function sincronizarPartidas(
           else ignoradas++;
           if (correcaoDeResultado) corrigidas.push(partida);
         } catch (err) {
-          if (!(err instanceof ErroDePartida)) throw err;
-          recusadas.push({ id: idDaPartida(partida), motivo: err.message });
+          const id = idDaPartida(partida);
+          if (err instanceof ErroDePartida) {
+            recusadas.push({ id, motivo: err.message });
+          } else {
+            recusadas.push({ id, motivo: "Falha inesperada ao gravar partida." });
+            logger.error("Falha isolada ao sincronizar partida", {
+              matchId: id, codigo: err instanceof Error ? err.name : "erro-desconhecido",
+            });
+          }
         }
       }),
     );
   }
 
   if (recusadas.length > 0) {
-    logger.warn("Partidas não sincronizadas: documento atual fora do schema", {
+    logger.warn("Partidas não sincronizadas: documento inválido ou falha de gravação", {
       competitionCode: consulta.competitionCode,
       recusadas,
     });

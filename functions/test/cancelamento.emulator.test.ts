@@ -3,16 +3,19 @@ import { after, before, beforeEach, describe, test } from "node:test";
 
 import { deleteApp, initializeApp } from "firebase-admin/app";
 import { Firestore, Timestamp, getFirestore } from "firebase-admin/firestore";
+import { HttpsError } from "firebase-functions/https";
 
 import { COLECAO_DE_AMIZADES } from "../src/amigos/friendshipFirestore";
 import { idDeTransacaoDeDesafio } from "../src/betcoins/transacoes";
 import {
+  LIMITE_DE_CANCELAMENTO_DE_DESAFIOS,
   cancelarDesafioPeloCriador,
   cancelarDesafiosPelaPartida,
   recusarDesafio,
 } from "../src/desafios/cancelamento";
 import { ErroDeDesafio } from "../src/desafios/challenge";
 import {
+  LIMITE_DE_CRIACAO_DE_DESAFIOS,
   aceitarDesafioNaTransacao,
   criarDesafioParaAmigoNaTransacao,
   lerDesafio,
@@ -287,6 +290,30 @@ describe(
       assert.deepEqual(await carteira(ALICE), { total: 1000, reservado: 0 });
     });
 
+    test("recusa criar e aceitar após remarcação além do tolerado (N-04)", async () => {
+      const original = new Date("2026-06-01T20:00:00Z");
+      const inicio = new Date("2026-07-15T20:00:00Z");
+      const agora = new Date("2026-07-10T12:00:00Z");
+      const params = { challengerId: ALICE, challengedId: BOB, matchId: PARTIDA, challengerPrediction: "HOME_WIN" as const, amount: 50 };
+      await semearPartida({ inicio, original });
+      const invalida = (err: unknown) => err instanceof ErroDeDesafio && err.code === "partida-invalida";
+      await assert.rejects(db.runTransaction((t) => criarDesafioParaAmigoNaTransacao(t, db, params, agora)), invalida);
+      assert.deepEqual(await carteira(ALICE), { total: 1000, reservado: 0 });
+
+      // A partida normal é aceita; depois da remarcação, o convite existente não pode ser aceito.
+      await semearPartida({ inicio });
+      const convite = await db.runTransaction((t) => criarDesafioParaAmigoNaTransacao(t, db, params, agora));
+      await semearPartida({ inicio, original });
+      await assert.rejects(db.runTransaction((t) => aceitarDesafioNaTransacao(t, db, {
+        challengeId: convite.challengeId, challengedId: BOB, challengedPrediction: "AWAY_WIN",
+      }, agora)), invalida);
+      assert.deepEqual(await carteira(BOB), { total: 1000, reservado: 0 });
+      await semearPartida({ inicio });
+      assert.equal((await db.runTransaction((t) => aceitarDesafioNaTransacao(t, db, {
+        challengeId: convite.challengeId, challengedId: BOB, challengedPrediction: "AWAY_WIN",
+      }, agora))).status, "ACCEPTED");
+    });
+
     test("desafio aceito cuja partida terminou sem o sync vê-la em andamento é iniciado e liquidado, sem prender reservas", async () => {
       const id = await criarEAceitar(100);
       await semearPartida({ status: "FINALIZADA", inicio: new Date("2026-11-01T19:00:00Z"), placar: [2, 0] });
@@ -312,6 +339,31 @@ describe(
       assert.deepEqual(resumo.cancelados, [id]);
       assert.equal((await lerDesafio(db, id))?.status, "CANCELLED");
       assert.deepEqual(await carteira(ALICE), { total: 1000, reservado: 0 });
+    });
+    test("cotas de criação e cancelamento são atômicas e independentes (N-10)", async () => {
+      const limiteCriacao = db.doc(`rateLimits/createChallenge_${ALICE}`);
+      const limiteCancelamento = db.doc(`rateLimits/cancelChallenge_${ALICE}`);
+      const cheia = (maximo: number) => ({ windowStart: Timestamp.fromDate(CRIACAO), count: maximo });
+      const esgotada = (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted";
+      await limiteCriacao.set(cheia(LIMITE_DE_CRIACAO_DE_DESAFIOS.maximo));
+      await assert.rejects(criar(), esgotada);
+      assert.equal((await db.collection("challenges").get()).size, 0);
+      assert.deepEqual(await carteira(ALICE), { total: 1000, reservado: 0 });
+
+      await limiteCriacao.delete();
+      const id = await criar();
+      assert.equal((await limiteCriacao.get()).get("count"), 1);
+      await limiteCancelamento.set(cheia(LIMITE_DE_CANCELAMENTO_DE_DESAFIOS.maximo));
+      await assert.rejects(cancelarDesafioPeloCriador(db, { challengeId: id, challengerId: ALICE }, CRIACAO), esgotada);
+      assert.equal((await lerDesafio(db, id))?.status, "PENDING");
+      assert.deepEqual(await carteira(ALICE), { total: 1000, reservado: 50 });
+      await limiteCancelamento.delete();
+      await cancelarDesafioPeloCriador(db, { challengeId: id, challengerId: ALICE }, CRIACAO);
+      assert.equal((await limiteCancelamento.get()).get("count"), 1);
+      // O terminal não bloqueia uma nova criação; falha de regra não consome cota.
+      await criar();
+      await assert.rejects(criar(), (err: unknown) => err instanceof ErroDeDesafio && err.code === "desafio-ativo-existente");
+      assert.equal((await limiteCriacao.get()).get("count"), 2);
     });
   },
 );

@@ -1,4 +1,4 @@
-import { Firestore, Timestamp } from "firebase-admin/firestore";
+import { Firestore, Timestamp, Transaction } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/https";
 
 /**
@@ -31,23 +31,32 @@ export async function consumirLimiteDeUso(
   limite: LimiteDeUso,
   agora: Date = new Date(),
 ): Promise<void> {
-  const ref = db.collection(COLECAO_DE_LIMITES).doc(chave);
   await db.runTransaction(async (t) => {
-    const doc = await t.get(ref);
-    const inicio = doc.exists ? (doc.get("windowStart") as Timestamp).toDate() : null;
-    const contagem = doc.exists ? (doc.get("count") as number) : 0;
-
-    const fimDaJanela = inicio === null ? null : inicio.getTime() + limite.janelaMs;
-    if (fimDaJanela === null || agora.getTime() >= fimDaJanela) {
-      t.set(ref, { windowStart: Timestamp.fromDate(agora), count: 1 });
-      return;
-    }
-    if (contagem >= limite.maximo) {
-      throw new HttpsError("resource-exhausted", "Muitas chamadas em pouco tempo. Aguarde um instante e tente de novo.", {
-        motivo: "limite-de-uso",
-        tentarNovamenteEm: new Date(fimDaJanela).toISOString(),
-      });
-    }
-    t.update(ref, { count: contagem + 1 });
+    const gravar = await planejarConsumoDeLimiteNaTransacao(t, db, chave, limite, agora);
+    gravar();
   });
+}
+
+/** Só lê e valida; a função devolvida grava após todas as leituras da operação de negócio. */
+export async function planejarConsumoDeLimiteNaTransacao(
+  t: Transaction,
+  db: Firestore,
+  chave: string,
+  limite: LimiteDeUso,
+  agora: Date = new Date(),
+): Promise<() => void> {
+  const ref = db.collection(COLECAO_DE_LIMITES).doc(chave);
+  const doc = await t.get(ref);
+  const inicio = doc.exists ? (doc.get("windowStart") as Timestamp).toDate() : null;
+  const contagem = doc.exists ? (doc.get("count") as number) : 0;
+  const fim = inicio === null ? null : inicio.getTime() + limite.janelaMs;
+  const reiniciar = fim === null || agora.getTime() >= fim;
+  if (!reiniciar && contagem >= limite.maximo) {
+    throw new HttpsError("resource-exhausted", "Muitas chamadas em pouco tempo. Aguarde um instante e tente de novo.", {
+      motivo: "limite-de-uso", tentarNovamenteEm: new Date(fim!).toISOString(),
+    });
+  }
+  return () => {
+    t.set(ref, { windowStart: Timestamp.fromDate(reiniciar ? agora : inicio!), count: reiniciar ? 1 : contagem + 1 });
+  };
 }

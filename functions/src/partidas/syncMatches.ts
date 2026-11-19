@@ -4,7 +4,7 @@ import { db } from "../core/firebase";
 import { FOOTBALL_DATA_TOKEN } from "../core/segredos";
 import { processarResultados } from "../desafios/processamentoDeResultados";
 import { lerConfigDaSincronizacao } from "./agendaDaSincronizacao";
-import { ErroDaSincronizacao, executarSincronizacao } from "./execucaoDaSincronizacao";
+import { executarSincronizacao } from "./execucaoDaSincronizacao";
 
 // Lida no carregamento: a agenda precisa ser conhecida no deploy.
 const config = lerConfigDaSincronizacao();
@@ -34,14 +34,11 @@ export const syncMatches = onSchedule(
     timeoutSeconds: 240,
   },
   async () => {
-    let falhaPermanente: ErroDaSincronizacao | null = null;
     try {
       await executarSincronizacao(db, config);
-    } catch (err) {
-      if (!(err instanceof ErroDaSincronizacao)) throw err;
-      falhaPermanente = err;
+    } finally {
+      // Inclusive falhas inesperadas: ainda há resultados confiáveis já persistidos.
+      await processarResultados(db);
     }
-    await processarResultados(db);
-    if (falhaPermanente !== null) throw falhaPermanente;
   },
 );

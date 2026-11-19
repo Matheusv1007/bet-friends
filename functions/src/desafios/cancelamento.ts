@@ -14,6 +14,10 @@ import {
 import { EventoDoDesafio } from "./maquinaDeEstados";
 import { carregarContextoDoProcessamento, ContextoDoProcessamento, partidaDoContexto } from "./contextoDoProcessamento";
 import { CONCORRENCIA_COM_CARTEIRA, processarComConcorrencia } from "./concorrenciaLimitada";
+import { DIAS_DE_ADIAMENTO_TOLERADO, limiteDeAdiamento, remarcadaAlemDoTolerado } from "./prazoDeAdiamento";
+import { planejarConsumoDeLimiteNaTransacao } from "../core/limiteDeUso";
+
+export const LIMITE_DE_CANCELAMENTO_DE_DESAFIOS = { maximo: 30, janelaMs: 60 * 60 * 1000 };
 
 /**
  * Recusa, cancelamento pelo criador e cancelamento pela partida (A-01;
@@ -26,9 +30,10 @@ import { CONCORRENCIA_COM_CARTEIRA, processarComConcorrencia } from "./concorren
  * a reserva do criador, e desafio já aceito libera as duas.
  */
 
-/** Adiamento tolerado em relação à data original da partida (RN-MAT-007/008). Acima disso o desafio é cancelado. */
-export const DIAS_DE_ADIAMENTO_TOLERADO = 7;
 const MS_DE_UM_DIA = 24 * 60 * 60 * 1000;
+/** Política reversível: sem resultado confiável, devolve as duas reservas após sete dias em espera. */
+export const DIAS_DE_ESPERA_DE_RESULTADO_TOLERADO = 7;
+export const HORAS_EM_ANDAMENTO_PARA_ALERTA = 24;
 
 export interface ResultadoDoEncerramento {
   readonly challengeId: string;
@@ -121,7 +126,9 @@ export async function cancelarDesafioPeloCriadorNaTransacao(
   if (desafio.status !== "PENDING") {
     throw new ErroDeDesafio("O criador só pode cancelar um desafio pendente.", "desafio-nao-pendente");
   }
+  const gravarLimite = await planejarConsumoDeLimiteNaTransacao(transacao, db, `cancelChallenge_${pedido.challengerId}`, LIMITE_DE_CANCELAMENTO_DE_DESAFIOS, agora);
   const depois = await liberarReservasEEncerrar(transacao, db, desafio, { tipo: "CANCELAR", motivo: "CREATOR" }, agora);
+  gravarLimite();
   return { challengeId: depois.id, status: "CANCELLED" };
 }
 
@@ -139,7 +146,7 @@ export function cancelarDesafioPeloCriador(
  * deve continuar. Regras (RN-MAT-007 a 011):
  * - partida `CANCELADA`: cancela qualquer desafio não terminal (`MATCH_CANCELLED`);
  * - partida `ADIADA`: cancela (`MATCH_POSTPONED`) quando o adiamento passa de
- *   [DIAS_DE_ADIAMENTO_TOLERADO] em relação à data original, seja porque a nova
+ *   sete dias em relação à data original, seja porque a nova
  *   data já está além desse limite, seja porque a partida continua sem nova
  *   data depois dele; até lá o desafio espera;
  * - partida remarcada (`AGENDADA`) para além do limite: cancela os desafios
@@ -157,8 +164,16 @@ export function motivoDeCancelamentoPelaPartida(
   if (STATUS_TERMINAL[desafio.status]) return null;
   if (partida.status === "CANCELADA") return "MATCH_CANCELLED";
 
-  const limite = partida.originalStartsAtUtc.getTime() + DIAS_DE_ADIAMENTO_TOLERADO * MS_DE_UM_DIA;
-  const remarcadaParaDepoisDoLimite = partida.startsAtUtc.getTime() > limite;
+  if (desafio.status === "IN_PROGRESS" && partida.status === "EM_ANDAMENTO" &&
+      agora.getTime() - desafio.startedAt!.getTime() > HORAS_EM_ANDAMENTO_PARA_ALERTA * 60 * 60 * 1000) {
+    logger.error("Partida em andamento além do prazo de alerta", { challengeId: desafio.id, matchId: partida.id });
+  }
+  if (desafio.status === "ACCEPTED" && partida.status === "AGENDADA" &&
+      agora.getTime() - partida.startsAtUtc.getTime() > DIAS_DE_ADIAMENTO_TOLERADO * MS_DE_UM_DIA) return "MATCH_POSTPONED";
+  if (desafio.status === "WAITING_RESULT" && (partida.status === "SUSPENSA" || partida.status === "REVISAO_NECESSARIA") &&
+      agora.getTime() - desafio.updatedAt.getTime() > DIAS_DE_ESPERA_DE_RESULTADO_TOLERADO * MS_DE_UM_DIA) return "MATCH_POSTPONED";
+  const limite = limiteDeAdiamento(partida);
+  const remarcadaParaDepoisDoLimite = remarcadaAlemDoTolerado(partida);
   if (partida.status === "ADIADA") {
     return remarcadaParaDepoisDoLimite || agora.getTime() > limite ? "MATCH_POSTPONED" : null;
   }
