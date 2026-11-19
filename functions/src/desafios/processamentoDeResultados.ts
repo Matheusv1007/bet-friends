@@ -7,6 +7,8 @@ import { cancelarDesafiosPelaPartida } from "./cancelamento";
 import { expirarDesafiosPendentes } from "./expirarDesafios";
 import { finalizarDesafio } from "./finalizacao";
 import { iniciarDesafiosAceitos } from "./iniciarDesafios";
+import { carregarContextoDoProcessamento } from "./contextoDoProcessamento";
+import { CONCORRENCIA_COM_CARTEIRA, processarComConcorrencia } from "./concorrenciaLimitada";
 
 /**
  * Processamento automático de resultados e liquidação (KAN-86;
@@ -49,16 +51,25 @@ export interface ResumoDoProcessamento {
 }
 
 export async function processarResultados(db: Firestore): Promise<ResumoDoProcessamento> {
-  const { cancelados } = await cancelarDesafiosPelaPartida(db);
-  await expirarDesafiosPendentes(db);
-  const { iniciados } = await iniciarDesafiosAceitos(db);
-  const { movidos } = await moverDesafiosParaAguardandoResultado(db);
-  const { aptos, aguardando } = await identificarDesafiosAptos(db);
+  const inicio = Date.now();
+  const inicioDaLeitura = Date.now();
+  const contexto = await carregarContextoDoProcessamento(db);
+  logger.info("Leitura compartilhada dos desafios e partidas", {
+    desafios: contexto.desafios.size, partidas: contexto.partidas.size,
+    invalidos: contexto.invalidos.length, duracaoMs: Date.now() - inicioDaLeitura,
+  });
+  const agora = new Date();
+  const { cancelados } = await cancelarDesafiosPelaPartida(db, agora, contexto);
+  await expirarDesafiosPendentes(db, agora, contexto);
+  const { iniciados } = await iniciarDesafiosAceitos(db, contexto);
+  const { movidos } = await moverDesafiosParaAguardandoResultado(db, contexto);
+  const { aptos, aguardando } = await identificarDesafiosAptos(db, contexto);
 
   const finalizados: string[] = [];
   const jaFinalizados: string[] = [];
   const falhas: DesafioComFalha[] = [];
-  for (const { desafio } of aptos) {
+  const inicioDaLiquidacao = Date.now();
+  await processarComConcorrencia(aptos, async ({ desafio }) => {
     try {
       const r = await finalizarDesafio(db, desafio.id);
       (r.resultado === "finalizado" ? finalizados : jaFinalizados).push(desafio.id);
@@ -67,7 +78,11 @@ export async function processarResultados(db: Firestore): Promise<ResumoDoProces
       const codigo = "code" in e && typeof e.code === "string" ? e.code : e.name;
       falhas.push({ id: desafio.id, codigo, motivo: e.message });
     }
-  }
+  }, CONCORRENCIA_COM_CARTEIRA);
+  logger.info("Liquidação dos desafios aptos", {
+    aptos: aptos.length, finalizados: finalizados.length, jaFinalizados: jaFinalizados.length,
+    falhas: falhas.length, duracaoMs: Date.now() - inicioDaLiquidacao,
+  });
 
   if (falhas.length > 0) {
     // Nada foi gravado para esses desafios; a próxima execução tenta de novo.
@@ -90,6 +105,7 @@ export async function processarResultados(db: Firestore): Promise<ResumoDoProces
     jaFinalizados: jaFinalizados.length,
     aguardando: aguardando.length,
     falhas: falhas.length,
+    duracaoMs: Date.now() - inicio,
   });
   return resumo;
 }

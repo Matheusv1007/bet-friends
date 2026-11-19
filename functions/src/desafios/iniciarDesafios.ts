@@ -1,10 +1,11 @@
 import { Firestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 
-import { ErroDePartida, StatusDaPartida } from "../partidas/match";
+import { StatusDaPartida } from "../partidas/match";
 import { lerMatchNaTransacao } from "../partidas/matchFirestore";
-import { ErroDeDesafio } from "./challenge";
-import { COLECAO_DE_DESAFIOS, desafioDoDocumento, lerDesafioNaTransacao, transicionarDesafioNaTransacao } from "./challengeFirestore";
+import { gravarTransicaoNaTransacao, lerDesafioNaTransacao } from "./challengeFirestore";
+import { carregarContextoDoProcessamento, ContextoDoProcessamento, partidaDoContexto } from "./contextoDoProcessamento";
+import { processarComConcorrencia } from "./concorrenciaLimitada";
 
 /**
  * Atualiza desafios aceitos para IN_PROGRESS quando a partida iniciar
@@ -35,31 +36,38 @@ export interface ResultadoDoInicio {
   readonly ignorados: readonly { readonly id: string; readonly motivo: string }[];
 }
 
-export async function iniciarDesafiosAceitos(db: Firestore): Promise<ResultadoDoInicio> {
-  const aceitos = await db.collection(COLECAO_DE_DESAFIOS).where("status", "==", "ACCEPTED").get();
+export async function iniciarDesafiosAceitos(db: Firestore, contexto?: ContextoDoProcessamento): Promise<ResultadoDoInicio> {
+  const inicio = Date.now();
+  contexto ??= await carregarContextoDoProcessamento(db, ["ACCEPTED"]);
+  const aceitos = [...contexto.desafios.values()].filter((d) => d.status === "ACCEPTED");
   const iniciados: string[] = [];
-  const ignorados: { id: string; motivo: string }[] = [];
+  const ignorados: { id: string; motivo: string }[] = contexto.invalidos.filter((d) => d.status === "ACCEPTED");
 
-  for (const doc of aceitos.docs) {
+  await processarComConcorrencia(aceitos, async (desafio) => {
     try {
-      const { matchId } = desafioDoDocumento(doc.id, doc.data());
-      const iniciou = await db.runTransaction(async (t) => {
-        const partida = await lerMatchNaTransacao(t, db, matchId);
-        if (partida === null || !INICIA_DESAFIO[partida.status]) return false;
-        if ((await lerDesafioNaTransacao(t, db, doc.id))?.status !== "ACCEPTED") return false;
-        await transicionarDesafioNaTransacao(t, db, doc.id, { tipo: "INICIAR" });
-        return true;
+      const partida = partidaDoContexto(contexto, desafio);
+      if (partida === null || !INICIA_DESAFIO[partida.status]) return;
+      const r = await db.runTransaction(async (t) => {
+        const atual = await lerDesafioNaTransacao(t, db, desafio.id);
+        if (atual === null || atual.status !== "ACCEPTED") return { iniciou: false, desafio: atual };
+        const relida = await lerMatchNaTransacao(t, db, atual.matchId);
+        if (relida === null || !INICIA_DESAFIO[relida.status]) return { iniciou: false, desafio: atual };
+        return { iniciou: true, desafio: gravarTransicaoNaTransacao(t, db, atual, { tipo: "INICIAR" }) };
       });
-      if (iniciou) iniciados.push(doc.id);
+      // Só a versão confirmada pelo commit alimenta as próximas etapas.
+      if (r.desafio === null) contexto.desafios.delete(desafio.id);
+      else contexto.desafios.set(desafio.id, r.desafio);
+      if (r.iniciou) iniciados.push(desafio.id);
     } catch (err) {
-      if (!(err instanceof ErroDeDesafio) && !(err instanceof ErroDePartida)) throw err;
-      ignorados.push({ id: doc.id, motivo: err.message });
+      ignorados.push({ id: desafio.id, motivo: err instanceof Error ? err.message : String(err) });
     }
-  }
+  });
 
   if (ignorados.length > 0) {
-    logger.warn("Desafios aceitos não iniciados: desafio ou partida fora do schema", { ignorados });
+    logger.warn("Desafios aceitos não iniciados: falha ao avaliar ou transicionar", { ignorados });
   }
-  logger.info("Desafios iniciados (ACCEPTED → IN_PROGRESS)", { iniciados: iniciados.length, ignorados: ignorados.length });
+  logger.info("Desafios iniciados (ACCEPTED → IN_PROGRESS)", {
+    avaliados: aceitos.length, iniciados: iniciados.length, ignorados: ignorados.length, duracaoMs: Date.now() - inicio,
+  });
   return { iniciados, ignorados };
 }

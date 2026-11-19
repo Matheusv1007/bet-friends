@@ -168,7 +168,7 @@ Enumeração de usuários e uso abusivo das funções por clientes não oficiais
 ## A-06 — `syncMatches` varre desafios em série
 
 - **Severidade:** Média
-- **Status:** Aberto
+- **Status:** Corrigido no código (branch `perf/A-06-sync-desafios`).
 - **Onde:** `functions/src/partidas/syncMatches.ts:33-34`, `functions/src/desafios/expirarDesafios.ts`, `iniciarDesafios.ts`, `aguardarResultado.ts`
 
 ### O que foi encontrado
@@ -184,6 +184,15 @@ Com mais desafios, o job estoura o timeout, o processamento de resultados atrasa
 - Agrupar por `matchId` e ler cada partida uma vez.
 - Filtrar por partidas que mudaram de estado, em vez de varrer tudo.
 - Limitar concorrência (por exemplo, lotes paralelos pequenos) e registrar duração por etapa.
+
+### O que foi feito
+
+- `processarResultados` faz uma consulta dos desafios não terminais e um `getAll` das partidas distintas. As etapas reutilizam esse contexto; chamadas isoladas das etapas continuam funcionando.
+- Cancelamento, expiração, início e espera filtram candidatos em memória antes de abrir transações. A transação relê desafio e partida e revalida a regra; liquidação, reservas e ledger continuam atômicos e idempotentes.
+- Os passos que só mudam o estado do desafio (iniciar e aguardar resultado) processam até cinco por vez, isolando falhas. Os que mexem em carteiras (expirar, cancelar pela partida e liquidar) continuam **um por vez** (`CONCORRENCIA_COM_CARTEIRA`): os mesmos amigos aparecem em vários desafios e as transações disputariam os mesmos `users/{uid}`. O contexto só avança depois do commit, permitindo `ACCEPTED → IN_PROGRESS → WAITING_RESULT → FINISHED` na mesma execução.
+- Logs por etapa incluem duração em milissegundos e contagens; casos suspensos/em revisão continuam aguardando e sendo registrados.
+- A varredura continua proporcional ao número de desafios não terminais, mas desafios sem mudança não abrem transações. Desafios criados depois do instantâneo ficam para a próxima execução; o instantâneo nunca autoriza uma gravação sem revalidação.
+- Medição no Firestore Emulator com 12 desafios sem mudança (três de cada status não terminal), todos na mesma partida: revisão-base com **9 transações e 11 leituras de partida** por execução; implementação nova com **0 transações e 1 leitura de partida**. O teste permanente também confere que nenhum estado muda; testes adicionais cobrem o limite de concorrência, isolamento de falhas e revalidação após mudança da partida.
 
 ---
 

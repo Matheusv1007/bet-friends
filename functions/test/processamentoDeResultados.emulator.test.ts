@@ -22,6 +22,9 @@ import { criarDesafio, lerDesafio, transicionarDesafio } from "../src/desafios/c
 import { processarResultados } from "../src/desafios/processamentoDeResultados";
 import { PartidaAdaptada, ResultadoDaPartida, StatusDaPartida } from "../src/partidas/match";
 import { gravarMatch } from "../src/partidas/matchFirestore";
+import { carregarContextoDoProcessamento } from "../src/desafios/contextoDoProcessamento";
+import { iniciarDesafiosAceitos } from "../src/desafios/iniciarDesafios";
+import { moverDesafiosParaAguardandoResultado } from "../src/desafios/aguardarResultado";
 
 const PROJETO = process.env.GCLOUD_PROJECT ?? "";
 const noEmulador = Boolean(process.env.FIRESTORE_EMULATOR_HOST) && PROJETO.startsWith("demo-");
@@ -167,5 +170,75 @@ describe("processamento automático de resultados (Firestore Emulator)", { skip:
       { saldoTotal: 900, saldoReservado: 0 },
       { saldoTotal: 1000, saldoReservado: 100 },
     ]);
+  });
+
+  test("5. doze desafios sem mudança usam uma leitura da partida e nenhuma transação", async (t) => {
+    await gravarMatch(db, { ...partida("1", "AGENDADA"), startsAtUtc: new Date(Date.now() + 60 * 60 * 1000) });
+    const ids: string[] = [];
+    const statuses: string[] = [];
+    for (let i = 0; i < 12; i++) {
+      const id = await criarDesafio(db, {
+        challengerId: ANA, challengedId: BIA, matchId: "footballdata_1", challengerPrediction: "HOME_WIN", amount: 10,
+      });
+      if (i % 4 >= 1) await transicionarDesafio(db, id, { tipo: "ACEITAR", challengedPrediction: "AWAY_WIN" });
+      if (i % 4 >= 2) await transicionarDesafio(db, id, { tipo: "INICIAR" });
+      if (i % 4 >= 3) await transicionarDesafio(db, id, { tipo: "AGUARDAR_RESULTADO" });
+      ids.push(id);
+      statuses.push(await statusDe(id));
+    }
+    const transacoes = t.mock.method(db, "runTransaction");
+    const leituras = t.mock.method(db, "getAll");
+
+    const resumo = await processarResultados(db);
+
+    assert.equal(transacoes.mock.callCount(), 0);
+    assert.equal(leituras.mock.callCount(), 1);
+    assert.deepEqual(leituras.mock.calls[0].arguments.map((ref) => "path" in ref ? ref.path : null), ["matches/footballdata_1"]);
+    assert.deepEqual([resumo.cancelados, resumo.iniciados, resumo.aguardandoResultado, resumo.finalizados, resumo.falhas], [[], [], [], [], []]);
+    assert.equal(resumo.aguardando, 3);
+    // Restaura antes das leituras usadas só para conferir o estado persistido.
+    t.mock.restoreAll();
+    assert.deepEqual(await Promise.all(ids.map(statusDe)), statuses);
+    t.diagnostic("N=12, uma partida: 0 transações, 1 leitura de partida (1 getAll).");
+  });
+
+  test("6. instantâneo candidato não inicia nem move se a partida mudou antes da transação", async () => {
+    await gravarMatch(db, partida("1", "FINALIZADA", "HOME_WIN"));
+    const aceito = await criarDesafio(db, {
+      challengerId: ANA, challengedId: BIA, matchId: "footballdata_1", challengerPrediction: "HOME_WIN", amount: 10,
+    });
+    await transicionarDesafio(db, aceito, { tipo: "ACEITAR", challengedPrediction: "AWAY_WIN" });
+    const emAndamento = await desafioEmAndamento("1", ANA, CAIO);
+    const contexto = await carregarContextoDoProcessamento(db);
+    await db.doc("matches/footballdata_1").update({ status: "AGENDADA", result: null, homeScore: null, awayScore: null });
+
+    assert.deepEqual((await iniciarDesafiosAceitos(db, contexto)).iniciados, []);
+    assert.deepEqual((await moverDesafiosParaAguardandoResultado(db, contexto)).movidos, []);
+    assert.deepEqual([await statusDe(aceito), await statusDe(emAndamento)], ["ACCEPTED", "IN_PROGRESS"]);
+  });
+
+  test("7. falha de infraestrutura numa transição não impede os outros desafios", async (t) => {
+    await gravarMatch(db, partida("1", "EM_ANDAMENTO"));
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const id = await criarDesafio(db, {
+        challengerId: ANA, challengedId: BIA, matchId: "footballdata_1", challengerPrediction: "HOME_WIN", amount: 10,
+      });
+      await transicionarDesafio(db, id, { tipo: "ACEITAR", challengedPrediction: "AWAY_WIN" });
+      ids.push(id);
+    }
+    const executar = db.runTransaction.bind(db);
+    let chamadas = 0;
+    t.mock.method(db, "runTransaction", ((...args: Parameters<Firestore["runTransaction"]>) => {
+      if (++chamadas === 1) return Promise.reject(new Error("Falha de infraestrutura simulada"));
+      return executar(...args);
+    }) as Firestore["runTransaction"]);
+
+    const resultado = await iniciarDesafiosAceitos(db);
+    assert.equal(resultado.ignorados.length, 1);
+    assert.equal(resultado.iniciados.length, 2);
+    const status = await Promise.all(ids.map(statusDe));
+    assert.equal(status.filter((s) => s === "ACCEPTED").length, 1);
+    assert.equal(status.filter((s) => s === "IN_PROGRESS").length, 2);
   });
 });

@@ -2,9 +2,8 @@ import { Firestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 
 import { ErroDePartida, LIQUIDA_AUTOMATICAMENTE, Match, ResultadoDaPartida } from "../partidas/match";
-import { COLECAO_DE_PARTIDAS, matchDoDocumento } from "../partidas/matchFirestore";
 import { Challenge, ErroDeDesafio } from "./challenge";
-import { COLECAO_DE_DESAFIOS, desafioDoDocumento } from "./challengeFirestore";
+import { carregarContextoDoProcessamento, ContextoDoProcessamento } from "./contextoDoProcessamento";
 
 /**
  * Desafios aptos para liquidação (KAN-82; RN-MAT-012, RN-MAT-013,
@@ -82,35 +81,16 @@ export interface ResultadoDaIdentificacao {
  * muda nenhum desafio. Cada partida é lida uma vez, mesmo com vários
  * desafios nela.
  */
-export async function identificarDesafiosAptos(db: Firestore): Promise<ResultadoDaIdentificacao> {
-  const docs = (await db.collection(COLECAO_DE_DESAFIOS).where("status", "==", "WAITING_RESULT").get()).docs;
-  const ignorados: { id: string; motivo: string }[] = [];
-  const desafios: Challenge[] = [];
-  for (const doc of docs) {
-    try {
-      desafios.push(desafioDoDocumento(doc.id, doc.data()));
-    } catch (err) {
-      if (!(err instanceof ErroDeDesafio)) throw err;
-      ignorados.push({ id: doc.id, motivo: err.message });
-    }
-  }
-
-  const ids = [...new Set(desafios.map((d) => d.matchId))];
-  const partidas = new Map<string, Match | ErroDePartida | null>();
-  const lidas = ids.length === 0 ? [] : await db.getAll(...ids.map((id) => db.collection(COLECAO_DE_PARTIDAS).doc(id)));
-  for (const doc of lidas) {
-    try {
-      partidas.set(doc.id, doc.exists ? matchDoDocumento(doc.id, doc.data()!) : null);
-    } catch (err) {
-      if (!(err instanceof ErroDePartida)) throw err;
-      partidas.set(doc.id, err);
-    }
-  }
+export async function identificarDesafiosAptos(db: Firestore, contexto?: ContextoDoProcessamento): Promise<ResultadoDaIdentificacao> {
+  const inicio = Date.now();
+  contexto ??= await carregarContextoDoProcessamento(db, ["WAITING_RESULT"]);
+  const ignorados: { id: string; motivo: string }[] = contexto.invalidos.filter((d) => d.status === "WAITING_RESULT");
+  const desafios = [...contexto.desafios.values()].filter((d) => d.status === "WAITING_RESULT");
 
   const aptos: DesafioApto[] = [];
   const aguardando: DesafioAguardando[] = [];
   for (const desafio of desafios) {
-    const partida = partidas.get(desafio.matchId) ?? null;
+    const partida = contexto.partidas.get(desafio.matchId) ?? null;
     if (partida instanceof ErroDePartida) {
       ignorados.push({ id: desafio.id, motivo: partida.message });
       continue;
@@ -128,5 +108,9 @@ export async function identificarDesafiosAptos(db: Firestore): Promise<Resultado
   if (ignorados.length > 0) {
     logger.warn("Desafios aguardando resultado não avaliados: desafio ou partida fora do schema", { ignorados });
   }
+  logger.info("Identificação de desafios aptos para liquidação", {
+    avaliados: desafios.length, aptos: aptos.length, aguardando: aguardando.length,
+    ignorados: ignorados.length, duracaoMs: Date.now() - inicio,
+  });
   return { aptos, aguardando, ignorados };
 }

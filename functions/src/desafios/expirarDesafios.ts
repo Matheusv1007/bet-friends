@@ -3,12 +3,13 @@ import { logger } from "firebase-functions";
 
 import { atingiuCorte, ErroDeDesafio } from "./challenge";
 import {
-  COLECAO_DE_DESAFIOS,
   gravarTransicaoNaTransacao,
   lerDesafioNaTransacao,
 } from "./challengeFirestore";
 import { lerMatchNaTransacao } from "../partidas/matchFirestore";
 import { liberarReservaNaTransacao } from "../betcoins/reserva";
+import { carregarContextoDoProcessamento, ContextoDoProcessamento, partidaDoContexto } from "./contextoDoProcessamento";
+import { CONCORRENCIA_COM_CARTEIRA, processarComConcorrencia } from "./concorrenciaLimitada";
 
 /**
  * Expiração automática de desafios pendentes (RN-MAT-004, RN-MAT-006,
@@ -98,37 +99,49 @@ export interface ResumoDaExpiracao {
 export async function expirarDesafiosPendentes(
   db: Firestore,
   agora: Date = new Date(),
+  contexto?: ContextoDoProcessamento,
 ): Promise<ResumoDaExpiracao> {
-  const snapshot = await db.collection(COLECAO_DE_DESAFIOS).where("status", "==", "PENDING").get();
-
+  const inicio = Date.now();
+  contexto ??= await carregarContextoDoProcessamento(db, ["PENDING"]);
+  const desafios = [...contexto.desafios.values()].filter((d) => d.status === "PENDING");
   const expirados: string[] = [];
   const mantidos: string[] = [];
-  const falhas: { id: string; codigo: string; motivo: string }[] = [];
+  const falhas: { id: string; codigo: string; motivo: string }[] = contexto.invalidos
+    .filter((d) => d.status === "PENDING")
+    .map((d) => ({ id: d.id, codigo: "desafio-invalido", motivo: d.motivo }));
 
-  for (const doc of snapshot.docs) {
+  await processarComConcorrencia(desafios, async (desafio) => {
     try {
-      const res = await expirarDesafio(db, doc.id, agora);
+      const partida = partidaDoContexto(contexto, desafio);
+      if (partida === null) throw new ErroDeDesafio("Partida não encontrada.", "desafio-invalido");
+      if (!atingiuCorte(partida.startsAtUtc, agora)) {
+        mantidos.push(desafio.id);
+        return;
+      }
+      const res = await expirarDesafio(db, desafio.id, agora);
       if (res.resultado === "expirado") {
-        expirados.push(doc.id);
+        expirados.push(desafio.id);
+        contexto.desafios.delete(desafio.id);
       } else {
-        mantidos.push(doc.id);
+        mantidos.push(desafio.id);
       }
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
       const codigo = "code" in e && typeof e.code === "string" ? e.code : e.name;
-      falhas.push({ id: doc.id, codigo, motivo: e.message });
+      falhas.push({ id: desafio.id, codigo, motivo: e.message });
     }
-  }
+  }, CONCORRENCIA_COM_CARTEIRA);
 
   if (falhas.length > 0) {
     logger.warn("Falhas ao expirar desafios pendentes", { falhas });
   }
 
   logger.info("Processamento de expiração de desafios pendentes", {
-    total: snapshot.docs.length,
+    total: desafios.length + contexto.invalidos.filter((d) => d.status === "PENDING").length,
     expirados: expirados.length,
     mantidos: mantidos.length,
     falhas: falhas.length,
+    duracaoMs: Date.now() - inicio,
   });
 
   return { expirados, mantidos, falhas };

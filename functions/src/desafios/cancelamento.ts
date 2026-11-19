@@ -5,15 +5,15 @@ import { planejarLiberacaoNaTransacao } from "../betcoins/reserva";
 import { Movimentacao } from "../betcoins/transacoes";
 import { registrarMovimentacoesNaTransacao } from "../betcoins/transacoesTransacao";
 import { Match } from "../partidas/match";
-import { COLECAO_DE_PARTIDAS, lerMatchNaTransacao, matchDoDocumento } from "../partidas/matchFirestore";
+import { lerMatchNaTransacao } from "../partidas/matchFirestore";
 import { Challenge, ErroDeDesafio, MotivoDeCancelamento, STATUS_TERMINAL } from "./challenge";
 import {
-  COLECAO_DE_DESAFIOS,
-  desafioDoDocumento,
   gravarTransicaoNaTransacao,
   lerDesafioNaTransacao,
 } from "./challengeFirestore";
 import { EventoDoDesafio } from "./maquinaDeEstados";
+import { carregarContextoDoProcessamento, ContextoDoProcessamento, partidaDoContexto } from "./contextoDoProcessamento";
+import { CONCORRENCIA_COM_CARTEIRA, processarComConcorrencia } from "./concorrenciaLimitada";
 
 /**
  * Recusa, cancelamento pelo criador e cancelamento pela partida (A-01;
@@ -212,8 +212,6 @@ export interface ResumoDoCancelamentoPelaPartida {
   readonly falhas: readonly { readonly id: string; readonly codigo: string; readonly motivo: string }[];
 }
 
-const STATUS_NAO_TERMINAIS = ["PENDING", "ACCEPTED", "IN_PROGRESS", "WAITING_RESULT"] as const;
-
 /**
  * Varre os desafios não terminais e cancela os que a situação da partida
  * manda cancelar. Lê cada partida uma única vez, fora de transação, só para
@@ -224,44 +222,35 @@ const STATUS_NAO_TERMINAIS = ["PENDING", "ACCEPTED", "IN_PROGRESS", "WAITING_RES
 export async function cancelarDesafiosPelaPartida(
   db: Firestore,
   agora: Date = new Date(),
+  contexto?: ContextoDoProcessamento,
 ): Promise<ResumoDoCancelamentoPelaPartida> {
-  const docs = (await db.collection(COLECAO_DE_DESAFIOS).where("status", "in", [...STATUS_NAO_TERMINAIS]).get()).docs;
-  const ignorados: { id: string; motivo: string }[] = [];
-  const desafios: Challenge[] = [];
-  for (const doc of docs) {
-    try {
-      desafios.push(desafioDoDocumento(doc.id, doc.data()));
-    } catch (err) {
-      if (!(err instanceof ErroDeDesafio)) throw err;
-      ignorados.push({ id: doc.id, motivo: err.message });
-    }
-  }
-
-  const ids = [...new Set(desafios.map((d) => d.matchId))];
-  const lidas = ids.length === 0 ? [] : await db.getAll(...ids.map((id) => db.collection(COLECAO_DE_PARTIDAS).doc(id)));
-  const partidas = new Map<string, Match | null>();
-  for (const doc of lidas) {
-    try {
-      partidas.set(doc.id, doc.exists ? matchDoDocumento(doc.id, doc.data()!) : null);
-    } catch (err) {
-      ignorados.push({ id: doc.id, motivo: err instanceof Error ? err.message : String(err) });
-    }
-  }
-
+  const inicio = Date.now();
+  contexto ??= await carregarContextoDoProcessamento(db);
+  const ignorados: { id: string; motivo: string }[] = [...contexto.invalidos];
+  const desafios = [...contexto.desafios.values()];
   const cancelados: { id: string; motivo: MotivoDeCancelamento }[] = [];
   const falhas: { id: string; codigo: string; motivo: string }[] = [];
-  for (const desafio of desafios) {
-    const partida = partidas.get(desafio.matchId);
-    if (partida == null || motivoDeCancelamentoPelaPartida(desafio, partida, agora) === null) continue;
+  await processarComConcorrencia(desafios, async (desafio) => {
+    let partida: Match | null;
+    try {
+      partida = partidaDoContexto(contexto, desafio);
+    } catch (err) {
+      ignorados.push({ id: desafio.id, motivo: err instanceof Error ? err.message : String(err) });
+      return;
+    }
+    if (partida === null || motivoDeCancelamentoPelaPartida(desafio, partida, agora) === null) return;
     try {
       const r = await cancelarDesafioPelaPartida(db, desafio.id, agora);
-      if (r.resultado === "cancelado") cancelados.push({ id: desafio.id, motivo: r.motivo });
+      if (r.resultado === "cancelado") {
+        cancelados.push({ id: desafio.id, motivo: r.motivo });
+        contexto.desafios.delete(desafio.id);
+      }
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
       const codigo = "code" in e && typeof e.code === "string" ? e.code : e.name;
       falhas.push({ id: desafio.id, codigo, motivo: e.message });
     }
-  }
+  }, CONCORRENCIA_COM_CARTEIRA);
 
   if (ignorados.length > 0) {
     logger.warn("Desafios não avaliados para cancelamento: desafio ou partida fora do schema", { ignorados });
@@ -274,6 +263,7 @@ export async function cancelarDesafiosPelaPartida(
     cancelados: cancelados.length,
     ignorados: ignorados.length,
     falhas: falhas.length,
+    duracaoMs: Date.now() - inicio,
   });
   return { cancelados, ignorados, falhas };
 }
