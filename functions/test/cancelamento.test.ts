@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { logger } from "firebase-functions";
 
 import { Challenge, ErroDeDesafio } from "../src/desafios/challenge";
-import { DIAS_DE_ADIAMENTO_TOLERADO, motivoDeCancelamentoPelaPartida } from "../src/desafios/cancelamento";
+import { motivoDeCancelamentoPelaPartida } from "../src/desafios/cancelamento";
+import { DIAS_DE_ADIAMENTO_TOLERADO } from "../src/desafios/prazoDeAdiamento";
 import { INICIA_DESAFIO } from "../src/desafios/iniciarDesafios";
 import { aplicarEvento } from "../src/desafios/maquinaDeEstados";
 import { Match, STATUS_DA_PARTIDA, StatusDaPartida } from "../src/partidas/match";
@@ -90,8 +92,8 @@ test("partida remarcada para depois do limite cancela só os desafios ainda não
   assert.equal(motivoDeCancelamentoPelaPartida(ACEITO, partida("AGENDADA", depoisDe(7)), INICIO), null, "remarcação de até 7 dias mantém o desafio");
 });
 
-test("partida em andamento, finalizada, suspensa ou em revisão não cancela", () => {
-  for (const status of ["EM_ANDAMENTO", "FINALIZADA", "SUSPENSA", "REVISAO_NECESSARIA"] as const) {
+test("partida em andamento ou finalizada não cancela por tempo", () => {
+  for (const status of ["EM_ANDAMENTO", "FINALIZADA"] as const) {
     assert.equal(motivoDeCancelamentoPelaPartida(AGUARDANDO, partida(status), depoisDe(30)), null, status);
   }
 });
@@ -106,4 +108,30 @@ test("partida de outro desafio é recusada", () => {
 test("desafio aceito inicia com a partida fora de campo, e não com partida agendada, adiada ou cancelada", () => {
   const iniciam = STATUS_DA_PARTIDA.filter((s) => INICIA_DESAFIO[s]);
   assert.deepEqual(iniciam, ["EM_ANDAMENTO", "FINALIZADA", "SUSPENSA", "REVISAO_NECESSARIA"]);
+});
+
+test("aceito com partida agendada há mais de sete dias cancela; no limite espera", () => {
+  assert.equal(motivoDeCancelamentoPelaPartida(ACEITO, partida("AGENDADA"), depoisDe(7)), null);
+  assert.equal(motivoDeCancelamentoPelaPartida(ACEITO, partida("AGENDADA"), new Date(depoisDe(7).getTime() + 1)), "MATCH_POSTPONED");
+});
+
+test("em andamento além de 24h gera alerta identificado sem cancelar", (t) => {
+  const erro = t.mock.method(logger, "error", () => undefined);
+  assert.equal(motivoDeCancelamentoPelaPartida(EM_ANDAMENTO, partida("EM_ANDAMENTO"), depoisDe(1)), null);
+  assert.equal(erro.mock.callCount(), 0);
+  assert.equal(motivoDeCancelamentoPelaPartida(EM_ANDAMENTO, partida("EM_ANDAMENTO"), new Date(depoisDe(1).getTime() + 1)), null);
+  assert.equal(erro.mock.callCount(), 1);
+  assert.equal((erro.mock.calls[0].arguments[1] as { challengeId: string }).challengeId, EM_ANDAMENTO.id);
+});
+
+test("suspensa ou em revisão além de sete dias em WAITING_RESULT cancela com reservas liberáveis", () => {
+  for (const status of ["SUSPENSA", "REVISAO_NECESSARIA"] as const) {
+    const limite = depoisDe(7, AGUARDANDO.updatedAt);
+    assert.equal(motivoDeCancelamentoPelaPartida(AGUARDANDO, partida(status), limite), null);
+    const motivo = motivoDeCancelamentoPelaPartida(AGUARDANDO, partida(status), new Date(limite.getTime() + 1));
+    assert.equal(motivo, "MATCH_POSTPONED");
+    const encerrado = aplicarEvento(AGUARDANDO, { tipo: "CANCELAR", motivo: motivo! }, depoisDe(8));
+    assert.equal(encerrado.status, "CANCELLED");
+    assert.equal(motivoDeCancelamentoPelaPartida(encerrado, partida(status), depoisDe(30)), null);
+  }
 });

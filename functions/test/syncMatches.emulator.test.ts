@@ -16,6 +16,8 @@ import { reservarBetCoins } from "../src/betcoins/reserva";
 import { lerSaldos } from "../src/betcoins/saldos";
 import { ledgerDoSaldoInicial } from "../src/betcoins/transacoesTransacao";
 import { criarDesafio, lerDesafio, transicionarDesafio } from "../src/desafios/challengeFirestore";
+import * as persistenciaDePartidas from "../src/partidas/matchFirestore";
+import * as execucaoDaSincronizacao from "../src/partidas/execucaoDaSincronizacao";
 
 const PROJETO = process.env.GCLOUD_PROJECT ?? "";
 const ANA = "uidAnaSync";
@@ -420,5 +422,32 @@ describe("syncMatches (Firestore Emulator)", { skip: !noEmulador && "requer Fire
     assert.equal((await db.collection("matches").get()).size, 30);
     assert.equal(((await partida(100)).originalStartsAtUtc as Timestamp).toMillis(), agora + UM_DIA);
     assert.equal((await estado()).consecutiveFailures, 0);
+  });
+  test("N-16: falha inesperada de uma partida não impede outra nem o registro e liquidação", async (t) => {
+    calendario = [bruta(60, agora - UM_DIA, "IN_PLAY")];
+    await rodar();
+    const id = await desafioEmAndamento("footballdata_60");
+    const gravarOriginal = persistenciaDePartidas.gravarMatch;
+    t.mock.method(persistenciaDePartidas, "gravarMatch", async (...[database, partidaRecebida]: Parameters<typeof gravarOriginal>) => {
+      if (partidaRecebida.externalMatchId === "61") throw new Error("Falha de escrita simulada");
+      return gravarOriginal(database, partidaRecebida);
+    });
+    calendario = [bruta(61, agora + UM_DIA, "TIMED"), bruta(60, agora - UM_DIA, "FINISHED", FINAL)];
+    await rodar();
+    assert.equal((await lerDesafio(db, id))!.status, "FINISHED");
+    assert.equal((await estado()).lastSummary.recusadas, 1);
+    assert.ok(logsDeErro().some((l) => l.includes("Falha isolada ao sincronizar partida") && l.includes("footballdata_61")));
+  });
+
+  test("N-16: finally liquida dado persistido mesmo com erro inesperado na execução", async (t) => {
+    calendario = [bruta(62, agora - UM_DIA, "IN_PLAY")];
+    await rodar();
+    const id = await desafioEmAndamento("footballdata_62");
+    await db.doc("matches/footballdata_62").update({ status: "FINALIZADA", homeScore: 2, awayScore: 0, result: "HOME_WIN" });
+    const falha = new Error("Falha inesperada de sincronização");
+    t.mock.method(execucaoDaSincronizacao, "executarSincronizacao", async () => { throw falha; });
+    await assert.rejects(rodar(), (err: unknown) => err === falha);
+    assert.equal((await lerDesafio(db, id))!.status, "FINISHED");
+    assert.deepEqual([await saldos(ANA), await saldos(BIA)], [{ saldoTotal: 1100, saldoReservado: 0 }, { saldoTotal: 900, saldoReservado: 0 }]);
   });
 });

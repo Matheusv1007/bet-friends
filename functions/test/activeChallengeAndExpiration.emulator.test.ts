@@ -25,6 +25,7 @@ const BOB = "uidBobActiveExp";
 const CHARLIE = "uidCharlieActiveExp";
 const MATCH_1 = "footballdata_1001";
 const MATCH_2 = "footballdata_1002";
+const CRIACAO = new Date("2026-11-20T12:00:00Z");
 
 describe(
   "Validação de Desafio Ativo por Usuário e Partida + Expiração Automática (RN-CHL-010, RN-CHL-011, RN-CHL-012, RN-CHL-021, RN-CHL-022, RN-MAT-004, RN-MAT-006)",
@@ -110,7 +111,7 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "HOME_WIN",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
 
       // Alice tenta criar segundo desafio para Charlie na MESMA partida
@@ -122,7 +123,7 @@ describe(
             matchId: MATCH_1,
             challengerPrediction: "DRAW",
             amount: 50,
-          }),
+          }, CRIACAO),
         ),
         (err: unknown) => err instanceof ErroDeDesafio && err.code === "desafio-ativo-existente",
       );
@@ -137,7 +138,7 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "HOME_WIN",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
       assert.ok(c1.challengeId);
 
@@ -149,7 +150,7 @@ describe(
           matchId: MATCH_2,
           challengerPrediction: "AWAY_WIN",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
       assert.ok(c2.challengeId);
     });
@@ -163,14 +164,14 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "HOME_WIN",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
       await db.runTransaction((t) =>
         aceitarDesafioNaTransacao(t, db, {
           challengeId: criacao.challengeId,
           challengedId: BOB,
           challengedPrediction: "AWAY_WIN",
-        }),
+        }, CRIACAO),
       );
 
       // Agora Bob já possui um desafio ativo (ACCEPTED) na MATCH_1 (como desafiado).
@@ -183,7 +184,7 @@ describe(
             matchId: MATCH_1,
             challengerPrediction: "DRAW",
             amount: 50,
-          }),
+          }, CRIACAO),
         ),
         (err: unknown) => err instanceof ErroDeDesafio && err.code === "desafio-ativo-existente",
       );
@@ -198,7 +199,7 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "HOME_WIN",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
 
       // Charlie cria um desafio para Alice na MESMA MATCH_1
@@ -209,7 +210,7 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "DRAW",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
 
       // Alice tenta ACEITAR o desafio de Charlie na mesma partida -> recusado!
@@ -219,7 +220,7 @@ describe(
             challengeId: conviteCharlie.challengeId,
             challengedId: ALICE,
             challengedPrediction: "AWAY_WIN",
-          }),
+          }, CRIACAO),
         ),
         (err: unknown) => err instanceof ErroDeDesafio && err.code === "desafio-ativo-existente",
       );
@@ -234,7 +235,7 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "HOME_WIN",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
 
       // Bob também desafia Charlie na MATCH_1
@@ -245,7 +246,7 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "DRAW",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
 
       // Charlie aceita o desafio de Alice -> ok!
@@ -254,7 +255,7 @@ describe(
           challengeId: conviteAlice.challengeId,
           challengedId: CHARLIE,
           challengedPrediction: "AWAY_WIN",
-        }),
+        }, CRIACAO),
       );
 
       // Charlie tenta aceitar o convite de Bob na mesma partida -> recusado!
@@ -264,7 +265,7 @@ describe(
             challengeId: conviteBob.challengeId,
             challengedId: CHARLIE,
             challengedPrediction: "HOME_WIN",
-          }),
+          }, CRIACAO),
         ),
         (err: unknown) => err instanceof ErroDeDesafio && err.code === "desafio-ativo-existente",
       );
@@ -279,7 +280,7 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "HOME_WIN",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
 
       // Alice tem 50 reservado
@@ -315,7 +316,7 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "HOME_WIN",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
 
       // Bob aceita antes do corte
@@ -324,7 +325,7 @@ describe(
           challengeId: criacao.challengeId,
           challengedId: BOB,
           challengedPrediction: "AWAY_WIN",
-        }),
+        }, CRIACAO),
       );
 
       // No corte da partida, tenta expirar
@@ -345,7 +346,7 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "HOME_WIN",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
 
       // Partida foi adiada para 22:00 (novo corte às 21:55)
@@ -371,7 +372,7 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "HOME_WIN",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
 
       const noCorte = new Date("2026-11-20T19:55:00Z");
@@ -398,7 +399,7 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "HOME_WIN",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
 
       // Charlie desafia Bob na MATCH_2 (início 22:00, corte 21:55)
@@ -409,7 +410,7 @@ describe(
           matchId: MATCH_2,
           challengerPrediction: "DRAW",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
 
       // Às 19:56, MATCH_1 atingiu o corte, mas MATCH_2 não
@@ -431,7 +432,7 @@ describe(
             matchId: MATCH_1,
             challengerPrediction: "HOME_WIN",
             amount: 50,
-          }),
+          }, CRIACAO),
         ),
         db.runTransaction((t) =>
           criarDesafioParaAmigoNaTransacao(t, db, {
@@ -440,7 +441,7 @@ describe(
             matchId: MATCH_1,
             challengerPrediction: "DRAW",
             amount: 50,
-          }),
+          }, CRIACAO),
         ),
       ];
 
@@ -465,7 +466,7 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "HOME_WIN",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
 
       // Bob cria um desafio próprio na mesma partida: permitido
@@ -476,7 +477,7 @@ describe(
           matchId: MATCH_1,
           challengerPrediction: "DRAW",
           amount: 50,
-        }),
+        }, CRIACAO),
       );
       assert.ok(desafioBob.challengeId);
 
@@ -487,7 +488,7 @@ describe(
             challengeId: conviteAlice.challengeId,
             challengedId: BOB,
             challengedPrediction: "AWAY_WIN",
-          }),
+          }, CRIACAO),
         ),
         (err: unknown) => err instanceof ErroDeDesafio && err.code === "desafio-ativo-existente",
       );
@@ -508,7 +509,7 @@ describe(
               matchId: MATCH_1,
               challengerPrediction: palpite,
               amount: 50,
-            }),
+            }, CRIACAO),
           ),
         );
       }
@@ -520,7 +521,7 @@ describe(
               challengeId: c.challengeId,
               challengedId: CHARLIE,
               challengedPrediction: i === 0 ? "AWAY_WIN" : "HOME_WIN",
-            }),
+            }, CRIACAO),
           ),
         ),
       );

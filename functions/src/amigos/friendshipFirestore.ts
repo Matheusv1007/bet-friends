@@ -1,4 +1,6 @@
-import { FieldValue, Firestore, Transaction } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Firestore, Transaction } from "firebase-admin/firestore";
+import { HttpsError } from "firebase-functions/https";
+import { planejarConsumoDeLimiteNaTransacao } from "../core/limiteDeUso";
 
 import {
   ErroDeAmizade,
@@ -12,6 +14,19 @@ import {
 
 export const COLECAO_DE_AMIZADES = "friendships";
 export const COLECAO_DE_USUARIOS = "users";
+
+export const LIMITE_DE_ENVIO_DE_SOLICITACOES = { maximo: 30, janelaMs: 60 * 60 * 1000 };
+export const LIMITE_DE_REABERTURA_DE_SOLICITACOES = { maximo: 3, janelaMs: 24 * 60 * 60 * 1000 };
+
+export interface CursorDeSolicitacoes {
+  readonly requesterId: string;
+  readonly friendshipId: string;
+}
+
+export interface PaginacaoDeSolicitacoes {
+  readonly limit?: number;
+  readonly cursor?: CursorDeSolicitacoes;
+}
 
 export interface ResultadoEnvioSolicitacao {
   readonly friendshipId: string;
@@ -59,16 +74,21 @@ export async function enviarSolicitacaoAmizadeNaTransacao(
   db: Firestore,
   requesterId: string,
   targetUserId: string,
+  agora: Date = new Date(),
 ): Promise<ResultadoEnvioSolicitacao> {
   const { friendshipId, userAId, userBId } = gerarFriendshipId(requesterId, targetUserId);
 
   const targetUserRef = db.collection(COLECAO_DE_USUARIOS).doc(targetUserId);
   const friendshipRef = db.collection(COLECAO_DE_AMIZADES).doc(friendshipId);
 
-  const [targetUserDoc, friendshipDoc] = await transacao.getAll(targetUserRef, friendshipRef);
+  const requesterUserRef = db.collection(COLECAO_DE_USUARIOS).doc(requesterId);
+  const [targetUserDoc, requesterUserDoc, friendshipDoc] = await transacao.getAll(targetUserRef, requesterUserRef, friendshipRef);
 
   if (!targetUserDoc.exists) {
     throw new ErroDeAmizade("destinatario-inexistente", "Usuário destinatário não encontrado.");
+  }
+  if (!requesterUserDoc.exists) {
+    throw new HttpsError("failed-precondition", "Crie seu perfil antes de enviar solicitações de amizade.", { motivo: "perfil-inexistente" });
   }
 
   const amizadeExistente = friendshipDoc.exists
@@ -76,6 +96,12 @@ export async function enviarSolicitacaoAmizadeNaTransacao(
     : null;
 
   const acao = avaliarSolicitacaoAmizade(requesterId, targetUserId, amizadeExistente);
+  const gravarEnvio = await planejarConsumoDeLimiteNaTransacao(transacao, db, `sendFriendRequest_${requesterId}`, LIMITE_DE_ENVIO_DE_SOLICITACOES, agora);
+  const gravarReabertura = acao.tipo === "REABRIR_PENDENTE"
+    ? await planejarConsumoDeLimiteNaTransacao(transacao, db, `reopenFriendRequest_${friendshipId}_${requesterId}`, LIMITE_DE_REABERTURA_DE_SOLICITACOES, agora)
+    : null;
+  gravarEnvio();
+  gravarReabertura?.();
 
   switch (acao.tipo) {
     case "CRIAR_PENDENTE": {
@@ -132,9 +158,10 @@ export async function enviarSolicitacaoAmizade(
   db: Firestore,
   requesterId: string,
   targetUserId: string,
+  agora: Date = new Date(),
 ): Promise<ResultadoEnvioSolicitacao> {
   return db.runTransaction((transacao) =>
-    enviarSolicitacaoAmizadeNaTransacao(transacao, db, requesterId, targetUserId),
+    enviarSolicitacaoAmizadeNaTransacao(transacao, db, requesterId, targetUserId, agora),
   );
 }
 
@@ -166,7 +193,7 @@ export async function aceitarSolicitacaoAmizadeNaTransacao(
   const friendshipRef = db.collection(COLECAO_DE_AMIZADES).doc(friendshipId);
   const doc = await transacao.get(friendshipRef);
 
-  if (!doc.exists) {
+  if (!doc.exists || (doc.get("userAId") !== userId && doc.get("userBId") !== userId)) {
     throw new ErroDeAmizade("solicitacao-inexistente", "Solicitação de amizade não encontrada.");
   }
 
@@ -257,7 +284,7 @@ export async function recusarSolicitacaoAmizadeNaTransacao(
   const friendshipRef = db.collection(COLECAO_DE_AMIZADES).doc(friendshipId);
   const doc = await transacao.get(friendshipRef);
 
-  if (!doc.exists) {
+  if (!doc.exists || (doc.get("userAId") !== userId && doc.get("userBId") !== userId)) {
     throw new ErroDeAmizade("solicitacao-inexistente", "Solicitação de amizade não encontrada.");
   }
 
@@ -303,17 +330,18 @@ export async function recusarSolicitacaoAmizade(
 export async function obterSolicitacoesPendentesRecebidas(
   db: Firestore,
   userId: string,
+  { limit = 100, cursor }: PaginacaoDeSolicitacoes = {},
 ): Promise<SolicitacaoPendenteDto[]> {
-  const snapshot = await db
-    .collection(COLECAO_DE_AMIZADES)
+  let consulta = db.collection(COLECAO_DE_AMIZADES)
     .where("participants", "array-contains", userId)
     .where("status", "==", "PENDING")
-    .get();
-
-  const recebidas = snapshot.docs.filter((doc) => {
-    const data = doc.data() as FriendshipData;
-    return data.requesterId !== userId;
-  });
+    .where("requesterId", "!=", userId)
+    .orderBy("requesterId")
+    .orderBy(FieldPath.documentId())
+    .limit(limit);
+  if (cursor) consulta = consulta.startAfter(cursor.requesterId, cursor.friendshipId);
+  const snapshot = await consulta.get();
+  const recebidas = snapshot.docs;
 
   if (recebidas.length === 0) {
     return [];
