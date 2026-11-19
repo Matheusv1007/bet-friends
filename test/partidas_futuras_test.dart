@@ -145,7 +145,7 @@ void main() {
 
       // 2. Provedor externo ou rede fica indisponível
       fakeRepo.error = Exception('Serviço indisponível');
-      await provider.carregarPartidas(silencioso: true);
+      await provider.carregarPartidas(silencioso: true, forcar: true);
 
       // Os dados anteriores permanecem disponíveis na interface
       expect(provider.partidas.length, 1);
