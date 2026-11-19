@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/challenge_model.dart';
+import 'apresentacao_desafios.dart';
 import 'desafio_resumo_item.dart';
 
 class DesafiosEmAbertoSecao extends StatelessWidget {
@@ -11,6 +12,7 @@ class DesafiosEmAbertoSecao extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dados = ApresentacaoDesafios.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -82,9 +84,9 @@ class DesafiosEmAbertoSecao extends StatelessWidget {
             return DesafioResumoItem(
               itemKey: Key('card_desafio_aberto_${c.id}'),
               botaoKey: Key('btn_detalhes_desafio_${c.id}'),
-              jogador1: c.challengerId,
-              jogador2: c.challengedId,
-              subtitulo: "Partida #${c.matchId} • ${c.amount} BetCoins",
+              jogador1: dados?.nome(c.challengerId) ?? 'Amigo',
+              jogador2: dados?.nome(c.challengedId) ?? 'Amigo',
+              subtitulo: "${dados?.partida(c.matchId) ?? 'Partida indisponível'} • ${c.amount} BetCoins",
               statusLabel: c.status.label,
               statusColor: const Color(0xFF00D084),
               botaoLabel: "Detalhes do Desafio",

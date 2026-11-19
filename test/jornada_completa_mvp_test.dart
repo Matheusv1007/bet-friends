@@ -54,8 +54,8 @@ class _JornadaAuthService extends FakeAuthService {
     signInCalls++;
     if (signInError != null) throw signInError!;
     final uid = email.toLowerCase().contains('bia')
-        ? 'uidBia'
-        : (email.toLowerCase().contains('ana') ? 'uidAna' : 'uid-$email');
+        ? 'b9Wx4k6J1nTs'
+        : (email.toLowerCase().contains('ana') ? 'a7Qz2r8P0xLm' : 'uid-$email');
     final user = FakeUser(uid, email: email);
     resolverSessao(user);
     return _FakeUserCredential(user);
@@ -271,7 +271,7 @@ class _FakeChallengeRepository implements ChallengeRepository {
 
   @override
   Future<CriarDesafioResponse> criarDesafio(CriarDesafioRequest request) async {
-    final criadorUid = request.challengedId == 'uidBia' ? 'uidAna' : 'uidBia';
+    final criadorUid = request.challengedId == 'b9Wx4k6J1nTs' ? 'a7Qz2r8P0xLm' : 'b9Wx4k6J1nTs';
     final saldoAtual = _perfis._carteiras[criadorUid];
     if (saldoAtual != null) {
       _perfis.atualizarCarteira(
@@ -486,7 +486,7 @@ void main() {
 
   setUp(() {
     authService = _JornadaAuthService(
-      usuarioInicial: FakeUser('uidAna', email: 'ana@example.com'),
+      usuarioInicial: FakeUser('a7Qz2r8P0xLm', email: 'ana@example.com'),
     );
     perfisRepo = _ControladorDePerfis();
     amizadesRepo = _ControladorDeAmizades();
@@ -512,16 +512,16 @@ void main() {
     );
 
     // Cria as duas contas de demonstração controladas
-    // Ana Lima: uidAna, @AnaL, 1000 BetCoins disponíveis
+    // Ana Lima: a7Qz2r8P0xLm, @AnaL, 1000 BetCoins disponíveis
     perfisRepo.cadastrarUsuario(
-      uid: 'uidAna',
+      uid: 'a7Qz2r8P0xLm',
       displayName: 'Ana Lima',
       username: 'AnaL',
       saldoDisponivel: 1000,
     );
-    // Bia Rocha: uidBia, @BiaR, 1000 BetCoins disponíveis
+    // Bia Rocha: b9Wx4k6J1nTs, @BiaR, 1000 BetCoins disponíveis
     perfisRepo.cadastrarUsuario(
-      uid: 'uidBia',
+      uid: 'b9Wx4k6J1nTs',
       displayName: 'Bia Rocha',
       username: 'BiaR',
       saldoDisponivel: 1000,
@@ -529,13 +529,13 @@ void main() {
 
     // Ana tem Bia como amiga aceita
     amizadesRepo.adicionarAmizadeAceita(
-      'uidAna',
-      const UsuarioPublico(userId: 'uidBia', displayName: 'Bia Rocha', username: 'BiaR'),
+      'a7Qz2r8P0xLm',
+      const UsuarioPublico(userId: 'b9Wx4k6J1nTs', displayName: 'Bia Rocha', username: 'BiaR'),
     );
     // Bia tem Ana como amiga aceita
     amizadesRepo.adicionarAmizadeAceita(
-      'uidBia',
-      const UsuarioPublico(userId: 'uidAna', displayName: 'Ana Lima', username: 'AnaL'),
+      'b9Wx4k6J1nTs',
+      const UsuarioPublico(userId: 'a7Qz2r8P0xLm', displayName: 'Ana Lima', username: 'AnaL'),
     );
   });
 
@@ -561,7 +561,7 @@ void main() {
       // ----------------------------------------------------------------------
       // PASSO 1: Login de Ana Lima
       // ----------------------------------------------------------------------
-      amizadesRepo.definirUidAtual('uidAna');
+      amizadesRepo.definirUidAtual('a7Qz2r8P0xLm');
 
       await tester.pumpWidget(construirApp());
       await tester.pump();
@@ -594,7 +594,7 @@ void main() {
       // ----------------------------------------------------------------------
       // PASSO 3: Clicar em "DESAFIAR" no card de Bia -> Abre CriarDesafioScreen com Bia pré-selecionada
       // ----------------------------------------------------------------------
-      final btnDesafiarBia = find.byKey(const Key('btn_desafiar_amigo_uidBia'));
+      final btnDesafiarBia = find.byKey(const Key('btn_desafiar_amigo_b9Wx4k6J1nTs'));
       expect(btnDesafiarBia, findsOneWidget);
       await tester.tap(btnDesafiarBia);
       await tester.pumpAndSettle();
@@ -637,7 +637,7 @@ void main() {
 
       // Na Home de Ana, a seção de Desafios Enviados exibe o desafio pendente
       expect(find.text('DESAFIOS ENVIADOS'), findsOneWidget);
-      expect(find.text('Aguardando uidBia'), findsOneWidget);
+      expect(find.text('Aguardando Bia Rocha'), findsOneWidget);
 
       // ----------------------------------------------------------------------
       // PASSO 4: Logout de Ana Lima com confirmação
@@ -661,7 +661,7 @@ void main() {
       // ----------------------------------------------------------------------
       // PASSO 5: Login como Bia Rocha
       // ----------------------------------------------------------------------
-      amizadesRepo.definirUidAtual('uidBia');
+      amizadesRepo.definirUidAtual('b9Wx4k6J1nTs');
       await tester.enterText(find.byType(TextField).first, 'bia@example.com');
       await tester.enterText(find.byType(TextField).last, 'senha123');
       await tester.tap(find.widgetWithText(ElevatedButton, 'ENTRAR'));
@@ -718,8 +718,8 @@ void main() {
       // ----------------------------------------------------------------------
       challengeRepo.resolverPartidaEFinalizarDesafio(
         challengeId: 'desafio-1',
-        winnerId: 'uidAna',
-        loserId: 'uidBia',
+        winnerId: 'a7Qz2r8P0xLm',
+        loserId: 'b9Wx4k6J1nTs',
       );
       await tester.pump();
       await tester.pumpAndSettle();

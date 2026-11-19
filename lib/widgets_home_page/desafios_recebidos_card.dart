@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/challenge_model.dart';
+import 'apresentacao_desafios.dart';
 
 class DesafiosRecebidosCard extends StatelessWidget {
   final List<ChallengeModel> desafios;
@@ -10,6 +11,7 @@ class DesafiosRecebidosCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dados = ApresentacaoDesafios.of(context);
     return Container(
             key: const Key('home_desafios_recebidos_pendentes'),
             margin: const EdgeInsets.only(bottom: 20),
@@ -92,7 +94,7 @@ class DesafiosRecebidosCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Desafio de ${c.challengerId}",
+                                "Desafio de ${dados?.nome(c.challengerId) ?? 'Amigo'}",
                                 key: Key('desafio_pendente_challenger_${c.id}'),
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -102,7 +104,7 @@ class DesafiosRecebidosCard extends StatelessWidget {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                "Partida #${c.matchId} • ${c.amount} BetCoins",
+                                "${dados?.partida(c.matchId) ?? 'Partida indisponível'} • ${c.amount} BetCoins",
                                 key: Key('desafio_pendente_info_${c.id}'),
                                 style: const TextStyle(
                                   color: Color(0xFF94A3B8),

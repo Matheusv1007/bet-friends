@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/challenge_model.dart';
+import 'apresentacao_desafios.dart';
 
 class DetalhesDoDesafioDialog extends StatelessWidget {
   final ChallengeModel desafio;
@@ -9,6 +10,7 @@ class DetalhesDoDesafioDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dados = ApresentacaoDesafios.of(context);
     final c = desafio;
     return AlertDialog(
         backgroundColor: const Color(0xFF151E2E),
@@ -21,7 +23,7 @@ class DetalhesDoDesafioDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Partida: #${c.matchId}", style: const TextStyle(color: Colors.white70)),
+            Text("Partida: ${dados?.partida(c.matchId) ?? 'Partida indisponível'}", style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 6),
             Text("Aposta: ${c.amount} BetCoins", style: const TextStyle(color: Color(0xFF00D084), fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
@@ -31,14 +33,14 @@ class DetalhesDoDesafioDialog extends StatelessWidget {
               Text(c.motivoDoCancelamento!, style: const TextStyle(color: Color(0xFFF59E0B))),
             ],
             const SizedBox(height: 6),
-            Text("Criador: ${c.challengerId} (${c.challengerPrediction.label})", style: const TextStyle(color: Colors.white70)),
+            Text("Criador: ${dados?.nome(c.challengerId) ?? 'Amigo'} (${c.challengerPrediction.label})", style: const TextStyle(color: Colors.white70)),
             if (c.challengedPrediction != null) ...[
               const SizedBox(height: 6),
-              Text("Desafiado: ${c.challengedId} (${c.challengedPrediction!.label})", style: const TextStyle(color: Colors.white70)),
+              Text("Desafiado: ${dados?.nome(c.challengedId) ?? 'Amigo'} (${c.challengedPrediction!.label})", style: const TextStyle(color: Colors.white70)),
             ],
             if (c.winnerId != null) ...[
               const SizedBox(height: 8),
-              Text("Vencedor: ${c.winnerId}", style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold)),
+              Text("Vencedor: ${dados?.nome(c.winnerId!) ?? 'Amigo'}", style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold)),
             ],
           ],
         ),
