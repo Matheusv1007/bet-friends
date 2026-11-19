@@ -7,7 +7,7 @@ Convenção: **Status** começa como `Aberto`; ao corrigir, trocar para `Corrigi
 ## A-01 — Fundos reservados podem ficar presos
 
 - **Severidade:** Alta
-- **Status:** Corrigido no código (branch `fix/A-01-cancelar-rejeitar-desafio`), exceto o item 4. Falta publicar as funções novas.
+- **Status:** Corrigido no código (branch `fix/A-01-cancelar-rejeitar-desafio`), exceto o item 4. Código publicado em 19/11/2026, mas as funções novas ainda não aceitam chamadas (ver pendências).
 - **Onde:** `functions/src/desafios/` (`maquinaDeEstados.ts`, `aguardarResultado.ts`, `iniciarDesafios.ts`, `aptosParaLiquidacao.ts`, `processamentoDeResultados.ts`)
 
 ### O que foi encontrado
@@ -42,7 +42,7 @@ Saldo reservado permanentemente para o usuário. Isso também bloqueia o bônus 
 
 ### Pendências do A-01
 
-- Publicar as funções (`firebase deploy --only functions:rejectChallenge,functions:cancelChallenge`); sem isso o app falha ao recusar/cancelar.
+- **Funções ainda sem permissão de invocação (19/11/2026).** O deploy criou `rejectChallenge` e `cancelChallenge` (e as demais callables novas), mas o passo que libera a invocação pública do serviço no Cloud Run falhou com `403 run.services.setIamPolicy` para a conta que fez o deploy. Enquanto isso o app não consegue chamá-las. Corrige-se com uma conta com permissão (Proprietário, ou papel Cloud Run Admin) repetindo o deploy; ver `docs/callable-functions.md` §7.
 - Confirmar com o Plano Mestre a regra de adiamento (limite de 7 dias da data original). É uma inferência de RN-MAT-007/008; a constante é `DIAS_DE_ADIAMENTO_TOLERADO`.
 - Partida `SUSPENSA` ou `REVISAO_NECESSARIA` continua mantendo o desafio em `WAITING_RESULT` sem prazo de saída (item 4 acima): precisa de decisão de negócio.
 - Falha pré-existente, fora do A-01: `activeChallengeAndExpiration` teste 5 (convite recebido conta como desafio ativo ao aceitar).
@@ -52,7 +52,7 @@ Saldo reservado permanentemente para o usuário. Isso também bloqueia o bônus 
 ## A-02 — `getMatchesRest` público e sem proteção
 
 - **Severidade:** Alta
-- **Status:** Corrigido no código (branch `fix/A-02-remover-getmatchesrest`), removendo o endpoint. Falta apagar a função publicada.
+- **Status:** Corrigido no código (branch `fix/A-02-remover-getmatchesrest`), removendo o endpoint. Nada a apagar no projeto real: a função nunca foi publicada.
 - **Onde:** `functions/src/partidas/getMatchesRest.ts:12`, `lib/services/api/partidas_rest_service.dart`, `lib/tela_academica/`
 
 ### O que foi encontrado
@@ -75,7 +75,7 @@ Decisão do responsável: o endpoint não é mais exigido pela atividade acadêm
 
 ### Pendência do A-02
 
-Tirar o código do repositório não apaga a função já publicada. É preciso removê-la do projeto real: `firebase functions:delete getMatchesRest --region southamerica-east1 --project betfriends-unirv-2026`.
+Nenhuma. Em 19/11/2026, `functions:list` no projeto real mostrou que `getMatchesRest` nunca chegou a ser publicada (só existiam `systemPing`, `createUserProfile`, `claimRecoveryBonus` e `syncMatches`), então não havia função para apagar e o endpoint nunca ficou público. A instrução anterior de rodar `functions:delete` estava errada.
 
 ---
 
@@ -133,7 +133,7 @@ APK/AAB de release não publicável e assinado com chave pública conhecida.
 ## A-05 — Sem App Check; `searchUsers` permite varredura
 
 - **Severidade:** Média
-- **Status:** Corrigido no código (branch `fix/A-05-app-check-busca`). App Check fica enviado pelo app e **não exigido** pelo backend (decisão de configuração, ver pendências). Falta publicar `searchUsers`.
+- **Status:** Corrigido no código (branches `fix/A-05-app-check-busca` e `fix/A-05-enforce-app-check-env`). App Check fica enviado pelo app e **não exigido** pelo backend (decisão de configuração, ver pendências). Publicada, aguardando a permissão de invocação.
 - **Onde:** `functions/src/core/callable.ts`, `functions/src/perfil/searchUsers.ts`
 
 ### O que foi encontrado
@@ -160,7 +160,8 @@ Enumeração de usuários e uso abusivo das funções por clientes não oficiais
 ### Pendências do A-05
 
 - **Exigir** o App Check é decisão e configuração fora do código, e **não deve ser ligado se o app não for publicado na Google Play**: o Play Integrity não atesta APK instalado à mão e a exigência derrubaria o app. Enquanto isso, o app envia o token e o backend o ignora.
-- Publicar as funções para o limite e o mínimo da busca valerem em produção (`firebase deploy --only functions:searchUsers`).
+- `searchUsers` foi publicada em 19/11/2026, mas ainda sem permissão de invocação (mesma pendência do A-01, `403 run.services.setIamPolicy`): o limite e o mínimo da busca só valem para o app depois de repetir o deploy com uma conta autorizada.
+- Correção feita durante o deploy: `ENFORCE_APP_CHECK` era um parâmetro do Firebase (`defineBoolean`), que o SDK não aceita em `enforceAppCheck` e que fazia o deploy sem terminal parar pedindo valor. Passou a variável de ambiente (`functions/.env.<projeto>`), como as da sincronização.
 
 ---
 
