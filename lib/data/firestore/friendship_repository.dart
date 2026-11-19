@@ -1,6 +1,7 @@
 import '../../models/friendship_model.dart';
 import '../../models/usuario_publico.dart';
 import '../../services/functions/functions_service.dart';
+import '../../services/registro_de_erros.dart';
 
 enum FriendshipErrorCode {
   unauthenticated,
@@ -174,7 +175,8 @@ class FunctionsFriendshipRepository implements FriendshipRepository {
       return ResultadoEnvioAmizade.fromMap(response);
     } on FunctionsException catch (e) {
       throw FriendshipException.fromFunctionsException(e);
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('enviar solicitação de amizade', e, s);
       throw const FriendshipException(
         FriendshipErrorCode.unknown,
         'Não foi possível enviar a solicitação. Tente novamente.',
@@ -200,7 +202,8 @@ class FunctionsFriendshipRepository implements FriendshipRepository {
       return ResultadoAceiteAmizade.fromMap(response);
     } on FunctionsException catch (e) {
       throw FriendshipException.fromFunctionsException(e);
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('aceitar solicitação de amizade', e, s);
       throw const FriendshipException(
         FriendshipErrorCode.unknown,
         'Não foi possível aceitar a solicitação. Tente novamente.',
@@ -226,7 +229,8 @@ class FunctionsFriendshipRepository implements FriendshipRepository {
       return ResultadoRecusaAmizade.fromMap(response);
     } on FunctionsException catch (e) {
       throw FriendshipException.fromFunctionsException(e);
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('recusar solicitação de amizade', e, s);
       throw const FriendshipException(
         FriendshipErrorCode.unknown,
         'Não foi possível recusar a solicitação. Tente novamente.',
@@ -245,7 +249,8 @@ class FunctionsFriendshipRepository implements FriendshipRepository {
           .toList();
     } on FunctionsException catch (e) {
       throw FriendshipException.fromFunctionsException(e);
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('carregar solicitações de amizade', e, s);
       throw const FriendshipException(
         FriendshipErrorCode.unknown,
         'Não foi possível carregar as solicitações de amizade. Tente novamente.',
@@ -264,7 +269,8 @@ class FunctionsFriendshipRepository implements FriendshipRepository {
           .toList();
     } on FunctionsException catch (e) {
       throw FriendshipException.fromFunctionsException(e);
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('carregar amigos aceitos', e, s);
       throw const FriendshipException(
         FriendshipErrorCode.unknown,
         'Não foi possível carregar a lista de amigos. Tente novamente.',

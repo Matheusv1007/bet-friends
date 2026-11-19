@@ -40,14 +40,8 @@ class App extends StatelessWidget {
           create: (_) => PartidasProvider(partidasService: partidasService),
         ),
         Provider<ChallengeService?>(
-          create: (_) {
-            if (challengeService != null) return challengeService;
-            try {
-              return ChallengeService(authService: authService);
-            } catch (_) {
-              return null;
-            }
-          },
+          create: (_) =>
+              challengeService ?? ChallengeService(authService: authService),
         ),
         // Mesma fonte de sessão do AuthProvider: o perfil é sempre o do UID logado
         Provider(

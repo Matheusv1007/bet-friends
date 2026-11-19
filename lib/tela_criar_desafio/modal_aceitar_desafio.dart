@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/firestore/challenge_repository.dart';
 import '../models/challenge_model.dart';
 import '../services/challenge_service.dart';
+import '../services/registro_de_erros.dart';
 
 /// Modal para aceitar um desafio pendente (RF-011).
 ///
@@ -129,7 +130,8 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
           duration: const Duration(seconds: 3),
         ),
       );
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('Responder ao desafio', e, s);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

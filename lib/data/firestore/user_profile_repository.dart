@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../models/carteira.dart';
 import '../../models/user_profile.dart';
+import '../../services/registro_de_erros.dart';
 import 'firestore_collections.dart';
 import 'gravacao_no_servidor.dart';
 
@@ -173,7 +174,8 @@ class FirestoreUserProfileRepository implements UserProfileRepository {
     if (!snapshot.exists || data == null) return null;
     try {
       return Carteira.fromMap(data);
-    } catch (_) {
+    } on FormatException catch (e, s) {
+      registrarErro('converter carteira do perfil', e, s);
       return null;
     }
   }

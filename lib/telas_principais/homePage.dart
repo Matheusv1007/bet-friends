@@ -4,6 +4,7 @@ import 'package:betfriends/data/firestore/user_profile_repository.dart';
 import 'package:betfriends/provider/auth_provider.dart';
 import 'package:betfriends/provider/partidas_provider.dart';
 import 'package:betfriends/services/user_profile_service.dart';
+import 'package:betfriends/services/registro_de_erros.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
 import 'package:betfriends/tela_perfil/tela_perfil.dart';
 import 'package:betfriends/tela_sobre/tela_informacoes_creditos.dart';
@@ -104,7 +105,8 @@ class _HomepageState extends State<Homepage> {
     try {
       final s = service?.observarDesafios();
       return s == null ? null : (s.isBroadcast ? s : s.asBroadcastStream());
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('Observar desafios na página inicial', e, s);
       return null;
     }
   }
@@ -122,8 +124,8 @@ class _HomepageState extends State<Homepage> {
     try {
       final s = service?.observarPerfilAtual();
       return s == null ? null : (s.isBroadcast ? s : s.asBroadcastStream());
-    } catch (_) {
-      // Sem sessão ou sem Firebase: a saudação fica neutra
+    } catch (e, s) {
+      registrarErro('Observar perfil na página inicial', e, s);
       return null;
     }
   }
@@ -755,7 +757,8 @@ class _HomepageState extends State<Homepage> {
 
     try {
       await context.read<AuthProvider>().signOut();
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('Sair da conta', e, s);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

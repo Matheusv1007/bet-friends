@@ -199,7 +199,7 @@ Com mais desafios, o job estoura o timeout, o processamento de resultados atrasa
 ## A-07 — `catch (_)` genéricos no cliente
 
 - **Severidade:** Média
-- **Status:** Aberto
+- **Status:** Corrigido no código (branch `fix/A-07-erros-cliente`).
 - **Onde:** `lib/app.dart:47`, `lib/data/firestore/challenge_repository.dart`, `friendship_repository.dart`, `partidas_repository.dart`, `user_profile_repository.dart`, `user_search_repository.dart`, `lib/models/friendship_model.dart`, `lib/provider/auth_provider.dart`, `lib/services/api/partidas_rest_service.dart`, `lib/tela_amigos/tela_buscar_usuarios.dart`
 
 ### O que foi encontrado
@@ -214,6 +214,22 @@ Falhas reais (permissão, índice, rede, dado inválido) viram comportamento deg
 
 - Tratar cada caso: capturar tipos específicos (`FirebaseException`, `FormatException`), registrar com `debugPrint`/log e propagar erro de domínio.
 - Remover o `try/catch` de `app.dart` e injetar o serviço corretamente.
+
+### O que foi feito
+
+Eram 32 `catch (_)` no app (a contagem inicial de "mais de 20" estava baixa); não sobrou nenhum. O cliente e a tela de REST listados no achado já tinham saído no A-02.
+
+- **`registrarErro`** (`lib/services/registro_de_erros.dart`): registra contexto, erro e pilha via `dart:developer` (console do `flutter run`, logcat, DevTools), sem mudar a mensagem mostrada ao usuário. Todo catch genérico que sobrou como rede de segurança da tela passou a registrar antes de mostrar a mesma mensagem de antes.
+- **`app.dart`:** o `ChallengeService` é criado direto, sem o `try/catch` que o transformava em `null` em silêncio.
+- **Leituras que fingiam dado ausente:** `buscarSaldoDisponivel` e `listarAmigosAceitos` (desafios) devolviam `null` e lista vazia em qualquer falha; agora lançam `ChallengeException` com o código correto (`permissionDenied`, `unavailable`...). O único chamador (`tela_criar_desafio`) já capturava e registra o erro.
+- **Cache de partidas:** registra o erro original do servidor e o do cache, e relança o original se o cache não ajudar.
+- **`Carteira.fromMap`:** só `FormatException` é tratada; outro erro deixa de ser escondido.
+- **`tela_criar_desafio`:** a escolha da partida no `build` não depende mais de exceção do `firstWhere`.
+- Testes novos: erros de leitura do Firestore (`test/firestore_erros_test.dart`) e criação do `ChallengeService` em `test/widget_test.dart`.
+
+### Pendências do A-07
+
+Nenhuma.
 
 ---
 

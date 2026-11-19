@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../models/challenge_model.dart';
 import '../../services/functions/functions_service.dart';
+import '../../services/registro_de_erros.dart';
 import 'firestore_collections.dart';
 
 enum ChallengeErrorCode {
@@ -199,7 +200,8 @@ class FunctionsChallengeRepository implements ChallengeRepository {
       return CriarDesafioResponse.fromMap(response);
     } on FunctionsException catch (e) {
       throw ChallengeException.fromFunctionsException(e);
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('criar desafio', e, s);
       throw const ChallengeException(
         ChallengeErrorCode.unknown,
         'Não foi possível criar o desafio. Tente novamente.',
@@ -217,7 +219,8 @@ class FunctionsChallengeRepository implements ChallengeRepository {
       return AceitarDesafioResponse.fromMap(response);
     } on FunctionsException catch (e) {
       throw ChallengeException.fromFunctionsException(e);
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('aceitar desafio', e, s);
       throw const ChallengeException(
         ChallengeErrorCode.unknown,
         'Não foi possível aceitar o desafio. Tente novamente.',
@@ -283,8 +286,15 @@ class FunctionsChallengeRepository implements ChallengeRepository {
       final total = (data['saldoTotal'] as num?)?.toInt() ?? 1000;
       final reservado = (data['saldoReservado'] as num?)?.toInt() ?? 0;
       return total - reservado;
-    } catch (_) {
-      return null;
+    } on FirebaseException catch (e, s) {
+      registrarErro('buscar saldo disponível', e, s);
+      throw _erroDeLeitura(e);
+    } catch (e, s) {
+      registrarErro('buscar saldo disponível', e, s);
+      throw const ChallengeException(
+        ChallengeErrorCode.unknown,
+        'Não foi possível carregar o saldo disponível. Tente novamente.',
+      );
     }
   }
 
@@ -313,8 +323,41 @@ class FunctionsChallengeRepository implements ChallengeRepository {
         }
       }
       return resultado;
-    } catch (_) {
-      return const [];
+    } on FirebaseException catch (e, s) {
+      registrarErro('carregar amigos elegíveis para desafio', e, s);
+      throw _erroDeLeitura(e);
+    } catch (e, s) {
+      registrarErro('carregar amigos elegíveis para desafio', e, s);
+      throw const ChallengeException(
+        ChallengeErrorCode.unknown,
+        'Não foi possível carregar a lista de amigos. Tente novamente.',
+      );
+    }
+  }
+
+  ChallengeException _erroDeLeitura(FirebaseException erro) {
+    switch (erro.code) {
+      case 'permission-denied':
+        return const ChallengeException(
+          ChallengeErrorCode.permissionDenied,
+          'Sem permissão para consultar estes dados.',
+        );
+      case 'unauthenticated':
+        return const ChallengeException(
+          ChallengeErrorCode.unauthenticated,
+          'É necessário estar autenticado para realizar esta ação.',
+        );
+      case 'unavailable':
+      case 'deadline-exceeded':
+        return const ChallengeException(
+          ChallengeErrorCode.unavailable,
+          'Serviço indisponível no momento. Verifique sua conexão.',
+        );
+      default:
+        return const ChallengeException(
+          ChallengeErrorCode.unknown,
+          'Não foi possível carregar os dados para o desafio. Tente novamente.',
+        );
     }
   }
 }

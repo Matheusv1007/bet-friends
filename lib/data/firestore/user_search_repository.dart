@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../models/usuario_publico.dart';
 import '../../services/functions/functions_service.dart';
+import '../../services/registro_de_erros.dart';
 import 'firestore_collections.dart';
 import 'user_profile_repository.dart';
 
@@ -75,7 +76,8 @@ class FunctionsUserSearchRepository implements UserSearchRepository {
         UserProfileErrorCode.unknown,
         e.message,
       );
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('buscar usuários', e, s);
       throw const UserProfileException(
         UserProfileErrorCode.unknown,
         'Não foi possível realizar a busca de usuários. Tente novamente.',
