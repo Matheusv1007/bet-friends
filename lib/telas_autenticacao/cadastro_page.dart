@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../data/firestore/user_profile_repository.dart';
 import '../provider/auth_provider.dart';
 import '../services/user_profile_service.dart';
+import '../services/registro_de_erros.dart';
 import 'validacao_cadastro.dart';
 
 /// Cadastro de usuário (KAN-25): cria a conta no Firebase Auth e, em seguida,
@@ -111,7 +112,8 @@ class _CadastroPageState extends State<CadastroPage> {
       }
     } on UserProfileException catch (e) {
       _mostrarErro(_mensagemDoPerfil(e));
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('Cadastrar conta e concluir perfil', e, s);
       _mostrarErro(_contaCriada
           ? 'Sua conta foi criada, mas o perfil não foi concluído. Tente novamente.'
           : 'Ocorreu um erro inesperado. Tente novamente.');

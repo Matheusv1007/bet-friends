@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/firestore/friendship_repository.dart';
 import '../models/usuario_publico.dart';
 import '../services/friendship_service.dart';
+import '../services/registro_de_erros.dart';
 import '../tela_criar_desafio/tela_criar_desafio.dart';
 import 'tela_buscar_usuarios.dart';
 import 'tela_comunicacoes_amizade.dart';
@@ -69,7 +70,8 @@ class _TelaListaAmigosState extends State<TelaListaAmigos> {
         _errorMessage = e.message;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('Carregar lista de amigos', e, s);
       if (!mounted) return;
       setState(() {
         _errorMessage = 'Não foi possível carregar a lista de amigos. Verifique sua conexão.';

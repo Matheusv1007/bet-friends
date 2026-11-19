@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/firestore/friendship_repository.dart';
 import '../models/friendship_model.dart';
 import '../services/friendship_service.dart';
+import '../services/registro_de_erros.dart';
 import 'tela_lista_amigos.dart';
 
 /// Tela para visualização das comunicações de amizade pendentes recebidas (RF-005, RN-PROF-002).
@@ -59,7 +60,8 @@ class _TelaComunicacoesAmizadeState extends State<TelaComunicacoesAmizade> {
         _errorMessage = e.message;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('Carregar solicitações de amizade', e, s);
       if (!mounted) return;
       setState(() {
         _errorMessage = 'Não foi possível carregar as solicitações. Verifique sua conexão.';
@@ -107,7 +109,8 @@ class _TelaComunicacoesAmizadeState extends State<TelaComunicacoesAmizade> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('Aceitar solicitação de amizade', e, s);
       if (!mounted) return;
       setState(() {
         _processandoIds.remove(id);
@@ -162,7 +165,8 @@ class _TelaComunicacoesAmizadeState extends State<TelaComunicacoesAmizade> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('Recusar solicitação de amizade', e, s);
       if (!mounted) return;
       setState(() {
         _processandoIds.remove(id);

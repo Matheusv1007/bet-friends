@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'cadastro_page.dart';
 import '../provider/auth_provider.dart';
+import '../services/registro_de_erros.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -79,7 +80,8 @@ class _LoginPageState extends State<LoginPage> {
 
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(mensagem)));
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('Entrar na conta', e, s);
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(

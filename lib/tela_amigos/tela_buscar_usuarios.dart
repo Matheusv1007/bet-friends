@@ -7,6 +7,7 @@ import '../data/firestore/user_profile_repository.dart';
 import '../models/friendship_model.dart';
 import '../models/usuario_publico.dart';
 import '../services/friendship_service.dart';
+import '../services/registro_de_erros.dart';
 import '../services/user_search_service.dart';
 import 'tela_comunicacoes_amizade.dart';
 
@@ -111,7 +112,8 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
         _errorMessage = e.message;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('Buscar usuários', e, s);
       if (!mounted) return;
       setState(() {
         _errorMessage = 'Não foi possível buscar usuários. Tente novamente.';
@@ -155,7 +157,8 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('Enviar solicitação de amizade', e, s);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -205,7 +208,8 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('Aceitar solicitação na busca de usuários', e, s);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

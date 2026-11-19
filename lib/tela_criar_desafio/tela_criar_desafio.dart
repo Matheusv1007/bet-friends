@@ -6,6 +6,7 @@ import '../models/challenge_model.dart';
 import '../models/partida_model.dart';
 import '../provider/partidas_provider.dart';
 import '../services/challenge_service.dart';
+import '../services/registro_de_erros.dart';
 import '../telas_principais/homePage.dart';
 
 class CriarDesafioScreen extends StatefulWidget {
@@ -92,8 +93,8 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
           }
         });
       }
-    } catch (_) {
-      // Falha silenciosa de carregamento inicial
+    } catch (e, s) {
+      registrarErro('Carregar saldo e amigos para criar desafio', e, s);
     } finally {
       if (mounted) {
         setState(() => isLoadingAmigos = false);
@@ -196,7 +197,8 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
           duration: const Duration(seconds: 3),
         ),
       );
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('Criar desafio', e, s);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -590,13 +592,13 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
               Consumer<PartidasProvider>(
                 builder: (context, provider, _) {
                   PartidaModel? partidaAtual;
-                  try {
-                    partidaAtual = provider.partidas.firstWhere((p) => p.id == partidaId);
-                  } catch (_) {
-                    partidaAtual = provider.partidas.isNotEmpty
-                        ? provider.partidas.first
-                        : null;
+                  for (final partida in provider.partidas) {
+                    if (partida.id == partidaId) {
+                      partidaAtual = partida;
+                      break;
+                    }
                   }
+                  partidaAtual ??= provider.partidas.firstOrNull;
 
                   final labelMandante = partidaAtual != null ? 'Vitória ${partidaAtual.timeMandante}' : 'Mandante';
                   final labelVisitante = partidaAtual != null ? 'Vitória ${partidaAtual.timeVisitante}' : 'Visitante';
