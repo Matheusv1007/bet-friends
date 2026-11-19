@@ -264,3 +264,19 @@ Mesmo padrão das demais Callables de desafio (`authedCallable`; o UID vem do to
 | `cancelChallenge` | `{ challengeId }` | `{ challengeId, status: "CANCELLED" }` | só o criador, com o desafio `PENDING` |
 
 As duas liberam a reserva do criador na mesma transação em que mudam o estado. O cancelamento depois do aceite não tem Callable: só o sistema cancela (partida cancelada ou adiada além do tolerado), dentro do `processarResultados`. Detalhes e regras em `docs/firestore-schema.md` §3.5. Depois do deploy, as duas funções precisam ser publicadas (seção 7) para o app conseguir recusar e cancelar.
+
+## 12 - App Check e limite de uso (A-05)
+
+Duas proteções contra uso do backend por quem não é o app, ou em volume abusivo:
+
+**Limite de uso por usuário.** `searchUsers` aceita no máximo 60 buscas por minuto por usuário (`core/limiteDeUso.ts`). Acima disso devolve `resource-exhausted` com `details.motivo = "limite-de-uso"` e `details.tentarNovamenteEm`. O contador fica em `rateLimits/{funcao}_{uid}` (só o backend acessa; ver `firestore-schema.md` §3.8). A busca também só consulta com 3 caracteres ou mais (o mínimo de um username), devolve até 20 resultados, e o app nem chama o backend com termo menor.
+
+**App Check.** O app já envia o token de App Check em toda chamada (`main.dart`; provedor de depuração em debug, Play Integrity em release; não ativa contra os emuladores). O backend só **exige** o token quando o parâmetro `ENFORCE_APP_CHECK` está `true` no deploy; o padrão é `false`, porque exigir antes de configurar o console derruba todas as chamadas do app. Todas as Callables passam por `authedCallable`, então o parâmetro vale para todas.
+
+Para ligar (só depois de conferir os passos):
+
+1. Firebase Console → App Check → aba Apps → app Android → registrar com **Play Integrity**. O Play Integrity só atesta apps instalados pela Google Play (inclusive teste interno); um APK instalado à mão é recusado. Se o app não for publicado na Play, não ligue a exigência.
+2. Para builds de debug, rode o app em debug, copie do logcat o *debug token* que o SDK imprime e cadastre em App Check → Apps → ⋮ → *Gerenciar tokens de depuração*.
+3. Em App Check → APIs → Cloud Functions, confira nas métricas que as requisições aparecem como **verificadas** (não só "não verificadas") antes de exigir.
+4. Crie `functions/.env.betfriends-unirv-2026` com `ENFORCE_APP_CHECK=true` (o arquivo é ignorado pelo git) e publique: `firebase deploy --only functions --project betfriends-unirv-2026`.
+5. Para desligar, troque para `false` e publique de novo. Tentando uma chamada sem token com a exigência ligada, o erro é `unauthenticated`.

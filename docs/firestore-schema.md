@@ -451,6 +451,17 @@ Estado da sincronização periódica de partidas (`functions/src/partidas/execuc
 
 **Situação:** `system/matchSync` e seus campos, incluindo `consecutiveSeasonFailures`, continuam sujeitos à decisão E-1 e à revisão de Matheus; não são contrato aprovado. O comportamento foi validado só em emuladores, não em infraestrutura real.
 
+### 3.8 - `rateLimits/{funcao}_{uid}` (A-05)
+
+Contador de chamadas por usuário e função, em janela fixa. Só o backend lê e grava (`core/limiteDeUso.ts`); as Security Rules negam tudo ao app pela regra padrão (há teste em `tests/firestore-rules`).
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `windowStart` | Timestamp | Início da janela atual (o horário da chamada que a abriu). |
+| `count` | number | Chamadas contadas na janela. A janela reinicia (`count = 1`) na primeira chamada depois de `windowStart + janela`. |
+
+Um documento por usuário e função, atualizado numa transação (chamadas simultâneas não furam o limite). Não cresce nem precisa de limpeza. Hoje só `searchUsers` usa (`searchUsers_{uid}`: 60 por minuto).
+
 ---
 
 ## 4 - Relacionamentos
