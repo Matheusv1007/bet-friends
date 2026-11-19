@@ -103,6 +103,15 @@ class ChallengeModel {
   bool get isAccepted => status == StatusDesafio.accepted;
   bool get isTerminal => status.isTerminal;
 
+  /// Texto do motivo de um desafio cancelado; nulo se não foi cancelado.
+  String? get motivoDoCancelamento => switch (cancelReason) {
+        'CREATOR' => 'Cancelado pelo criador',
+        'FRIENDSHIP_REMOVED' => 'Amizade desfeita',
+        'MATCH_CANCELLED' => 'Partida cancelada',
+        'MATCH_POSTPONED' => 'Partida adiada',
+        _ => status == StatusDesafio.cancelled ? 'Cancelado' : null,
+      };
+
   bool temParticipante(String uid) => uid == challengerId || uid == challengedId;
 
   factory ChallengeModel.fromMap(String id, Map<String, dynamic> map) {
@@ -292,6 +301,24 @@ class AceitarDesafioResponse {
           Palpite.deValor(map['challengedPrediction']) ?? Palpite.awayWin,
       amount: (map['amount'] as num?)?.toInt() ?? 10,
       acceptedAt: parseDate(map['acceptedAt']),
+    );
+  }
+}
+
+/// Resposta das Callable Functions rejectChallenge e cancelChallenge.
+class EncerrarDesafioResponse {
+  final String challengeId;
+  final StatusDesafio status;
+
+  const EncerrarDesafioResponse({
+    required this.challengeId,
+    required this.status,
+  });
+
+  factory EncerrarDesafioResponse.fromMap(Map<String, dynamic> map) {
+    return EncerrarDesafioResponse(
+      challengeId: map['challengeId']?.toString() ?? '',
+      status: StatusDesafio.deValor(map['status']) ?? StatusDesafio.cancelled,
     );
   }
 }

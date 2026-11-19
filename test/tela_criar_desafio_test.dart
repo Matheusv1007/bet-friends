@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:betfriends/data/firestore/challenge_repository.dart';
 import 'package:betfriends/models/challenge_model.dart';
 import 'package:betfriends/models/partida_model.dart';
 import 'package:betfriends/provider/partidas_provider.dart';
@@ -53,6 +54,19 @@ class FakePartidasProvider extends ChangeNotifier implements PartidasProvider {
     bool forcar = false,
   }) async {}
 }
+
+ChallengeModel _desafioPendente() => ChallengeModel(
+      id: 'chl_pendente_99',
+      challengerId: 'uid_alice',
+      challengedId: 'uid_bob',
+      participants: const ['uid_alice', 'uid_bob'],
+      matchId: 'match_flamengo_palmeiras',
+      challengerPrediction: Palpite.homeWin,
+      amount: 50,
+      status: StatusDesafio.pending,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
 
 class FakeChallengeService implements ChallengeService {
   CriarDesafioResponse? createResult;
@@ -110,6 +124,23 @@ class FakeChallengeService implements ChallengeService {
           amount: 50,
           acceptedAt: DateTime.now(),
         );
+  }
+
+  String? lastRejectedChallengeId;
+  String? lastCancelledChallengeId;
+  ChallengeException? rejectError;
+
+  @override
+  Future<EncerrarDesafioResponse> recusarDesafio({required String challengeId}) async {
+    if (rejectError != null) throw rejectError!;
+    lastRejectedChallengeId = challengeId;
+    return EncerrarDesafioResponse(challengeId: challengeId, status: StatusDesafio.rejected);
+  }
+
+  @override
+  Future<EncerrarDesafioResponse> cancelarDesafio({required String challengeId}) async {
+    lastCancelledChallengeId = challengeId;
+    return EncerrarDesafioResponse(challengeId: challengeId, status: StatusDesafio.cancelled);
   }
 
   @override
@@ -287,6 +318,74 @@ void main() {
       expect(fakeService.lastAcceptedChallengeId, 'chl_pendente_99');
       // O palpite padrão inicial disponível deve ser um dos permitidos
       expect(fakeService.lastAcceptedPrediction, isNot(Palpite.homeWin));
+    });
+
+    testWidgets('RECUSAR DESAFIO chama a recusa para o desafio e fecha o modal com sucesso', (tester) async {
+      final fakeService = FakeChallengeService();
+      bool? resultado;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                key: const Key('btn_abrir_modal'),
+                onPressed: () async {
+                  resultado = await ModalAceitarDesafio.exibir(
+                    context: context,
+                    desafio: _desafioPendente(),
+                    challengeService: fakeService,
+                  );
+                },
+                child: const Text('abrir'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('btn_abrir_modal')));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('btn_recusar_desafio')));
+      await tester.tap(find.byKey(const Key('btn_recusar_desafio')));
+      await tester.pumpAndSettle();
+
+      expect(fakeService.lastRejectedChallengeId, 'chl_pendente_99');
+      expect(fakeService.lastAcceptedChallengeId, isNull, reason: 'recusar não aceita');
+      expect(resultado, isTrue);
+      expect(find.text('Aceitar Desafio'), findsNothing, reason: 'o modal fecha');
+    });
+
+    testWidgets('falha ao recusar mostra a mensagem do servidor e mantém o modal aberto', (tester) async {
+      final fakeService = FakeChallengeService()
+        ..rejectError = const ChallengeException(
+          ChallengeErrorCode.notPending,
+          'Este desafio não está mais pendente.',
+        );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ModalAceitarDesafio(
+              desafio: _desafioPendente(),
+              challengeService: fakeService,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('btn_recusar_desafio')));
+      await tester.tap(find.byKey(const Key('btn_recusar_desafio')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Este desafio não está mais pendente.'), findsOneWidget);
+      expect(find.text('Aceitar Desafio'), findsOneWidget, reason: 'o modal continua aberto');
+      // botão volta a ficar disponível para nova tentativa
+      expect(
+        tester.widget<TextButton>(find.byKey(const Key('btn_recusar_desafio'))).onPressed,
+        isNotNull,
+      );
     });
   });
 }

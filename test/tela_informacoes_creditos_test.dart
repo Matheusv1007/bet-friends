@@ -82,6 +82,14 @@ class _FakeChallengeService implements ChallengeService {
     required Palpite challengedPrediction,
   }) async =>
       throw UnimplementedError();
+
+  @override
+  Future<EncerrarDesafioResponse> recusarDesafio({required String challengeId}) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<EncerrarDesafioResponse> cancelarDesafio({required String challengeId}) async =>
+      throw UnimplementedError();
 }
 
 class _FakePartidasService extends PartidasService {

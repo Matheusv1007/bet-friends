@@ -13,6 +13,7 @@ enum ChallengeErrorCode {
   activeChallengeExists,
   notPending,
   notChallengedUser,
+  notChallengerUser,
   duplicatePrediction,
   invalidPrediction,
   insufficientBalance,
@@ -66,13 +67,19 @@ class ChallengeException implements Exception {
     if (motivo == 'desafio-nao-pendente') {
       return const ChallengeException(
         ChallengeErrorCode.notPending,
-        'Somente desafios pendentes podem ser aceitos.',
+        'Este desafio não está mais pendente.',
       );
     }
     if (motivo == 'nao-desafiado') {
       return const ChallengeException(
         ChallengeErrorCode.notChallengedUser,
-        'Somente o usuário desafiado pode aceitar o desafio.',
+        'Somente o usuário desafiado pode responder ao desafio.',
+      );
+    }
+    if (motivo == 'nao-criador') {
+      return const ChallengeException(
+        ChallengeErrorCode.notChallengerUser,
+        'Somente o criador pode cancelar o desafio.',
       );
     }
     if (motivo == 'palpite-duplicado') {
@@ -161,6 +168,8 @@ class ChallengeException implements Exception {
 abstract interface class ChallengeRepository {
   Future<CriarDesafioResponse> criarDesafio(CriarDesafioRequest request);
   Future<AceitarDesafioResponse> aceitarDesafio(AceitarDesafioRequest request);
+  Future<EncerrarDesafioResponse> recusarDesafio(String challengeId);
+  Future<EncerrarDesafioResponse> cancelarDesafio(String challengeId);
   Future<List<ChallengeModel>> listarDesafiosDoUsuario(String uid);
   Stream<List<ChallengeModel>> observarDesafiosDoUsuario(String uid);
   Future<int?> buscarSaldoDisponivel(String uid);
@@ -213,6 +222,32 @@ class FunctionsChallengeRepository implements ChallengeRepository {
         ChallengeErrorCode.unknown,
         'Não foi possível aceitar o desafio. Tente novamente.',
       );
+    }
+  }
+
+  @override
+  Future<EncerrarDesafioResponse> recusarDesafio(String challengeId) async {
+    try {
+      final response = await _functions.call(
+        CallableNames.rejectChallenge,
+        {'challengeId': challengeId},
+      );
+      return EncerrarDesafioResponse.fromMap(response);
+    } on FunctionsException catch (e) {
+      throw ChallengeException.fromFunctionsException(e);
+    }
+  }
+
+  @override
+  Future<EncerrarDesafioResponse> cancelarDesafio(String challengeId) async {
+    try {
+      final response = await _functions.call(
+        CallableNames.cancelChallenge,
+        {'challengeId': challengeId},
+      );
+      return EncerrarDesafioResponse.fromMap(response);
+    } on FunctionsException catch (e) {
+      throw ChallengeException.fromFunctionsException(e);
     }
   }
 

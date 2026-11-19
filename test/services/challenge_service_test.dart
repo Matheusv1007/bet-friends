@@ -41,6 +41,22 @@ class FakeChallengeRepository implements ChallengeRepository {
   AceitarDesafioResponse? acceptResponse;
 
   Exception? errorToThrow;
+  String? lastRejectedId;
+  String? lastCancelledId;
+
+  @override
+  Future<EncerrarDesafioResponse> recusarDesafio(String challengeId) async {
+    if (errorToThrow != null) throw errorToThrow!;
+    lastRejectedId = challengeId;
+    return EncerrarDesafioResponse(challengeId: challengeId, status: StatusDesafio.rejected);
+  }
+
+  @override
+  Future<EncerrarDesafioResponse> cancelarDesafio(String challengeId) async {
+    if (errorToThrow != null) throw errorToThrow!;
+    lastCancelledId = challengeId;
+    return EncerrarDesafioResponse(challengeId: challengeId, status: StatusDesafio.cancelled);
+  }
 
   @override
   Future<CriarDesafioResponse> criarDesafio(CriarDesafioRequest request) async {
@@ -260,6 +276,84 @@ void main() {
       });
     });
 
+    group('recusarDesafio e cancelarDesafio', () {
+      test('exigem usuário autenticado', () async {
+        authService.setUser(null);
+
+        for (final acao in [
+          () => service.recusarDesafio(challengeId: 'chl_123'),
+          () => service.cancelarDesafio(challengeId: 'chl_123'),
+        ]) {
+          await expectLater(
+            acao(),
+            throwsA(
+              isA<ChallengeException>().having(
+                (e) => e.code,
+                'code',
+                ChallengeErrorCode.unauthenticated,
+              ),
+            ),
+          );
+        }
+        expect(repository.lastRejectedId, isNull);
+        expect(repository.lastCancelledId, isNull);
+      });
+
+      test('rejeitam challengeId vazio', () async {
+        for (final acao in [
+          () => service.recusarDesafio(challengeId: '   '),
+          () => service.cancelarDesafio(challengeId: '   '),
+        ]) {
+          await expectLater(
+            acao(),
+            throwsA(
+              isA<ChallengeException>().having(
+                (e) => e.code,
+                'code',
+                ChallengeErrorCode.challengeNotFound,
+              ),
+            ),
+          );
+        }
+        expect(repository.lastRejectedId, isNull);
+        expect(repository.lastCancelledId, isNull);
+      });
+
+      test('recusa repassa o id sem espaços ao repositório e devolve REJECTED', () async {
+        final res = await service.recusarDesafio(challengeId: ' chl_123 ');
+
+        expect(repository.lastRejectedId, 'chl_123');
+        expect(repository.lastCancelledId, isNull);
+        expect(res.status, StatusDesafio.rejected);
+      });
+
+      test('cancelamento repassa o id sem espaços ao repositório e devolve CANCELLED', () async {
+        final res = await service.cancelarDesafio(challengeId: ' chl_123 ');
+
+        expect(repository.lastCancelledId, 'chl_123');
+        expect(repository.lastRejectedId, isNull);
+        expect(res.status, StatusDesafio.cancelled);
+      });
+
+      test('erro do backend chega como ChallengeException, sem ser engolido', () async {
+        repository.errorToThrow = const ChallengeException(
+          ChallengeErrorCode.notChallengerUser,
+          'Somente o criador pode cancelar o desafio.',
+        );
+
+        await expectLater(
+          service.cancelarDesafio(challengeId: 'chl_123'),
+          throwsA(
+            isA<ChallengeException>().having(
+              (e) => e.code,
+              'code',
+              ChallengeErrorCode.notChallengerUser,
+            ),
+          ),
+        );
+      });
+    });
+
     group('ChallengeException.fromFunctionsException', () {
       test('mapeia motivo auto-desafio', () {
         final e = ChallengeException.fromFunctionsException(
@@ -336,6 +430,17 @@ void main() {
           ),
         );
         expect(e.code, ChallengeErrorCode.notChallengedUser);
+      });
+
+      test('mapeia motivo nao-criador', () {
+        final e = ChallengeException.fromFunctionsException(
+          FunctionsException(
+            code: 'permission-denied',
+            message: 'Nao criador',
+            motivo: 'nao-criador',
+          ),
+        );
+        expect(e.code, ChallengeErrorCode.notChallengerUser);
       });
     });
   });
