@@ -16,8 +16,7 @@ Projeto Final da disciplina de Desenvolvimento Mobile.
 | Autenticação | Firebase Authentication (e-mail e senha) |
 | Banco de dados | Cloud Firestore (schema v2.0; Security Rules da KAN-22 publicadas em 29/10/2026) |
 | Backend | Cloud Functions em TypeScript, Node 22 (quatro publicadas no projeto real; parte dos módulos ainda sem uso pelo app) |
-| Dados de futebol | [football-data.org](https://www.football-data.org) API v4, competição BSA |
-| HTTP | `package:http` |
+| Dados de futebol | [football-data.org](https://www.football-data.org) API v4, competição BSA; sincronizados pelo backend e lidos pelo app via Firestore |
 
 ## Requisitos do ambiente
 
