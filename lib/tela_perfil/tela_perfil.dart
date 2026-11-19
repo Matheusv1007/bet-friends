@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../data/firestore/user_profile_repository.dart';
 import '../models/user_profile.dart';
 import '../services/user_profile_service.dart';
-import '../tela_academica/tela_partidas_rest.dart';
 import '../tela_amigos/tela_buscar_usuarios.dart';
 import '../tela_amigos/tela_comunicacoes_amizade.dart';
 import '../tela_amigos/tela_lista_amigos.dart';
@@ -335,24 +334,6 @@ class _DadosDoPerfil extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 side: BorderSide(color: primaryGreen.withValues(alpha: 0.4)),
               ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 48,
-          child: TextButton.icon(
-            key: const Key('perfil_partidas_rest'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const TelaPartidasRest()),
-            ),
-            icon: const Icon(Icons.school_outlined, size: 18),
-            label: const Text(
-              'PARTIDAS REST (ACADÊMICO)',
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
-            ),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF94A3B8),
             ),
           ),
         ),
