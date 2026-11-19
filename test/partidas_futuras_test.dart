@@ -63,7 +63,10 @@ void main() {
       // Status de domínio em português:
       expect(partida.status, 'PRÓXIMO JOGO');
       expect(partida.horario, isNotNull);
-      expect(partida.horario!.contains('10/11'), isTrue);
+      final local = DateTime.parse(docMap['startsAtUtc'] as String).toLocal();
+      final dia = local.day.toString().padLeft(2, '0');
+      final mes = local.month.toString().padLeft(2, '0');
+      expect(partida.horario, contains('$dia/$mes'));
     });
 
     test('3. Conversão de horário do UTC para o fuso local do dispositivo ocorre apenas na exibição (RN-MAT-005)', () {
@@ -87,7 +90,9 @@ void main() {
       final minutoEsperado = localEsperado.minute.toString().padLeft(2, '0');
 
       expect(partida.horario, contains('$horaEsperada:$minutoEsperado'));
-      expect(partida.horario, contains('15/11'));
+      final dia = localEsperado.day.toString().padLeft(2, '0');
+      final mes = localEsperado.month.toString().padLeft(2, '0');
+      expect(partida.horario, contains('$dia/$mes'));
     });
 
     test('4. Interface não exibe enums brutos do provedor (RN-MAT-002)', () {
