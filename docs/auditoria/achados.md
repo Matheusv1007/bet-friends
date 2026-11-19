@@ -59,7 +59,7 @@ Custo de leitura do Firestore por abuso. Dado corrompido mascarado como válido.
 ## A-03 — Índices compostos ausentes
 
 - **Severidade:** Alta
-- **Status:** Aberto
+- **Status:** Corrigido no código (branch `fix/A-03-indices-firestore`). Falta publicar: `firebase deploy --only firestore:indexes` e conferir no console que os índices ficaram `Enabled`. Até lá, `getMatchesRest` e a lista de partidas do app falham em produção se os índices não existirem.
 - **Onde:** `firestore.indexes.json`, `functions/src/partidas/getMatchesRest.ts`, `lib/data/firestore/partidas_repository.dart:32`, `lib/data/firestore/challenge_repository.dart:260`
 
 ### O que foi encontrado
