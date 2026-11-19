@@ -1,5 +1,7 @@
 # Auditoria Técnica do BetFriends
 
+> **Terceira auditoria (2026-11-19):** achados T-01 a T-18 sobre a `qas` depois das correções da segunda, em [terceira-auditoria.md](terceira-auditoria.md). A segunda auditoria (N-01 a N-30) está em [segunda-auditoria.md](segunda-auditoria.md).
+
 > **Segunda auditoria (2026-11-19):** novos achados N-01 a N-30 em [segunda-auditoria.md](segunda-auditoria.md). Este documento descreve a primeira auditoria (A-01 a A-13), já corrigida.
 
 | Campo | Valor |
