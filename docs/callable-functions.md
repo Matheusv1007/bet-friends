@@ -230,7 +230,7 @@ Para testes locais, use sempre um projeto `demo-*`: o emulador não acessa o Fir
 
 ## 10 - Sincronização periódica de partidas e liquidação (KAN-50, KAN-86)
 
-`syncMatches` é uma função agendada (Cloud Scheduler) que chama `executarSincronizacao` para o Brasileirão (`BSA`). Cada execução faz **uma** chamada à Football-Data e grava em `matches` só o que mudou. Em geral consulta a janela em volta do horário da execução; a cada `PARTIDAS_SYNC_TEMPORADA_HORAS`, consulta a temporada inteira, para alcançar partidas que saíram da janela (adiamento longo, resultado tardio). A varredura usa o mesmo agendamento, sem função nem job adicional. No desenho previsto, o app só lê `matches`; hoje ele ainda chama o provedor diretamente, até a migração (KAN-42).
+`syncMatches` é uma função agendada (Cloud Scheduler) que chama `executarSincronizacao` para o Brasileirão (`BSA`). Cada execução faz **uma** chamada à Football-Data e grava em `matches` só o que mudou. Em geral consulta a janela em volta do horário da execução; a cada `PARTIDAS_SYNC_TEMPORADA_HORAS`, consulta a temporada inteira, para alcançar partidas que saíram da janela (adiamento longo, resultado tardio). A varredura usa o mesmo agendamento. O app já lê `matches` do Firestore e não chama o provedor.
 
 Logo depois, na mesma execução, `processarResultados` (KAN-86, `functions/src/desafios/processamentoDeResultados.ts`) usa só o que já está em `matches`: passa para `WAITING_RESULT` os desafios cuja partida saiu de campo, identifica os aptos (partida `FINALIZADA` com resultado) e finaliza cada um com a liquidação idempotente, uma transação por desafio. A falha de um desafio não trava os outros nem deixa efeito parcial; vai para o log (`Desafios aptos que não puderam ser liquidados`) e a próxima execução tenta de novo, sem pagar duas vezes o que já foi finalizado.
 
@@ -252,10 +252,10 @@ Logo depois, na mesma execução, `processarResultados` (KAN-86, `functions/src/
 | `indisponivel`, `limite-de-requisicoes` | Termina sem erro | A partir da 3ª falha seguida de execuções ou da 3ª seguida da temporada (`tipo: persistente`) |
 
 - **Execuções sobrepostas ou respostas atrasadas:** o ID determinístico evita duplicar, e versão com `providerLastUpdated` mais antigo é ignorada. A primeira confirmação do vencedor é aceita com marca igual ou ausente; resultado já confirmado só muda com marca estritamente mais nova. Essa correção aparece no log (`Provedor corrigiu partidas já finalizadas`) e não altera desafios já liquidados nem BetCoins. Se o resultado corrigido divergir de um desafio já liquidado, há `logger.error` (`evento: divergencia-pos-liquidacao`) e contagem em `system/matchSync`, sem estorno automático.
-- **Pendência antes de liquidar em produção (B-4):** o resultado pago vem de `score.winner`, sem conferência com o placar.
+- **DECISÃO EXPLÍCITA da equipe (B-4, aceita em 19/11/2026):** liquidar exclusivamente pelo `score.winner` informado pelo provedor, normalizado pelo Adapter, sem conferir contra `score.fullTime.home/away`. A equipe aceita que uma divergência entre vencedor e placar possa gerar pagamento pelo vencedor informado; não é uma validação pendente nem garantia de coerência do placar.
 - **Parâmetros provisórios:** 6 horas entre varreduras e 240 segundos de limite permanecem inalterados, mas ainda não foram medidos no provedor nem na nuvem. A validação foi feita com emuladores e `fetch` falso, não com infraestrutura real. Se `lastUpdated` mudar sem mudança real, a redução de gravações será menor.
 - **Requisitos para rodar em produção:** plano Blaze, `FOOTBALL_DATA_TOKEN` configurado (seção 8.2) e deploy das Functions (seção 7).
-- **Alcance atual da liquidação:** nada em produção cria ou inicia desafios ainda (KAN-66 e Callables de desafio pendentes); o processamento só encontra desafios em testes.
+- **Alcance atual da liquidação (19/11/2026):** `createChallenge`, `acceptChallenge`, `rejectChallenge` e `cancelChallenge` já estão publicadas e são usadas pelo app. O processamento agendado inicia e liquida desafios reais elegíveis; a publicação não prova que uma liquidação específica já ocorreu em produção.
 - **No emulador:** sem o emulador de Pub/Sub, o Functions Emulator só carrega a definição e não dispara a agenda.
 
 ## 11 - Callables de recusa e cancelamento de desafio (A-01)
@@ -271,7 +271,7 @@ Mesmo padrão das demais Callables de desafio (`authedCallable`; o UID vem do to
 
 O payload de `createChallenge` e `acceptChallenge` tem **uma forma só**, a que o app envia (`lib/models/challenge_model.dart`). Os apelidos antigos (`friendId`, `desafiadoId`, `prediction`, `palpite`) deixaram de valer: payload fora do contrato é `invalid-argument`, e palpite ausente ou inválido é `invalid-argument` com `details.motivo = "palpite-invalido"`. A leitura fica em `desafios/payload.ts`.
 
-`rejectChallenge` e `cancelChallenge` liberam a reserva do criador na mesma transação em que mudam o estado. O cancelamento depois do aceite não tem Callable: só o sistema cancela (partida cancelada ou adiada além do tolerado), dentro do `processarResultados`. Detalhes e regras em `docs/firestore-schema.md` §3.5. Depois do deploy, as funções precisam ser publicadas (seção 7) para o app conseguir recusar e cancelar.
+`rejectChallenge` e `cancelChallenge` liberam a reserva do criador na mesma transação em que mudam o estado. O cancelamento depois do aceite não tem Callable: só o sistema cancela (partida cancelada ou adiada além do tolerado), dentro do `processarResultados`. Detalhes e regras em `docs/firestore-schema.md` §3.5. As quatro Callables desta seção já estão publicadas (registro de 19/11 na seção 7).
 
 ## 12 - App Check e limite de uso (A-05)
 

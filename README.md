@@ -4,7 +4,7 @@ Aplicativo Android, feito em Flutter, para desafios 1x1 entre amigos sobre parti
 
 Projeto Final da disciplina de Desenvolvimento Mobile.
 
-> **Estado atual (Segunda Entrega, 05/11/2026):** protótipo navegável com cadastro, login, perfil e carteira inicial **validados no Firebase real** em 01/11/2026, além de partidas reais. Security Rules e quatro Cloud Functions estão publicadas (plano Blaze). Saldo na interface, amizades e desafios reais ainda não chegaram ao app. Veja [O que está pronto](#o-que-está-pronto).
+> **Estado atual (19/11/2026, `qas`):** app com cadastro, login, perfil, carteira, amizades e desafios reais. Há **14 Cloud Functions publicadas**. As partidas são lidas do Firestore; só o backend acessa a API de futebol.
 
 ## Tecnologias
 
@@ -15,7 +15,7 @@ Projeto Final da disciplina de Desenvolvimento Mobile.
 | Navegação | Navigator (com `AuthGate` baseado na sessão) |
 | Autenticação | Firebase Authentication (e-mail e senha) |
 | Banco de dados | Cloud Firestore (schema v2.0; Security Rules da KAN-22 publicadas em 29/10/2026) |
-| Backend | Cloud Functions em TypeScript, Node 22 (quatro publicadas no projeto real; parte dos módulos ainda sem uso pelo app) |
+| Backend | Cloud Functions em TypeScript, Node 22 (14 publicadas no projeto real, plano Blaze) |
 | Dados de futebol | [football-data.org](https://www.football-data.org) API v4, competição BSA; sincronizados pelo backend e lidos pelo app via Firestore |
 
 ## Requisitos do ambiente
@@ -128,18 +128,18 @@ Os padrões de arquivos ficam entre aspas simples: o `node --test` do Node 22 n�
 
 Os testes de integração do app no Android contra os emuladores estão descritos em [`integration_test/README.md`](integration_test/README.md).
 
-As Cloud Functions `systemPing`, `createUserProfile`, `claimRecoveryBonus` e `syncMatches` estão publicadas no projeto real (plano Blaze, `southamerica-east1`). Não é preciso executar o backend localmente para rodar o app.
+As 14 Cloud Functions exportadas em `functions/src/index.ts` estão publicadas no projeto real (`southamerica-east1`), conforme o registro de deploy de 19/11 em `docs/callable-functions.md` §7. Não é preciso executar o backend localmente para rodar o app.
 
 ## Configuração do Firebase
 
 O repositório já inclui a configuração **de cliente** do Firebase para Android (`android/app/google-services.json` e `lib/firebase_options.dart`). Esses arquivos identificam o projeto, mas não são credenciais administrativas. Não é preciso configurar nada para rodar o app.
 
 - No projeto real, a tela de cadastro cria a conta no Auth e chama a `createUserProfile`, que cria perfil, username único e carteira. Os dados criados são permanentes: use e-mail fictício e combine com a equipe antes de criar contas de teste.
-- As Security Rules por coleção (`firestore.rules`, KAN-22) foram **publicadas no projeto real em 29/10/2026**, idênticas às do repositório. Elas permitem ao usuário ler o próprio perfil e alterar só o nome de exibição; o resto continua negado ao app.
-- Nunca versione credenciais administrativas, arquivos `.env`, `.secret.local` ou chaves de serviço.
+- As Security Rules permitem ler o próprio perfil/carteira, amizades e desafios dos quais se participa, partidas para usuários autenticados e transações do próprio usuário. O cliente só altera o próprio nome e `updatedAt`; as demais escritas são exclusivas do backend. `usernames` e caminhos não declarados permanecem bloqueados.
+- Nunca versione credenciais administrativas, `.secret.local` ou chaves de serviço. A exceção pública `functions/.env.betfriends-unirv-2026` contém só App Check e agenda, sem segredos.
 - A chave `AIza…` de `google-services.json` e `firebase_options.dart` é de cliente, mas deve estar restrita no Google Cloud Console (APIs e serviços → Credenciais): restrição de aplicativo Android com o pacote `com.unirv.betfriends` e o SHA-1 do keystore, e restrição de API só às APIs do Firebase usadas. Sem isso, qualquer pessoa que leia o repositório pode usar a chave por fora do app.
 
-> **Nota de segurança:** o token da football-data.org não está mais no código do app; só o backend acessa o provedor, com o token no Secret Manager (`FOOTBALL_DATA_TOKEN`). A credencial antiga continua visível no histórico do git (commit `8462ffe`) e está registrada como revogada em `docs/callable-functions.md` §8.3 (KAN-102). Não reproduza tokens em issues, prints ou documentos.
+> **Nota de segurança:** o token da football-data.org fica no Secret Manager (`FOOTBALL_DATA_TOKEN`), nunca no app. A credencial antiga aparece no histórico (`8462ffe`, `8f685f7`, removida em `34fd242`); a confirmação manual da revogação está descrita em `docs/callable-functions.md` §8.3. Não reproduza tokens.
 
 ## Estrutura do projeto
 
@@ -150,14 +150,17 @@ lib/
 ├── telas_principais/            # Home
 ├── tela_perfil/                 # Perfil e edição do nome de exibição
 ├── tela_criar_desafio/          # Criar Desafio
+├── tela_amigos/                 # busca, solicitações e lista de amigos
+├── tela_sobre/                  # informações e créditos
 ├── widgets_home_page/           # componentes da Home
 ├── provider/                    # AuthProvider, PartidasProvider
-├── services/                    # Auth, API de partidas, Callable Functions, perfil
+├── services/                    # Auth, partidas via Firestore, Callables, perfil
 ├── models/                      # PartidaModel, UserProfile, Carteira
 └── data/firestore/              # coleções e repositório de perfil
 functions/src/                   # Cloud Functions (TypeScript)
 ├── core/                        # autenticação, validação, Callable base, segredos
 ├── perfil/                      # createUserProfile e username único
+├── amigos/                      # solicitações e listagem de amizades
 ├── betcoins/                    # saldos, carteira inicial, ledger, reserva, desfecho
 ├── partidas/                    # modelo Match, Adapter da Football-Data (status e resultado) e FootballService
 └── desafios/                    # modelo Challenge, persistência e máquina de estados
@@ -170,33 +173,18 @@ android/                         # projeto Android
 
 ## O que está pronto
 
-### Validado no app com o Firebase real
-- **Cadastro** (KAN-25, KAN-31, KAN-32, KAN-72): a tela cria a conta no Auth e chama a `createUserProfile`, que cria perfil, username único e carteira com 1.000 BetCoins em uma única transação. Dados inválidos e e-mail ou username repetidos são recusados. Sem rede, nada é gravado, e o cadastro pode ser concluído na mesma tela.
-- **Login, logout e sessão:** com mensagens de erro em português. Depois de sair, o app volta ao Login.
-- **Perfil** (`users/{uid}`, KAN-28, KAN-29, KAN-32): tela com nome e username, edição do nome com persistência depois de novo login, e leitura de terceiros e listagem negadas.
-- **Comportamento sem conexão** (KAN-24): dados salvos com aviso; edição e cadastro bloqueados, sem falsa confirmação nem escrita pendente.
-- **Carteira inicial:** um `INITIAL_BALANCE` +1000 por perfil. Chamadas simultâneas com a carteira já criada não duplicam nem alteram dados.
-- **Partidas reais** do Brasileirão na Home e na tela Criar Desafio, com carregamento, erro, estado vazio, puxar para atualizar e atualização a cada 30 s. Hoje o app chama a API diretamente.
-- **Home:** saudação com o nome do perfil e "Saldo indisponível" até a KAN-69. A barra inferior tem Home, Desafios e Perfil; o Ranking foi removido por ser pós-MVP.
-- **Security Rules** por coleção (KAN-22), publicadas em 29/10/2026.
-
-### Publicado, sem uso pelo app
-- **Sincronização de partidas:** `syncMatches` (KAN-44 a KAN-50) grava em `matches` a cada 5 minutos por padrão, com consulta à temporada inteira a cada 6 horas (`docs/callable-functions.md` §10).
-- **Liquidação automática** (KAN-82 a KAN-87): roda dentro da `syncMatches`, mas nunca liquidou em produção, porque não há desafios reais.
-- **Recuperação de BetCoins** (`claimRecoveryBonus`, KAN-80): testada em emulador; sem tela (KAN-71) e sem execução em produção.
-
-### Testado só em emulador
-- **Negação de escrita pelo cliente** (saldo, `usernames` e lançamentos): com as mesmas regras publicadas. A execução em produção não foi autorizada, porque o banco não tem backup.
-- **Disputa simultânea na primeira criação da carteira** e **retomada do cadastro pelo Perfil depois de reabrir o app**.
-- **BetCoins no backend:** invariantes de saldo (KAN-73), registro auditável (KAN-79), reserva e liberação (KAN-74, KAN-75), premiação, perda e reembolso em empate (KAN-76 a KAN-78) e movimentações da liquidação, sem taxa (KAN-84). Fora a carteira inicial, nenhuma tela nem Callable as usa ainda.
-- **Desafios no backend:** modelo `Challenge` com os oito estados oficiais e persistência (KAN-62), máquina de estados (KAN-63), `WAITING_RESULT` (KAN-67) e identificação, decisão e finalização da liquidação pelo resultado oficial (KAN-82, KAN-83, KAN-85, KAN-87). Ainda sem Callable de criação ou aceite.
-
-### Apenas demonstrativo (interface sem funcionalidade real)
-- **Desafios Ativos** na Home: exemplos fixos, com o selo "DEMONSTRATIVO".
-- **Criar Desafio:** a escolha da partida usa dados reais, mas amigos ("DEMONSTRATIVO") e saldo ("1.500 fichas", valor fixo) não são reais, e o envio mostra "Modo demonstrativo: nenhum desafio foi salvo no banco."
+### Implementado no app e backend
+- **Cadastro, login e perfil:** Auth, criação atômica de perfil/username/carteira, sessão e edição do nome. A validação inicial no Firebase real ocorreu em 01/11; sem rede, operações sensíveis não mostram confirmação falsa.
+- **Carteira:** saldo total, reservado e disponível reais; 1.000 BetCoins iniciais por perfil, com registro auditável no backend.
+- **Partidas:** Home e Criar Desafio leem `matches` pelo Firestore, com carregamento, erro e cache. Não há chamada do app à Football-Data.org.
+- **Amizades:** busca por username, envio, aceite e recusa de solicitações e lista de amigos via Callables.
+- **Desafios:** criação com amigo e partida reais, aceite com palpite diferente, recusa e cancelamento pendente; a Home observa os desafios do usuário.
+- **Informações e créditos:** tela em `tela_sobre/`, com atribuição à football-data.org.
+- **Sincronização e liquidação:** `syncMatches` consulta o provedor a cada 5 minutos e a temporada inteira a cada 6 horas por padrão; inicia, acompanha e liquida desafios automaticamente. As Callables de desafio já estão publicadas, portanto a liquidação pode alcançar desafios reais. Não se afirma aqui que uma liquidação específica foi observada em produção.
+- **Security Rules e transações:** escritas financeiras exclusivas do backend; invariantes, concorrência, reservas, liberação e liquidação têm testes unitários e de emulador.
 
 ### Pendente para o MVP
-Amizades, criação e aceite de desafios pelo app, início de partida (KAN-66), saldo e extrato na interface, bônus de recuperação na interface, app lendo `matches` em vez da API, troca do token, histórico e tela de créditos ("Data provided by football-data.org").
+Extrato e bônus de recuperação na interface; concluir a interface de histórico (já há serviço/repositório). A Callable `claimRecoveryBonus` já está publicada. A troca de token não é migração pendente do app: o provedor já é exclusivo do backend; resta a confirmação operacional da revogação antiga (§8.3 do guia de Functions).
 
 ### Limitações conhecidas
 - O cadastro revela quando um e-mail já existe, e um username recusado deixa a conta no Auth sem perfil, a ser concluído depois.
@@ -209,15 +197,16 @@ Nenhum teste automatizado usa o Firebase de produção: o backend roda no Firest
 
 ### Integração contínua
 
-O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda a cada pull request e a cada push para `qas` e `main`, em três jobs independentes:
+O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda a cada pull request e a cada push para `qas` e `main`, em quatro jobs independentes:
 
 | Job | O que roda |
 |---|---|
-| **App Flutter** | `flutter analyze` (precisa terminar sem nenhum aviso) e `flutter test` |
-| **Functions** | `npm ci` e `npm test` em `functions/` (compila com `tsc` e roda os testes puros) |
-| **Backend e Security Rules** | os testes de `functions/` e de `tests/firestore-rules/` contra o Firestore Emulator (Node 22, JDK 21, Firebase CLI 15.32.1 pelo npm) |
+| **App Flutter (analyze e test)** | `flutter analyze` sem avisos e `flutter test` |
+| **Android (APK debug)** | `flutter build apk --debug`, JDK 21, caches de Flutter e Gradle |
+| **Functions (build e testes unitários)** | `npm ci`, `npm test` e `node --test tool/kan53/medicao.test.mjs` |
+| **Backend e Security Rules (Firestore Emulator)** | testes de backend e rules no emulador, Node 22, JDK 21 e Firebase CLI 15.32.1 fixado no lockfile |
 
-Os resultados atuais ficam na aba **Actions** do GitHub. Para o merge só entrar com os três verdes, marque os jobs como obrigatórios em *Settings → Branches → Branch protection rules* da `qas` (*Require status checks to pass*). O `integration_test/` (Android contra os emuladores) **não** roda no CI, porque precisa de dispositivo ou emulador Android; veja [`integration_test/README.md`](integration_test/README.md).
+Para proteção da `qas`, marque os quatro nomes exatos acima como obrigatórios em *Settings → Branches → Branch protection rules → Require status checks to pass*. O `integration_test/` não roda no CI, pois precisa de dispositivo/emulador Android; veja [`integration_test/README.md`](integration_test/README.md).
 
 Os mesmos comandos rodam localmente (seções acima e `docs/callable-functions.md` §9.3).
 
