@@ -22,6 +22,12 @@ class FirestorePartidasRepository implements PartidasRepository {
   // Resolvido sob demanda para permitir testes sem Firebase inicializado
   FirebaseFirestore get _db => firestore ?? FirebaseFirestore.instance;
 
+  /// Busca uma partida fora da janela da Home para descrever desafios antigos.
+  Future<PartidaModel?> buscarPorId(String id) async {
+    final doc = await _db.collection(FirestoreCollections.matches).doc(id).get();
+    return doc.exists ? PartidaModel.fromFirestoreMap(doc.data()!, doc.id) : null;
+  }
+
   @override
   Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
     final agora = DateTime.now().toUtc();

@@ -56,7 +56,10 @@ class _FakeChallengeService implements ChallengeService {
   final _desafiosController = StreamController<List<ChallengeModel>>.broadcast();
 
   @override
-  Stream<List<ChallengeModel>> observarDesafios() => _desafiosController.stream;
+  Stream<List<ChallengeModel>> observarDesafios() async* {
+    yield const [];
+    yield* _desafiosController.stream;
+  }
 
   @override
   Future<List<ChallengeModel>> listarDesafios() async => [];

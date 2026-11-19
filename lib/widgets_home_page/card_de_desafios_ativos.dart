@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../data/firestore/partidas_repository.dart';
 import 'package:provider/provider.dart';
 import '../models/partida_model.dart';
 import '../provider/partidas_provider.dart';
@@ -76,9 +76,9 @@ class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget> {
 
   Future<void> _carregarPartida(String id) async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('matches').doc(id).get();
-      if (doc.exists && mounted) {
-        setState(() => _partidas[id] = PartidaModel.fromFirestoreMap(doc.data()!, id));
+      final partida = await FirestorePartidasRepository().buscarPorId(id);
+      if (partida != null && mounted) {
+        setState(() => _partidas[id] = partida);
       }
     } catch (e, s) {
       registrarErro('Carregar descrição da partida', e, s);

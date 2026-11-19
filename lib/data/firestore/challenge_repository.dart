@@ -1,4 +1,4 @@
-import 'dart:async';
+import '../../services/combinar_desafios.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -282,31 +282,10 @@ class FunctionsChallengeRepository implements ChallengeRepository {
         for (final s in StatusDesafio.values) if (s.isTerminal) s.valor,
       ]).orderBy('updatedAt', descending: true).limit(20),
     ];
-    final resultados = <List<ChallengeModel>?>[null, null];
-    final assinaturas = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
-    late final StreamController<List<ChallengeModel>> controller;
-    controller = StreamController<List<ChallengeModel>>(
-      onListen: () {
-        for (var i = 0; i < consultas.length; i++) {
-          final indice = i;
-          assinaturas.add(consultas[i].snapshots().listen((snapshot) {
-            resultados[indice] = snapshot.docs.map((doc) =>
-                ChallengeModel.fromMap(doc.id, doc.data())).toList();
-            if (resultados.any((r) => r == null)) return;
-            // Na transição entre consultas, a versão terminal prevalece.
-            final porId = {
-              for (final lista in resultados)
-                for (final desafio in lista!) desafio.id: desafio,
-            };
-            controller.add(porId.values.toList());
-          }, onError: controller.addError));
-        }
-      },
-      onCancel: () async {
-        await Future.wait(assinaturas.map((s) => s.cancel()));
-      },
-    );
-    return controller.stream;
+    Stream<List<ChallengeModel>> observar(Query<Map<String, dynamic>> consulta) =>
+        consulta.snapshots().map((snapshot) => snapshot.docs.map((doc) =>
+            ChallengeModel.fromMap(doc.id, doc.data())).toList());
+    return combinarDesafios(observar(consultas[0]), observar(consultas[1]));
   }
 
   @override

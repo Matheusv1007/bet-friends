@@ -125,7 +125,7 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
       return s == null ? null : (s.isBroadcast ? s : s.asBroadcastStream());
     } catch (e, s) {
       registrarErro('Observar desafios na página inicial', e, s);
-      return Stream.error(e, s);
+      return Stream<List<ChallengeModel>>.error(e, s).asBroadcastStream();
     }
   }
 
