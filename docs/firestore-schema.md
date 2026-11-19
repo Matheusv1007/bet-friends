@@ -511,23 +511,23 @@ O app nunca grava saldo, transação, estado de desafio, resultado ou vencedor (
 
 ---
 
-## 6 - Índices recomendados
+## 6 - Índices declarados
 
-**Não aplicados.** `firestore.indexes.json` continua vazio; cada índice entra junto com a consulta que o usa, na KAN responsável.
+Em 19/11/2026, `firestore.indexes.json` declara **nove índices compostos**, todos com escopo `COLLECTION`. A tabela descreve o arquivo versionado, não confirma o estado de publicação no console.
 
-| Coleção | Campos | Consulta | KAN |
-|---|---|---|---|
-| `betCoinTransactions` | `userId ASC`, `createdAt DESC` | Extrato do usuário | KAN-70, KAN-79 |
-| `betCoinTransactions` | `challengeId ASC`, `createdAt ASC` | Movimentações de um desafio | KAN-61, KAN-91 |
-| `challenges` | `challengedId ASC`, `status ASC`, `createdAt DESC` | Desafios recebidos | KAN-56 |
-| `challenges` | `challengerId ASC`, `status ASC`, `createdAt DESC` | Desafios enviados | KAN-57 |
-| `challenges` | `participants CONTAINS`, `status ASC`, `finishedAt DESC` | Histórico; declarado em `firestore.indexes.json`, ainda não publicado | KAN-89 |
-| `challenges` | `matchId ASC`, `status ASC` | Expiração, início, liquidação | KAN-65 a KAN-68, KAN-82 |
-| `challenges` | `challengerId ASC`, `matchId ASC`, `status ASC`; `participants CONTAINS`, `matchId ASC`, `status ASC` | Existência de desafio ativo por papel, sem ler histórico terminal; declarados em `firestore.indexes.json` | N-10 |
-| `friendships` | `participants CONTAINS`, `status ASC` | Amigos e solicitações | KAN-35, KAN-38 |
-| `friendships` | `participants CONTAINS`, `status ASC`, `requesterId ASC` (`__name__ ASC` implícito) | Solicitações recebidas paginadas, excluindo as enviadas; declarado em `firestore.indexes.json` | N-11 |
-| `matches` | `competitionCode ASC`, `season ASC`, `startsAtUtc ASC` | Próximas partidas | KAN-42 |
-| `matches` | `status ASC`, `startsAtUtc ASC` | Janelas da sincronização | KAN-50 |
+| Coleção | Campos, na ordem declarada | Consulta |
+|---|---|---|
+| `challenges` | `participants CONTAINS`, `status ASC`, `finishedAt DESC` | Histórico |
+| `challenges` | `challengerId ASC`, `matchId ASC` | Desafio do criador por partida |
+| `challenges` | `participants CONTAINS`, `matchId ASC` | Participação por partida |
+| `challenges` | `challengerId ASC`, `matchId ASC`, `status ASC` | Existência de desafio ativo do criador, sem ler histórico terminal (N-10) |
+| `challenges` | `participants CONTAINS`, `matchId ASC`, `status ASC` | Existência de desafio ativo do participante, sem ler histórico terminal (N-10) |
+| `challenges` | `matchId ASC`, `status ASC` | Expiração, início e liquidação |
+| `friendships` | `participants CONTAINS`, `status ASC` | Amigos e solicitações |
+| `friendships` | `participants CONTAINS`, `status ASC`, `requesterId ASC` (`__name__ ASC` implícito) | Solicitações recebidas paginadas, excluindo as enviadas (N-11) |
+| `matches` | `competitionCode ASC`, `startsAtUtc ASC` | Partidas da competição |
+
+Não há índices compostos de `betCoinTransactions` declarados neste arquivo.
 
 ---
 
@@ -540,7 +540,7 @@ O app nunca grava saldo, transação, estado de desafio, resultado ou vencedor (
 | Criação de `users/{uid}` pelo app | ✅ **Resolvido na KAN-32.** `FirestoreUserProfileRepository.criar` foi removido; `UserProfileService.criarPerfilDoUsuarioAtual` chama a Callable `createUserProfile` (KAN-31), que cria perfil, username e carteira |
 | `UserProfileService.criarPerfilDoUsuarioAtual` recebia `usernameNormalized` do chamador | ✅ **Resolvido na KAN-32.** O parâmetro foi removido; a normalização é só do backend. Ligar a tela de cadastro ao serviço fica na KAN-25 |
 | `FirestoreCollections` (5 coleções) | ✅ Compatível; `usernames` não é lida pelo app (§3.2), então não precisa de constante no Flutter |
-| `PartidaModel` (Flutter) | ⚠️ Usa o formato do provedor; será substituído por um modelo baseado em `matches` (KAN-46/KAN-52). Fora do escopo |
+| `PartidaModel` (Flutter) | Compatível com `matches`: `fromFirestoreMap(data, id)` lê `homeTeam`/`awayTeam`, `startsAtUtc` e `syncedAt` em UTC, `homeScore`/`awayScore`, `competitionCode`, `season` e `matchday`. Expõe nomes, logos, gols e status de domínio em português; o horário local é formatado apenas para exibição. Mantém leitura alternativa de campos legados e `score.fullTime`, sem chamar o provedor |
 | `firestore.rules` | ✅ Regras da KAN-22, conforme §5.1; publicadas no projeto real em 29/10/2026 (substituíram o *deny-all* da KAN-17) |
 
 ---

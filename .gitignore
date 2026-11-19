@@ -62,3 +62,5 @@ ui-debug.log
 *.local
 **/.secret.local
 .secret.local
+# Configuração pública de produção; segredos continuam no Secret Manager.
+!/functions/.env.betfriends-unirv-2026

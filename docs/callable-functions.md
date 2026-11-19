@@ -157,10 +157,24 @@ firebase deploy --only functions
    - Destruir versões antigas/revogadas no Secret Manager: `firebase functions:secrets:prune --project betfriends-unirv-2026`.
 
 2. **Registro de Segurança para a Equipe:**
-   - **Credencial antiga invalidada:** A credencial identificada na auditoria de 10/05/2026 como exposta no histórico do repositório (`lib/services/api/partidas_service.dart`) e embutida no APK anterior está formalmente **revogada e descontinuada**. Ela não deve ser utilizada em nenhum ambiente (desenvolvimento, homologação ou produção).
-   - **Isolamento de Credenciais (KAN-21 / RN-SEC-003, RN-SEC-005):** Nenhuma credencial do provedor de futebol é adicionada ao código Flutter nem a qualquer arquivo versionado no repositório. Arquivos locais de segredos (`functions/.secret.local`, `.env*`, `*.local`) estão protegidos no `.gitignore`.
+   - **Credencial antiga descontinuada:** não deve ser usada em nenhum ambiente. O registro anterior a descrevia como revogada; a revogação no provedor não é comprovável pelo repositório e requer a confirmação manual abaixo.
+   - **Histórico completo identificado (N-30):** exposição em `8462ffe` e `8f685f7` (02/11/2026, inclusive em teste negativo); remoção em `34fd242`. A remoção não apaga a credencial dos commits anteriores nem dos APKs antigos.
+   - **Isolamento de Credenciais (KAN-21 / RN-SEC-003, RN-SEC-005):** nenhum segredo novo deve entrar no Flutter ou em arquivos versionados. `.secret.local`, `.env*` e `*.local` são ignorados, exceto `functions/.env.betfriends-unirv-2026`, que contém apenas configuração pública.
    - **Consumo Exclusivo via Firestore (KAN-42 / RNF-005):** O aplicativo Flutter consome exclusivamente a coleção `matches` do Cloud Firestore sincronizada pela Cloud Function agendada `syncMatches`, sem chamadas diretas do cliente à Football-Data.org.
    - **Proteção em Registros Públicos:** Nenhum valor secreto de credencial pode ser registrado em texto claro em commits, Pull Requests, documentações ou descrições/comentários do Jira.
+
+3. **Checklist manual de confirmação da revogação (responsável pelo provedor):**
+   - [ ] Confirmar no painel da Football-Data.org que a credencial exposta foi revogada/substituída.
+   - [ ] Em terminal privado, sem gravar token no histórico, testar a credencial antiga. O exemplo usa somente um placeholder; nunca cole o valor em documentos, logs ou capturas:
+
+     ```bash
+     curl --silent --output /dev/null --write-out '%{http_code}\n' \
+       --header 'X-Auth-Token: <TOKEN_ANTIGO_REVOGADO>' \
+       https://api.football-data.org/v4/competitions/BSA/matches
+     ```
+
+   - [ ] Confirmar **HTTP 401 ou 403**. `200` indica credencial ainda válida; `429`, falha de rede ou outro status não comprovam revogação.
+   - [ ] Registrar responsável, data e status HTTP, sem token nem conteúdo da resposta, e confirmar que o backend usa a nova versão do Secret Manager.
 
 ### 8.4 - No emulador
 
@@ -230,7 +244,7 @@ Para testes locais, use sempre um projeto `demo-*`: o emulador não acessa o Fir
 
 ## 10 - Sincronização periódica de partidas e liquidação (KAN-50, KAN-86)
 
-`syncMatches` é uma função agendada (Cloud Scheduler) que chama `executarSincronizacao` para o Brasileirão (`BSA`). Cada execução faz **uma** chamada à Football-Data e grava em `matches` só o que mudou. Em geral consulta a janela em volta do horário da execução; a cada `PARTIDAS_SYNC_TEMPORADA_HORAS`, consulta a temporada inteira, para alcançar partidas que saíram da janela (adiamento longo, resultado tardio). A varredura usa o mesmo agendamento, sem função nem job adicional. No desenho previsto, o app só lê `matches`; hoje ele ainda chama o provedor diretamente, até a migração (KAN-42).
+`syncMatches` é uma função agendada (Cloud Scheduler) que chama `executarSincronizacao` para o Brasileirão (`BSA`). Cada execução faz **uma** chamada à Football-Data e grava em `matches` só o que mudou. Em geral consulta a janela em volta do horário da execução; a cada `PARTIDAS_SYNC_TEMPORADA_HORAS`, consulta a temporada inteira, para alcançar partidas que saíram da janela (adiamento longo, resultado tardio). A varredura usa o mesmo agendamento. O app já lê `matches` do Firestore e não chama o provedor.
 
 Logo depois, na mesma execução, `processarResultados` (KAN-86, `functions/src/desafios/processamentoDeResultados.ts`) usa só o que já está em `matches`: passa para `WAITING_RESULT` os desafios cuja partida saiu de campo, identifica os aptos (partida `FINALIZADA` com resultado) e finaliza cada um com a liquidação idempotente, uma transação por desafio. A falha de um desafio não trava os outros nem deixa efeito parcial; vai para o log (`Desafios aptos que não puderam ser liquidados`) e a próxima execução tenta de novo, sem pagar duas vezes o que já foi finalizado.
 
@@ -252,10 +266,10 @@ Logo depois, na mesma execução, `processarResultados` (KAN-86, `functions/src/
 | `indisponivel`, `limite-de-requisicoes` | Termina sem erro | A partir da 3ª falha seguida de execuções ou da 3ª seguida da temporada (`tipo: persistente`) |
 
 - **Execuções sobrepostas ou respostas atrasadas:** o ID determinístico evita duplicar, e versão com `providerLastUpdated` mais antigo é ignorada. A primeira confirmação do vencedor é aceita com marca igual ou ausente; resultado já confirmado só muda com marca estritamente mais nova. Essa correção aparece no log (`Provedor corrigiu partidas já finalizadas`) e não altera desafios já liquidados nem BetCoins. Se o resultado corrigido divergir de um desafio já liquidado, há `logger.error` (`evento: divergencia-pos-liquidacao`) e contagem em `system/matchSync`, sem estorno automático.
-- **Pendência antes de liquidar em produção (B-4):** o resultado pago vem de `score.winner`, sem conferência com o placar.
+- **DECISÃO EXPLÍCITA da equipe (B-4, aceita em 19/11/2026):** liquidar exclusivamente pelo `score.winner` informado pelo provedor, normalizado pelo Adapter, sem conferir contra `score.fullTime.home/away`. A equipe aceita que uma divergência entre vencedor e placar possa gerar pagamento pelo vencedor informado; não é uma validação pendente nem garantia de coerência do placar.
 - **Parâmetros provisórios:** 6 horas entre varreduras e 240 segundos de limite permanecem inalterados, mas ainda não foram medidos no provedor nem na nuvem. A validação foi feita com emuladores e `fetch` falso, não com infraestrutura real. Se `lastUpdated` mudar sem mudança real, a redução de gravações será menor.
 - **Requisitos para rodar em produção:** plano Blaze, `FOOTBALL_DATA_TOKEN` configurado (seção 8.2) e deploy das Functions (seção 7).
-- **Alcance atual da liquidação:** nada em produção cria ou inicia desafios ainda (KAN-66 e Callables de desafio pendentes); o processamento só encontra desafios em testes.
+- **Alcance atual da liquidação (19/11/2026):** `createChallenge`, `acceptChallenge`, `rejectChallenge` e `cancelChallenge` já estão publicadas e são usadas pelo app. O processamento agendado inicia e liquida desafios reais elegíveis; a publicação não prova que uma liquidação específica já ocorreu em produção.
 - **No emulador:** sem o emulador de Pub/Sub, o Functions Emulator só carrega a definição e não dispara a agenda.
 
 ## 11 - Callables de recusa e cancelamento de desafio (A-01)
@@ -273,7 +287,7 @@ O payload de `createChallenge` e `acceptChallenge` tem **uma forma só**, a que 
 
 Criação e aceite recusam com `partida-invalida` partidas remarcadas mais de sete dias após `originalStartsAtUtc`, usando o mesmo prazo do cancelamento automático (N-04). A data original é a primeira data sincronizada; a recusa é explícita, em vez de aceitar uma reserva que seria cancelada no próximo job.
 
-`rejectChallenge` e `cancelChallenge` liberam a reserva do criador na mesma transação em que mudam o estado. O cancelamento depois do aceite não tem Callable: só o sistema cancela (partida cancelada ou adiada além do tolerado), dentro do `processarResultados`. Detalhes e regras em `docs/firestore-schema.md` §3.5. Depois do deploy, as funções precisam ser publicadas (seção 7) para o app conseguir recusar e cancelar.
+`rejectChallenge` e `cancelChallenge` liberam a reserva do criador na mesma transação em que mudam o estado. O cancelamento depois do aceite não tem Callable: só o sistema cancela (partida cancelada ou adiada além do tolerado), dentro do `processarResultados`. Detalhes e regras em `docs/firestore-schema.md` §3.5. As quatro Callables desta seção já estão publicadas (registro de 19/11 na seção 7).
 
 Saídas por tempo (N-05/A-01): `ACCEPTED` com partida `AGENDADA` há mais de sete dias é cancelado como `MATCH_POSTPONED`. `IN_PROGRESS`/`EM_ANDAMENTO` há mais de 24h desde `startedAt` gera `logger.error` com `challengeId`, sem cancelar. `WAITING_RESULT` com partida `SUSPENSA`/`REVISAO_NECESSARIA` há mais de `DIAS_DE_ESPERA_DE_RESULTADO_TOLERADO` (7 dias desde a entrada em espera, `updatedAt`) é cancelado pelo mesmo caminho transacional e libera as duas reservas, sem pagar vencedor. É a política segura e reversível para ausência prolongada de resultado confiável; exatamente no prazo ainda espera.
 
@@ -296,5 +310,5 @@ Para ligar (só depois de conferir os passos):
 1. Firebase Console → App Check → aba Apps → app Android → registrar com **Play Integrity**. O Play Integrity só atesta apps instalados pela Google Play (inclusive teste interno); um APK instalado à mão é recusado. Se o app não for publicado na Play, não ligue a exigência.
 2. Para builds de debug, rode o app em debug, copie do logcat o *debug token* que o SDK imprime e cadastre em App Check → Apps → ⋮ → *Gerenciar tokens de depuração*.
 3. Em App Check → APIs → Cloud Functions, confira nas métricas que as requisições aparecem como **verificadas** (não só "não verificadas") antes de exigir.
-4. Crie `functions/.env.betfriends-unirv-2026` com `ENFORCE_APP_CHECK=true` (o arquivo é ignorado pelo git) e publique: `firebase deploy --only functions --project betfriends-unirv-2026`.
+4. Altere o arquivo **versionado** `functions/.env.betfriends-unirv-2026` para `ENFORCE_APP_CHECK=true`, versione a mudança e publique: `firebase deploy --only functions --project betfriends-unirv-2026`. Ele contém apenas configuração pública; nunca adicione tokens. O valor inicial `false` preserva o padrão do código, pois a exigência em produção não foi confirmada.
 5. Para desligar, troque para `false` e publique de novo. Tentando uma chamada sem token com a exigência ligada, o erro é `unauthenticated`.
