@@ -145,7 +145,7 @@ Exige o plano Blaze (Secret Manager).
 
 ```bash
 firebase functions:secrets:set FOOTBALL_DATA_TOKEN   # o CLI pede o valor sem ecoar
-firebase deploy --only functions
+npx firebase-tools@15.32.1 deploy --only functions
 ```
 
 ### 8.3 - Rotação e Revogação do Token Exposto (KAN-102; Auditoria Técnica 10/05/2026, RN-SEC-005, RNF-004)
@@ -153,7 +153,7 @@ firebase deploy --only functions
 1. **Procedimento Operacional de Rotação:**
    - Gerar uma nova credencial no painel da Football-Data.org. O token anterior é invalidado no provedor e deixa de funcionar.
    - Definir o novo segredo no backend: `firebase functions:secrets:set FOOTBALL_DATA_TOKEN` (o CLI solicita o valor sem ecoar no terminal).
-   - Implantar as Cloud Functions: `firebase deploy --only functions --project betfriends-unirv-2026` para que utilizem a nova versão do segredo.
+   - Implantar as Cloud Functions: `npx firebase-tools@15.32.1 deploy --only functions --project betfriends-unirv-2026` para que utilizem a nova versão do segredo. Não use o binário standalone `firebase` aqui (ver o aviso da seção 7).
    - Destruir versões antigas/revogadas no Secret Manager: `firebase functions:secrets:prune --project betfriends-unirv-2026`.
 
 2. **Registro de Segurança para a Equipe:**
@@ -310,5 +310,5 @@ Para ligar (só depois de conferir os passos):
 1. Firebase Console → App Check → aba Apps → app Android → registrar com **Play Integrity**. O Play Integrity só atesta apps instalados pela Google Play (inclusive teste interno); um APK instalado à mão é recusado. Se o app não for publicado na Play, não ligue a exigência.
 2. Para builds de debug, rode o app em debug, copie do logcat o *debug token* que o SDK imprime e cadastre em App Check → Apps → ⋮ → *Gerenciar tokens de depuração*.
 3. Em App Check → APIs → Cloud Functions, confira nas métricas que as requisições aparecem como **verificadas** (não só "não verificadas") antes de exigir.
-4. Altere o arquivo **versionado** `functions/.env.betfriends-unirv-2026` para `ENFORCE_APP_CHECK=true`, versione a mudança e publique: `firebase deploy --only functions --project betfriends-unirv-2026`. Ele contém apenas configuração pública; nunca adicione tokens. O valor inicial `false` preserva o padrão do código, pois a exigência em produção não foi confirmada.
+4. Altere o arquivo **versionado** `functions/.env.betfriends-unirv-2026` para `ENFORCE_APP_CHECK=true`, versione a mudança e publique: `npx firebase-tools@15.32.1 deploy --only functions --project betfriends-unirv-2026`. Ele contém apenas configuração pública; nunca adicione tokens. O valor inicial `false` preserva o padrão do código, pois a exigência em produção não foi confirmada.
 5. Para desligar, troque para `false` e publique de novo. Tentando uma chamada sem token com a exigência ligada, o erro é `unauthenticated`.
