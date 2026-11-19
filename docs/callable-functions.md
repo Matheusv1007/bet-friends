@@ -283,6 +283,8 @@ Duas proteções contra uso do backend por quem não é o app, ou em volume abus
 
 **Limite de uso por usuário.** `searchUsers` aceita no máximo 60 buscas por minuto por usuário (`core/limiteDeUso.ts`). Acima disso devolve `resource-exhausted` com `details.motivo = "limite-de-uso"` e `details.tentarNovamenteEm`. O contador fica em `rateLimits/{funcao}_{uid}` (só o backend acessa; ver `firestore-schema.md` §3.8). A busca também só consulta com 3 caracteres ou mais (o mínimo de um username), devolve até 20 resultados, e o app nem chama o backend com termo menor.
 
+`createChallenge` e `cancelChallenge` permitem, cada um, 30 operações bem-sucedidas por hora por usuário (N-10), com contadores separados e consumo na mesma transação da reserva/liberação. Erros e transações abortadas não consomem cota; cancelamentos automáticos não têm cota. A verificação de conflito lê apenas `PENDING` criado e desafios `ACCEPTED`/`IN_PROGRESS`/`WAITING_RESULT` de que participa, nunca o histórico terminal nem convites pendentes recebidos.
+
 **App Check.** O app já envia o token de App Check em toda chamada (`main.dart`; provedor de depuração em debug, Play Integrity em release; não ativa contra os emuladores). O backend só **exige** o token quando o parâmetro `ENFORCE_APP_CHECK` está `true` no deploy; o padrão é `false`, porque exigir antes de configurar o console derruba todas as chamadas do app. Todas as Callables passam por `authedCallable`, então o parâmetro vale para todas.
 
 Para ligar (só depois de conferir os passos):

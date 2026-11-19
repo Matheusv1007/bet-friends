@@ -3,16 +3,19 @@ import { after, before, beforeEach, describe, test } from "node:test";
 
 import { deleteApp, initializeApp } from "firebase-admin/app";
 import { Firestore, Timestamp, getFirestore } from "firebase-admin/firestore";
+import { HttpsError } from "firebase-functions/https";
 
 import { COLECAO_DE_AMIZADES } from "../src/amigos/friendshipFirestore";
 import { idDeTransacaoDeDesafio } from "../src/betcoins/transacoes";
 import {
+  LIMITE_DE_CANCELAMENTO_DE_DESAFIOS,
   cancelarDesafioPeloCriador,
   cancelarDesafiosPelaPartida,
   recusarDesafio,
 } from "../src/desafios/cancelamento";
 import { ErroDeDesafio } from "../src/desafios/challenge";
 import {
+  LIMITE_DE_CRIACAO_DE_DESAFIOS,
   aceitarDesafioNaTransacao,
   criarDesafioParaAmigoNaTransacao,
   lerDesafio,
@@ -336,6 +339,31 @@ describe(
       assert.deepEqual(resumo.cancelados, [id]);
       assert.equal((await lerDesafio(db, id))?.status, "CANCELLED");
       assert.deepEqual(await carteira(ALICE), { total: 1000, reservado: 0 });
+    });
+    test("cotas de criação e cancelamento são atômicas e independentes (N-10)", async () => {
+      const limiteCriacao = db.doc(`rateLimits/createChallenge_${ALICE}`);
+      const limiteCancelamento = db.doc(`rateLimits/cancelChallenge_${ALICE}`);
+      const cheia = (maximo: number) => ({ windowStart: Timestamp.fromDate(CRIACAO), count: maximo });
+      const esgotada = (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted";
+      await limiteCriacao.set(cheia(LIMITE_DE_CRIACAO_DE_DESAFIOS.maximo));
+      await assert.rejects(criar(), esgotada);
+      assert.equal((await db.collection("challenges").get()).size, 0);
+      assert.deepEqual(await carteira(ALICE), { total: 1000, reservado: 0 });
+
+      await limiteCriacao.delete();
+      const id = await criar();
+      assert.equal((await limiteCriacao.get()).get("count"), 1);
+      await limiteCancelamento.set(cheia(LIMITE_DE_CANCELAMENTO_DE_DESAFIOS.maximo));
+      await assert.rejects(cancelarDesafioPeloCriador(db, { challengeId: id, challengerId: ALICE }, CRIACAO), esgotada);
+      assert.equal((await lerDesafio(db, id))?.status, "PENDING");
+      assert.deepEqual(await carteira(ALICE), { total: 1000, reservado: 50 });
+      await limiteCancelamento.delete();
+      await cancelarDesafioPeloCriador(db, { challengeId: id, challengerId: ALICE }, CRIACAO);
+      assert.equal((await limiteCancelamento.get()).get("count"), 1);
+      // O terminal não bloqueia uma nova criação; falha de regra não consome cota.
+      await criar();
+      await assert.rejects(criar(), (err: unknown) => err instanceof ErroDeDesafio && err.code === "desafio-ativo-existente");
+      assert.equal((await limiteCriacao.get()).get("count"), 2);
     });
   },
 );

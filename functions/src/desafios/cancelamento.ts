@@ -15,6 +15,9 @@ import { EventoDoDesafio } from "./maquinaDeEstados";
 import { carregarContextoDoProcessamento, ContextoDoProcessamento, partidaDoContexto } from "./contextoDoProcessamento";
 import { CONCORRENCIA_COM_CARTEIRA, processarComConcorrencia } from "./concorrenciaLimitada";
 import { DIAS_DE_ADIAMENTO_TOLERADO, limiteDeAdiamento, remarcadaAlemDoTolerado } from "./prazoDeAdiamento";
+import { planejarConsumoDeLimiteNaTransacao } from "../core/limiteDeUso";
+
+export const LIMITE_DE_CANCELAMENTO_DE_DESAFIOS = { maximo: 30, janelaMs: 60 * 60 * 1000 };
 
 /**
  * Recusa, cancelamento pelo criador e cancelamento pela partida (A-01;
@@ -123,7 +126,9 @@ export async function cancelarDesafioPeloCriadorNaTransacao(
   if (desafio.status !== "PENDING") {
     throw new ErroDeDesafio("O criador só pode cancelar um desafio pendente.", "desafio-nao-pendente");
   }
+  const gravarLimite = await planejarConsumoDeLimiteNaTransacao(transacao, db, `cancelChallenge_${pedido.challengerId}`, LIMITE_DE_CANCELAMENTO_DE_DESAFIOS, agora);
   const depois = await liberarReservasEEncerrar(transacao, db, desafio, { tipo: "CANCELAR", motivo: "CREATOR" }, agora);
+  gravarLimite();
   return { challengeId: depois.id, status: "CANCELLED" };
 }
 

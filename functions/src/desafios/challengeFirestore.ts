@@ -17,6 +17,9 @@ import { lerMatchNaTransacao } from "../partidas/matchFirestore";
 import { RESULTADOS_DA_PARTIDA } from "../partidas/match";
 import { EventoDoDesafio, aplicarEvento } from "./maquinaDeEstados";
 import { remarcadaAlemDoTolerado } from "./prazoDeAdiamento";
+import { planejarConsumoDeLimiteNaTransacao } from "../core/limiteDeUso";
+
+export const LIMITE_DE_CRIACAO_DE_DESAFIOS = { maximo: 30, janelaMs: 60 * 60 * 1000 };
 
 /**
  * Persistência do desafio em `challenges/{id}` (KAN-62;
@@ -192,8 +195,8 @@ export function contaComoDesafioAtivo(status: StatusDoDesafio, challengedId: str
  * Considera ambos os papéis (criador ou desafiado em participants).
  * Se [ignorarChallengeId] for informado, esse desafio específico é desconsiderado.
  *
- * A consulta lê todos os desafios do usuário na partida dentro da transação, então
- * duas aceitações simultâneas de convites diferentes conflitam e só uma passa.
+ * Consulta apenas candidatos ativos, com limite de existência por papel.
+ * A reserva na mesma transação serializa criações e aceites do usuário.
  */
 export async function temDesafioAtivoNaPartida(
   transacao: Transaction,
@@ -202,17 +205,14 @@ export async function temDesafioAtivoNaPartida(
   matchId: string,
   ignorarChallengeId?: string,
 ): Promise<boolean> {
-  const snapshot = await transacao.get(
-    db
-      .collection(COLECAO_DE_DESAFIOS)
-      .where("participants", "array-contains", userId)
-      .where("matchId", "==", matchId),
-  );
-  return snapshot.docs.some((doc) => {
-    if (ignorarChallengeId && doc.id === ignorarChallengeId) return false;
-    const { status, challengedId } = doc.data();
-    return contaComoDesafioAtivo(status as StatusDoDesafio, String(challengedId), userId);
-  });
+  const desafios = db.collection(COLECAO_DE_DESAFIOS).where("matchId", "==", matchId);
+  const limite = ignorarChallengeId ? 2 : 1;
+  const [criados, comprometidos] = await Promise.all([
+    transacao.get(desafios.where("challengerId", "==", userId).where("status", "==", "PENDING").limit(limite)),
+    transacao.get(desafios.where("participants", "array-contains", userId)
+      .where("status", "in", ["ACCEPTED", "IN_PROGRESS", "WAITING_RESULT"]).limit(limite)),
+  ]);
+  return [...criados.docs, ...comprometidos.docs].some((doc) => doc.id !== ignorarChallengeId);
 }
 
 export interface CriarDesafioParams {
@@ -307,6 +307,8 @@ export async function criarDesafioParaAmigoNaTransacao(
     throw new ErroDeDesafio("Você já possui um desafio ativo para esta partida.", "desafio-ativo-existente");
   }
 
+  const gravarLimite = await planejarConsumoDeLimiteNaTransacao(transacao, db, `createChallenge_${challengerId}`, LIMITE_DE_CRIACAO_DE_DESAFIOS, agora);
+
   // ESCRITAS: Reserva no ledger e criação do desafio em PENDING
   await reservarBetCoinsNaTransacao(transacao, db, {
     userId: challengerId,
@@ -314,6 +316,7 @@ export async function criarDesafioParaAmigoNaTransacao(
     valor: amount,
     matchId,
   });
+  gravarLimite();
 
   criarDesafioNaTransacao(
     transacao,
