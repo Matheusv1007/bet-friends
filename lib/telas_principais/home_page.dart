@@ -292,10 +292,13 @@ class _HomepageState extends State<Homepage> {
         currentIndex: _currentNavIndex,
         onTap: (index) {
           if (index == 1) {
+            final service = widget.challengeService ?? context.read<ChallengeService?>();
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const CriarDesafioScreen(),
+                builder: (context) => CriarDesafioScreen(
+                  challengeService: service,
+                ),
               ),
             );
           } else if (index == 2) {

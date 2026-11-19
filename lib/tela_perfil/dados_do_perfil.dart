@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/user_profile.dart';
+import '../services/friendship_service.dart';
+import '../services/user_search_service.dart';
 import '../tela_amigos/tela_buscar_usuarios.dart';
 import '../tela_amigos/tela_comunicacoes_amizade.dart';
 import '../tela_amigos/tela_lista_amigos.dart';
@@ -80,7 +83,11 @@ class DadosDoPerfil extends StatelessWidget {
           child: ElevatedButton.icon(
             key: const Key('perfil_meus_amigos'),
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const TelaListaAmigos()),
+              MaterialPageRoute(
+                builder: (_) => TelaListaAmigos(
+                  friendshipService: context.read<FriendshipService?>(),
+                ),
+              ),
             ),
             icon: const Icon(Icons.people_alt_outlined, size: 18),
             label: const Text(
@@ -104,7 +111,12 @@ class DadosDoPerfil extends StatelessWidget {
           child: ElevatedButton.icon(
             key: const Key('perfil_buscar_usuarios'),
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const TelaBuscarUsuarios()),
+              MaterialPageRoute(
+                builder: (_) => TelaBuscarUsuarios(
+                  friendshipService: context.read<FriendshipService?>(),
+                  searchService: context.read<UserSearchService?>(),
+                ),
+              ),
             ),
             icon: const Icon(Icons.person_search, size: 18),
             label: const Text(
@@ -128,7 +140,11 @@ class DadosDoPerfil extends StatelessWidget {
           child: ElevatedButton.icon(
             key: const Key('perfil_solicitacoes_amizade'),
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const TelaComunicacoesAmizade()),
+              MaterialPageRoute(
+                builder: (_) => TelaComunicacoesAmizade(
+                  friendshipService: context.read<FriendshipService?>(),
+                ),
+              ),
             ),
             icon: const Icon(Icons.mark_email_unread_outlined, size: 18),
             label: const Text(

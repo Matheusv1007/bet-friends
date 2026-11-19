@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../services/challenge_service.dart';
 import '../tela_criar_desafio/tela_criar_desafio.dart';
 
 class Carddedesafio extends StatelessWidget {
@@ -70,10 +73,14 @@ class Carddedesafio extends StatelessWidget {
           // Botão Desafiar em amarelo/âmbar
           ElevatedButton(
             onPressed: () {
+              final service =
+                  Provider.of<ChallengeService?>(context, listen: false);
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const CriarDesafioScreen(),
+                  builder: (context) => CriarDesafioScreen(
+                    challengeService: service,
+                  ),
                 ),
               );
             },

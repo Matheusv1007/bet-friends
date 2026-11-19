@@ -125,7 +125,9 @@ class DesafiosAtivosWidget extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const CriarDesafioScreen(),
+              builder: (context) => CriarDesafioScreen(
+                challengeService: challengeService,
+              ),
             ),
           );
         },
