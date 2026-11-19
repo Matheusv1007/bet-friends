@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/auth_service.dart';
+import '../services/registro_de_erros.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService;
@@ -32,7 +33,8 @@ class AuthProvider extends ChangeNotifier {
     _cadastroEmAndamento = true;
     try {
       await _authService.signUp(email: email, password: password);
-    } catch (_) {
+    } catch (e, s) {
+      registrarErro('criar conta no Auth', e, s);
       _cadastroEmAndamento = false;
       rethrow;
     }

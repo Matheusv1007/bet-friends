@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../models/partida_model.dart';
+import '../../services/registro_de_erros.dart';
 import 'firestore_collections.dart';
 
 /// Contrato para obtenção de partidas da aplicação (KAN-42; RF-007, RN-MAT-001).
@@ -39,7 +40,8 @@ class FirestorePartidasRepository implements PartidasRepository {
           .toList();
 
       return _ordenarPartidas(partidas, limit);
-    } catch (e) {
+    } catch (e, s) {
+      registrarErro('carregar partidas antes de consultar o cache', e, s);
       // 2. Resiliência (RN-CACHE-001, RN-CACHE-003): em caso de falha de conexão ou indisponibilidade,
       // busca do cache local persistente do Firestore
       try {
@@ -53,8 +55,8 @@ class FirestorePartidasRepository implements PartidasRepository {
               .toList();
           return _ordenarPartidas(partidasCache, limit);
         }
-      } catch (_) {
-        // Cache local não disponível
+      } catch (erroCache, pilhaCache) {
+        registrarErro('carregar partidas do cache local', erroCache, pilhaCache);
       }
       rethrow;
     }

@@ -1,3 +1,5 @@
+import '../services/registro_de_erros.dart';
+
 import 'usuario_publico.dart';
 
 /// Status possíveis de uma amizade (docs/firestore-schema.md §3.3).
@@ -142,7 +144,8 @@ class SolicitacaoAmizade {
       if (v is String) return DateTime.tryParse(v);
       try {
         return (v as dynamic).toDate() as DateTime?;
-      } catch (_) {
+      } catch (e, s) {
+        registrarErro('converter data da solicitação de amizade', e, s);
         return null;
       }
     }
@@ -212,7 +215,8 @@ class FriendshipModel {
       // Firebase Timestamp tem método toDate()
       try {
         return (v as dynamic).toDate() as DateTime?;
-      } catch (_) {
+      } catch (e, s) {
+        registrarErro('converter data da relação de amizade', e, s);
         return null;
       }
     }
