@@ -20,7 +20,7 @@ import 'package:betfriends/services/user_profile_service.dart';
 import 'package:betfriends/tela_perfil/tela_perfil.dart';
 import 'package:betfriends/telas_autenticacao/cadastro_page.dart';
 import 'package:betfriends/telas_autenticacao/login_page.dart';
-import 'package:betfriends/telas_principais/homePage.dart';
+import 'package:betfriends/telas_principais/home_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';

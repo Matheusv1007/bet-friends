@@ -4,7 +4,7 @@ import 'package:betfriends/app.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
 import 'package:betfriends/telas_autenticacao/cadastro_page.dart';
 import 'package:betfriends/telas_autenticacao/login_page.dart';
-import 'package:betfriends/telas_principais/homePage.dart';
+import 'package:betfriends/telas_principais/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

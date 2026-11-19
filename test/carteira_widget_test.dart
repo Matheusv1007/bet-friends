@@ -1,5 +1,5 @@
 import 'package:betfriends/models/carteira.dart';
-import 'package:betfriends/widgets_homePage/cardDeCarteira.dart';
+import 'package:betfriends/widgets_home_page/card_de_carteira.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

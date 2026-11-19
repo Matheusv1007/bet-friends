@@ -150,7 +150,7 @@ lib/
 ├── telas_principais/            # Home
 ├── tela_perfil/                 # Perfil e edição do nome de exibição
 ├── tela_criar_desafio/          # Criar Desafio
-├── widgets_homePage/            # componentes da Home
+├── widgets_home_page/           # componentes da Home
 ├── provider/                    # AuthProvider, PartidasProvider
 ├── services/                    # Auth, API de partidas, Callable Functions, perfil
 ├── models/                      # PartidaModel, UserProfile, Carteira
