@@ -286,5 +286,5 @@ Para ligar (só depois de conferir os passos):
 1. Firebase Console → App Check → aba Apps → app Android → registrar com **Play Integrity**. O Play Integrity só atesta apps instalados pela Google Play (inclusive teste interno); um APK instalado à mão é recusado. Se o app não for publicado na Play, não ligue a exigência.
 2. Para builds de debug, rode o app em debug, copie do logcat o *debug token* que o SDK imprime e cadastre em App Check → Apps → ⋮ → *Gerenciar tokens de depuração*.
 3. Em App Check → APIs → Cloud Functions, confira nas métricas que as requisições aparecem como **verificadas** (não só "não verificadas") antes de exigir.
-4. Crie `functions/.env.betfriends-unirv-2026` com `ENFORCE_APP_CHECK=true` (o arquivo é ignorado pelo git) e publique: `firebase deploy --only functions --project betfriends-unirv-2026`.
+4. Altere o arquivo **versionado** `functions/.env.betfriends-unirv-2026` para `ENFORCE_APP_CHECK=true`, versione a mudança e publique: `firebase deploy --only functions --project betfriends-unirv-2026`. Ele contém apenas configuração pública; nunca adicione tokens. O valor inicial `false` preserva o padrão do código, pois a exigência em produção não foi confirmada.
 5. Para desligar, troque para `false` e publique de novo. Tentando uma chamada sem token com a exigência ligada, o erro é `unauthenticated`.
