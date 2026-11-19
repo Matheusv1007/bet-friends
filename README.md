@@ -138,8 +138,9 @@ O repositório já inclui a configuração **de cliente** do Firebase para Andro
 - No projeto real, a tela de cadastro cria a conta no Auth e chama a `createUserProfile`, que cria perfil, username único e carteira. Os dados criados são permanentes: use e-mail fictício e combine com a equipe antes de criar contas de teste.
 - As Security Rules por coleção (`firestore.rules`, KAN-22) foram **publicadas no projeto real em 29/10/2026**, idênticas às do repositório. Elas permitem ao usuário ler o próprio perfil e alterar só o nome de exibição; o resto continua negado ao app.
 - Nunca versione credenciais administrativas, arquivos `.env`, `.secret.local` ou chaves de serviço.
+- A chave `AIza…` de `google-services.json` e `firebase_options.dart` é de cliente, mas deve estar restrita no Google Cloud Console (APIs e serviços → Credenciais): restrição de aplicativo Android com o pacote `com.unirv.betfriends` e o SHA-1 do keystore, e restrição de API só às APIs do Firebase usadas. Sem isso, qualquer pessoa que leia o repositório pode usar a chave por fora do app.
 
-> **Aviso de segurança conhecido:** hoje o token da football-data.org está no código do app. Isso contraria a arquitetura planejada, em que só o backend acessa o provedor. A função agendada `syncMatches` já roda no projeto real, com o token como segredo, e grava as partidas no Firestore (KAN-21, KAN-44 a KAN-50); o app lendo do Firestore (KAN-42) e a troca do token (KAN-102) estão pendentes. Até lá, **não distribua APKs** gerados a partir deste código e não reproduza o token em issues, prints ou documentos.
+> **Nota de segurança:** o token da football-data.org não está mais no código do app; só o backend acessa o provedor, com o token no Secret Manager (`FOOTBALL_DATA_TOKEN`). A credencial antiga continua visível no histórico do git (commit `8462ffe`) e está registrada como revogada em `docs/callable-functions.md` §8.3 (KAN-102). Não reproduza tokens em issues, prints ou documentos.
 
 ## Estrutura do projeto
 

@@ -175,7 +175,7 @@ Falhas reais (permissão, índice, rede, dado inválido) viram comportamento deg
 ## A-08 — Artefatos versionados e chave de API
 
 - **Severidade:** Baixa
-- **Status:** Aberto
+- **Status:** Corrigido no código (branch `chore/A-08-A-13-higiene-repo`): relatório removido do git e `/android/build/` ignorado; restrição da chave documentada no `README.md`. Falta aplicar a restrição no Google Cloud Console (ação manual).
 - **Onde:** `android/build/reports/problems/problems-report.html`, `android/app/google-services.json`
 
 ### O que foi encontrado
@@ -262,7 +262,7 @@ Workflow no GitHub Actions com `flutter analyze`, `flutter test` e, em `function
 ## A-13 — Documentos soltos
 
 - **Severidade:** Baixa
-- **Status:** Aberto
+- **Status:** Sem alteração no repositório. Os arquivos são ignorados pelo git e pertencem ao responsável; apagar ou mover `AnaliseTemporaria.md` fica a critério dele.
 - **Onde:** `AnaliseTemporaria.md` (ignorado pelo git, 768 KB), `firestore-debug.log` (ignorado)
 
 ### O que foi encontrado
@@ -272,3 +272,9 @@ Arquivos de trabalho na raiz do projeto. Não estão versionados, mas poluem o d
 ### Correção proposta
 
 Mover o conteúdo útil para `docs/` ou apagar. Nenhuma alteração no git é necessária.
+
+---
+
+## Observação — README desatualizado sobre o token da football-data.org
+
+Durante a correção do A-08 verificou-se que o aviso do `README.md` dizia que o token estava no código do app. Isso não é mais verdade: o token foi removido do código no commit `34fd242` e o app lê `matches` do Firestore. O valor antigo permanece no histórico do git (commit `8462ffe`) e `docs/callable-functions.md` §8.3 (KAN-102) registra a credencial como revogada. O aviso do README foi corrigido. A revogação no painel do provedor não pode ser confirmada a partir do repositório; vale conferir manualmente que o token antigo foi de fato invalidado. O README ainda lista "troca do token" e "app lendo `matches`" em "Pendente para o MVP"; revisar essa seção.
