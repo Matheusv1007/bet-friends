@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -15,6 +17,7 @@ class _FakeSearchRepository implements UserSearchRepository {
   final List<UsuarioPublico> database;
   bool throwError = false;
   int chamadas = 0;
+  final pendentes = <String, Completer<List<UsuarioPublico>>>{};
 
   _FakeSearchRepository(this.database);
 
@@ -25,6 +28,7 @@ class _FakeSearchRepository implements UserSearchRepository {
     int limite = 20,
   }) async {
     chamadas++;
+    if (pendentes.containsKey(termo)) return pendentes[termo]!.future;
     if (throwError) {
       throw Exception('Falha de conexão com o servidor');
     }
@@ -122,6 +126,26 @@ void main() {
         const UsuarioPublico(userId: meuUid, displayName: 'Lucas Meu Nome', username: 'lucas_eu'),
       ]);
       searchService = UserSearchService(authService: authService, repository: repository);
+    });
+
+    testWidgets('N-24: resposta antiga não substitui busca nova nem termo apagado', (tester) async {
+      repository.pendentes['Juliana'] = Completer<List<UsuarioPublico>>();
+      repository.pendentes['Lucas'] = Completer<List<UsuarioPublico>>();
+      await tester.pumpWidget(MaterialApp(home: TelaBuscarUsuarios(searchService: searchService)));
+      final campo = find.byKey(const Key('search_users_input'));
+      await tester.enterText(campo, 'Juliana');
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.enterText(campo, 'Lucas');
+      await tester.pump(const Duration(milliseconds: 350));
+      repository.pendentes['Lucas']!.complete([repository.database[1]]);
+      await tester.pumpAndSettle();
+      expect(find.text('Lucas Lima'), findsOneWidget);
+      await tester.enterText(campo, '');
+      repository.pendentes['Juliana']!.complete([repository.database[0]]);
+      await tester.pumpAndSettle();
+      expect(find.text('Juliana Paes'), findsNothing);
+      expect(find.text('Lucas Lima'), findsNothing);
+      expect(find.text('Encontre amigos no BetFriends'), findsOneWidget);
     });
 
     testWidgets('exibe tela inicial com campo de busca e orientações', (tester) async {

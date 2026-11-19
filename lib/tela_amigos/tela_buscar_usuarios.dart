@@ -45,6 +45,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
   late final Set<String> _solicitacoesRecebidas;
   final TextEditingController _controller = TextEditingController();
   Timer? _debounceTimer;
+  int _requisicaoBusca = 0;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -71,6 +72,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
   }
 
   void _aoDigitar(String valor) {
+    _requisicaoBusca++;
     _debounceTimer?.cancel();
     // Abaixo do tamanho de um username o backend devolve lista vazia (A-05);
     // nem chamamos, e a tela volta à orientação em vez de "nenhum usuário".
@@ -90,6 +92,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
   }
 
   Future<void> _executarBusca(String termo) async {
+    final requisicao = ++_requisicaoBusca;
     final query = termo.trim();
     if (query.isEmpty) return;
 
@@ -100,21 +103,21 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
 
     try {
       final usuarios = await _searchService.buscarUsuarios(query);
-      if (!mounted) return;
+      if (!mounted || requisicao != _requisicaoBusca) return;
       setState(() {
         _resultados = usuarios;
         _pesquisaRealizada = true;
         _isLoading = false;
       });
     } on UserProfileException catch (e) {
-      if (!mounted) return;
+      if (!mounted || requisicao != _requisicaoBusca) return;
       setState(() {
         _errorMessage = e.message;
         _isLoading = false;
       });
     } catch (e, s) {
       registrarErro('Buscar usuários', e, s);
-      if (!mounted) return;
+      if (!mounted || requisicao != _requisicaoBusca) return;
       setState(() {
         _errorMessage = 'Não foi possível buscar usuários. Tente novamente.';
         _isLoading = false;

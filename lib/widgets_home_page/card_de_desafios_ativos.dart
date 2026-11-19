@@ -11,7 +11,6 @@ import '../models/challenge_model.dart';
 import '../services/challenge_service.dart';
 import '../tela_criar_desafio/modal_aceitar_desafio.dart';
 import '../tela_criar_desafio/tela_criar_desafio.dart';
-import 'desafios_demonstrativo.dart';
 import 'desafios_em_aberto_secao.dart';
 import 'desafios_enviados_card.dart';
 import 'desafios_finalizados_secao.dart';
@@ -26,17 +25,23 @@ import 'detalhes_do_desafio_dialog.dart';
 /// - Desafios enviados aguardando o amigo, que o criador pode cancelar;
 /// - Desafios em aberto (aceitos, em andamento, aguardando resultado);
 /// - Desafios recentemente finalizados (destacados);
-/// - Modo demonstrativo quando os dados de desafios não estiverem disponíveis.
+/// - Estados explícitos de carregamento, falha e lista vazia.
 class DesafiosAtivosWidget extends StatefulWidget {
   final List<ChallengeModel>? desafios;
   final String? currentUserId;
   final ChallengeService? challengeService;
+  final bool carregando;
+  final bool erro;
+  final VoidCallback? onTentarNovamente;
 
   const DesafiosAtivosWidget({
     super.key,
     this.desafios,
     this.currentUserId,
     this.challengeService,
+    this.carregando = false,
+    this.erro = false,
+    this.onTentarNovamente,
   });
 
   @override
@@ -45,6 +50,7 @@ class DesafiosAtivosWidget extends StatefulWidget {
 
 class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget> {
   final _nomes = <String, String>{};
+  final _cancelando = <String>{};
   final _partidas = <String, PartidaModel>{};
   final _consultadas = <String>{};
 
@@ -93,6 +99,9 @@ class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget> {
 
   /// Pede confirmação e cancela um desafio pendente criado pelo usuário; o backend libera a reserva.
   Future<void> _confirmarCancelamento(BuildContext context, ChallengeModel c) async {
+    if (!_cancelando.add(c.id)) return;
+    setState(() {});
+    try {
     final confirmou = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -138,6 +147,9 @@ class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget> {
         duration: const Duration(seconds: 3),
       ),
     );
+    } finally {
+      if (mounted) setState(() => _cancelando.remove(c.id));
+    }
   }
 
   @override
@@ -152,8 +164,16 @@ class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget> {
         _carregarPartida(c.matchId);
       }
     }
-    if (lista == null) {
-      return const DesafiosDemonstrativo();
+    if (widget.erro) {
+      return Column(children: [
+        const Text('Não foi possível carregar os desafios.',
+          style: TextStyle(color: Colors.white)),
+        TextButton(onPressed: widget.onTentarNovamente,
+          child: const Text('Tentar novamente')),
+      ]);
+    }
+    if (widget.carregando || lista == null) {
+      return const Center(child: CircularProgressIndicator());
     }
 
     final pendentesRecebidos = lista.where((c) {
@@ -215,6 +235,7 @@ class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget> {
         if (pendentesEnviados.isNotEmpty)
           DesafiosEnviadosCard(
             desafios: pendentesEnviados,
+            cancelando: _cancelando,
             onCancelar: (c) => _confirmarCancelamento(context, c),
           ),
         // 2. DESAFIOS EM ABERTO

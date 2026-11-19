@@ -40,6 +40,8 @@ class ModalAceitarDesafio extends StatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: const Color(0xFF151E2E),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -105,6 +107,7 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
     required String sucesso,
     required String falha,
   }) async {
+    if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
 
     try {
@@ -157,7 +160,9 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
         .where((p) => p != widget.desafio.challengerPrediction)
         .toList();
 
-    return Padding(
+    return PopScope(
+      canPop: !_isSubmitting,
+      child: Padding(
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
@@ -182,7 +187,7 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
               ),
               IconButton(
                 icon: const Icon(Icons.close, color: textMuted),
-                onPressed: () => Navigator.of(context).pop(false),
+                onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
               ),
             ],
           ),
@@ -379,6 +384,6 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
           ),
         ],
       ),
-    );
+    ));
   }
 }

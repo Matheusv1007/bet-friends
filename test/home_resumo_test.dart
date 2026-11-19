@@ -18,6 +18,7 @@
 import 'dart:async';
 
 import 'package:betfriends/app.dart';
+import 'package:betfriends/widgets_home_page/card_de_desafios_ativos.dart';
 import 'package:betfriends/data/firestore/challenge_repository.dart';
 import 'package:betfriends/data/firestore/user_profile_repository.dart';
 import 'package:betfriends/models/carteira.dart';
@@ -61,7 +62,10 @@ class _FakeChallengeServiceControlado implements ChallengeService {
   }
 
   @override
-  Stream<List<ChallengeModel>> observarDesafios() => _desafiosController.stream;
+  Stream<List<ChallengeModel>> observarDesafios() async* {
+    yield _ultimoValor;
+    yield* _desafiosController.stream;
+  }
 
   @override
   Future<List<ChallengeModel>> listarDesafios() async => _ultimoValor;
@@ -136,6 +140,18 @@ class _FakePartidasServiceConfiguravel extends PartidasService {
 }
 
 void main() {
+  testWidgets('N-20: falha tem retry sem desafios demonstrativos', (tester) async {
+    var tentativas = 0;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: DesafiosAtivosWidget(
+      erro: true, onTentarNovamente: () => tentativas++,
+    ))));
+    await tester.pumpAndSettle();
+    expect(find.text('Não foi possível carregar os desafios.'), findsOneWidget);
+    expect(find.textContaining('DEMONSTRATIVO'), findsNothing);
+    await tester.tap(find.text('Tentar novamente'));
+    expect(tentativas, 1);
+  });
+
   const currentUserId = 'uid-ana';
   late FakeAuthService authService;
   late _RepositorioPerfilControlado perfilRepo;

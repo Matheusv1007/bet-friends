@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../models/challenge_model.dart';
@@ -270,13 +272,41 @@ class FunctionsChallengeRepository implements ChallengeRepository {
 
   @override
   Stream<List<ChallengeModel>> observarDesafiosDoUsuario(String uid) {
-    return _firestore
-        .collection(FirestoreCollections.challenges)
-        .where('participants', arrayContains: uid)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ChallengeModel.fromMap(doc.id, doc.data()))
-            .toList());
+    final base = _firestore.collection(FirestoreCollections.challenges)
+        .where('participants', arrayContains: uid);
+    final consultas = [
+      base.where('status', whereIn: [
+        for (final s in StatusDesafio.values) if (!s.isTerminal) s.valor,
+      ]),
+      base.where('status', whereIn: [
+        for (final s in StatusDesafio.values) if (s.isTerminal) s.valor,
+      ]).orderBy('updatedAt', descending: true).limit(20),
+    ];
+    final resultados = <List<ChallengeModel>?>[null, null];
+    final assinaturas = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+    late final StreamController<List<ChallengeModel>> controller;
+    controller = StreamController<List<ChallengeModel>>(
+      onListen: () {
+        for (var i = 0; i < consultas.length; i++) {
+          final indice = i;
+          assinaturas.add(consultas[i].snapshots().listen((snapshot) {
+            resultados[indice] = snapshot.docs.map((doc) =>
+                ChallengeModel.fromMap(doc.id, doc.data())).toList();
+            if (resultados.any((r) => r == null)) return;
+            // Na transição entre consultas, a versão terminal prevalece.
+            final porId = {
+              for (final lista in resultados)
+                for (final desafio in lista!) desafio.id: desafio,
+            };
+            controller.add(porId.values.toList());
+          }, onError: controller.addError));
+        }
+      },
+      onCancel: () async {
+        await Future.wait(assinaturas.map((s) => s.cancel()));
+      },
+    );
+    return controller.stream;
   }
 
   @override

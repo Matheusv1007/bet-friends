@@ -125,7 +125,7 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
       return s == null ? null : (s.isBroadcast ? s : s.asBroadcastStream());
     } catch (e, s) {
       registrarErro('Observar desafios na página inicial', e, s);
-      return null;
+      return Stream.error(e, s);
     }
   }
 
@@ -290,7 +290,13 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
                       final service = widget.challengeService ?? context.read<ChallengeService?>();
 
                       return DesafiosAtivosWidget(
-                        desafios: snapshot.hasError ? null : snapshot.data,
+                        desafios: snapshot.hasError ? null : snapshot.data ?? const [],
+                        carregando: _desafios != null &&
+                            snapshot.connectionState == ConnectionState.waiting && !snapshot.hasError,
+                        erro: snapshot.hasError,
+                        onTentarNovamente: () => setState(() {
+                          _desafios = _observarDesafios();
+                        }),
                         currentUserId: currentUid,
                         challengeService: service,
                       );

@@ -144,29 +144,25 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
   }
 
   void _reconciliarSelecao(List<PartidaModel> elegiveis) {
-    if (elegiveis.isEmpty) {
-      if (partidaId != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && partidaId != null) {
-            setState(() => partidaId = null);
-          }
-        });
-      }
-      return;
-    }
-
-    final atualAindaExiste = elegiveis.any((p) => p.id == partidaId);
-    if (!atualAindaExiste) {
-      final primeiroId = elegiveis.first.id;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && partidaId != primeiroId) {
-          setState(() => partidaId = primeiroId);
-        }
-      });
-    }
+    final selecionada = partidaId;
+    if (selecionada == null || elegiveis.any((p) => p.id == selecionada)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || partidaId != selecionada) return;
+      setState(() => partidaId = null);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('A partida selecionada não está mais disponível. Escolha outra partida.'),
+      ));
+    });
   }
 
   Future<void> _enviarDesafio() async {
+    if (isSubmitting) return;
+    final elegiveis = context.read<PartidasProvider>().partidas
+        .where((p) => p.podeCriarDesafio).toList();
+    if (partidaId != null && !elegiveis.any((p) => p.id == partidaId)) {
+      _reconciliarSelecao(elegiveis);
+      return;
+    }
     if (partidaId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -379,7 +375,7 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                 builder: (context, partidasProvider, child) {
                   final partidas = partidasProvider.partidas;
                   final elegiveis = partidas.where((p) => p.podeCriarDesafio).toList();
-                  if (partidas.isNotEmpty) {
+                  if (!partidasProvider.isLoading && partidasProvider.errorMessage == null) {
                     _reconciliarSelecao(elegiveis);
                   }
                   return SeletorPartidaDesafio(
@@ -416,7 +412,6 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                       break;
                     }
                   }
-                  partidaAtual ??= provider.partidas.firstOrNull;
 
                   final labelMandante = partidaAtual != null ? 'Vitória ${partidaAtual.timeMandante}' : 'Mandante';
                   final labelVisitante = partidaAtual != null ? 'Vitória ${partidaAtual.timeVisitante}' : 'Visitante';

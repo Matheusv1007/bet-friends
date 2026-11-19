@@ -6,8 +6,9 @@ import 'apresentacao_desafios.dart';
 class DesafiosEnviadosCard extends StatelessWidget {
   final List<ChallengeModel> desafios;
   final ValueChanged<ChallengeModel> onCancelar;
+  final Set<String> cancelando;
 
-  const DesafiosEnviadosCard({super.key, required this.desafios, required this.onCancelar});
+  const DesafiosEnviadosCard({super.key, required this.desafios, required this.onCancelar, this.cancelando = const {}});
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +83,7 @@ class DesafiosEnviadosCard extends StatelessWidget {
                         ),
                         OutlinedButton(
                           key: Key('btn_cancelar_desafio_${c.id}'),
-                          onPressed: () => onCancelar(c),
+                          onPressed: cancelando.contains(c.id) ? null : () => onCancelar(c),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFFEF4444),
                             side: const BorderSide(color: Color(0xFFEF4444)),

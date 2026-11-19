@@ -481,7 +481,8 @@ void main() {
     timeVisitante: 'Fluminense',
     golsMandante: 1,
     golsVisitante: 0,
-    status: 'EM ANDAMENTO',
+    status: 'PRÓXIMO JOGO',
+    startsAtUtc: DateTime.now().toUtc().add(const Duration(days: 1)),
   );
 
   setUp(() {
@@ -600,6 +601,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CriarDesafioScreen), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('partida_desafio_match-101')));
+      await tester.pumpAndSettle();
 
       // Rola para visualizar o amigo selecionado no ListView
       await tester.scrollUntilVisible(

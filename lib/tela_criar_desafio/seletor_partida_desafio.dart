@@ -136,7 +136,7 @@ class SeletorPartidaDesafio extends StatelessWidget {
       );
     }
 
-    final partidaAtivaId = partidaId ?? elegiveis.first.id;
+    final partidaAtivaId = partidaId;
 
     return Column(
       children: elegiveis.map((PartidaModel p) {
@@ -144,6 +144,7 @@ class SeletorPartidaDesafio extends StatelessWidget {
         final horarioOuStatus = p.horario ?? p.status;
 
         return GestureDetector(
+          key: Key('partida_desafio_${p.id}'),
           onTap: () => onChanged(p.id),
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
