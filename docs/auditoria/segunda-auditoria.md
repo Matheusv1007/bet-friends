@@ -58,6 +58,17 @@ O dinheiro virtual está protegido: o ledger é atômico, cada lançamento tem I
 
 ---
 
+## Status de correção
+
+Corrigido nas branches abaixo (a ser conferido no PR). Decisões da equipe em 19/11/2026: N-04 resolvido recusando a criação e o aceite em partida remarcada além do tolerado; N-13 aceita a B-4 (liquidar só por `score.winner`); N-14 adiado (depende de publicar na Google Play).
+
+| Branch | Achados | Observação |
+|---|---|---|
+| `fix/onda-1-backend` | N-03, N-04, N-05, N-09, N-10, N-11, N-16 | Novos índices em `firestore.indexes.json` exigem deploy. N-05 também cancela com reembolso desafio em partida `SUSPENSA`/`REVISAO_NECESSARIA` por mais de 7 dias (pendência do A-01) |
+| `fix/onda-2-app` | N-01, N-02, N-06, N-07, N-08, N-15, N-17 a N-24, N-28, N-29 | Testes de `integration_test/` escritos mas não executados (sem Android); limpeza do cache no logout não verificada em aparelho. O histórico paginado segue sem tela |
+| `chore/onda-3-infra-docs` | N-12, N-13, N-25 (parcial), N-26, N-27, N-30 | N-25: restam 7 vulnerabilidades moderadas de produção que só saem com atualização de major (`glob`, `uuid`, `minimatch`). N-30: a revogação do token continua sendo confirmação manual |
+| (adiado) | N-14 | Decisão futura |
+
 ## N-01 — A lista de partidas traz só as 30 primeiras da temporada (Alta)
 
 - **Onde:** `lib/data/firestore/partidas_repository.dart:31-36`.
