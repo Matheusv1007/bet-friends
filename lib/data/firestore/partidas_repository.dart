@@ -24,25 +24,17 @@ class FirestorePartidasRepository implements PartidasRepository {
   @override
   Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
     try {
-      // 1. Busca partidas do Brasileirão Série A (BSA) sincronizadas pelo backend
-      QuerySnapshot<Map<String, dynamic>> snapshot;
-      try {
-        snapshot = await _db
-            .collection(FirestoreCollections.matches)
-            .where('competitionCode', isEqualTo: 'BSA')
-            .orderBy('startsAtUtc', descending: false)
-            .limit(limit * 2)
-            .get(const GetOptions(source: Source.serverAndCache));
-      } catch (_) {
-        // Fallback caso a ordenação/índice ainda não esteja pronto ou sem filtro de competição
-        snapshot = await _db
-            .collection(FirestoreCollections.matches)
-            .limit(limit * 2)
-            .get(const GetOptions(source: Source.serverAndCache));
-      }
+      // Partidas do Brasileirão Série A (BSA) sincronizadas pelo backend.
+      // A consulta exige o índice composto de `matches` (firestore.indexes.json);
+      // sem ele o erro sobe, em vez de cair numa consulta sem filtro (A-03).
+      final snapshot = await _db
+          .collection(FirestoreCollections.matches)
+          .where('competitionCode', isEqualTo: 'BSA')
+          .orderBy('startsAtUtc', descending: false)
+          .limit(limit * 2)
+          .get(const GetOptions(source: Source.serverAndCache));
 
-      final docs = snapshot.docs;
-      final partidas = docs
+      final partidas = snapshot.docs
           .map((d) => PartidaModel.fromFirestoreMap(d.data(), d.id))
           .toList();
 
