@@ -280,7 +280,7 @@ Publicar `createChallenge` e `acceptChallenge` (`firebase deploy --only function
 ## A-10 — Código morto ou legado no app
 
 - **Severidade:** Baixa
-- **Status:** Aberto
+- **Status:** Corrigido no código (branch `refactor/A-10-remover-apiclient`).
 - **Onde:** `lib/services/api/api_client.dart`, `lib/services/api/partidas_service.dart`, `lib/app.dart`
 
 ### O que foi encontrado
@@ -289,9 +289,13 @@ Publicar `createChallenge` e `acceptChallenge` (`firebase deploy --only function
 - Parâmetro `apiKey` marcado como `@Deprecated`.
 - `app.dart` tem um bloco grande de `App` comentado e comentários com nomes de pessoas.
 
-### Correção proposta
+### Correção aplicada ao fluxo de partidas
 
-Confirmar com o grupo se algum teste ou a entrega acadêmica depende do `ApiClient`. Se não, remover o fluxo direto, o `apiKey` e os comentários, migrando os testes que o usam.
+Removidos o cliente HTTP legado, suas exceções e os parâmetros de cliente/chave do serviço. `PartidasService` consulta exclusivamente o repositório Firestore (RNF-005, RN-SEC-003), sem fallback para o provedor externo. A dependência direta de `http` foi removida do app.
+
+Os testes de consulta direta e fallback HTTP foram excluídos (3 removidos, 15 migrados). Cache, navegação sem consultas duplicadas, atualização explícita e mensagens amigáveis permanecem cobertos com repositório fake e erros do Firestore. O contrato de segurança também verifica que o construtor não aceita chave de API.
+
+`app.dart` perdeu o bloco comentado de uma segunda `App` (para "testar Homepage") e os comentários com nomes de pessoas. `http` saiu das dependências diretas; continua como dependência transitiva de pacotes do Firebase.
 
 ---
 

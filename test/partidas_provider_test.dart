@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:betfriends/models/partida_model.dart';
 import 'package:betfriends/provider/partidas_provider.dart';
-import 'package:betfriends/services/api/api_client.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:betfriends/services/api/partidas_service.dart';
 
 class FakeSuccessPartidasService extends PartidasService {
@@ -42,23 +42,23 @@ class MutablePartidasService extends PartidasService {
 
 void main() {
   group('Tratamento de Mensagens de Erro Amigáveis', () {
-    test('ApiException com status 401/403 não expõe corpo HTTP bruto', () {
-      final error = ApiException(statusCode: 403, rawBody: '{"error": "forbidden", "code": 403}');
+    test('Permissão negada no Firestore não expõe dados técnicos', () {
+      final error = FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied', message: '{"error": "forbidden"}');
       final msg = PartidasService.formatErrorMessage(error);
       expect(msg.contains('{"error"'), isFalse);
       expect(msg, 'Não foi possível autorizar o acesso ao serviço de partidas.');
     });
 
-    test('ApiException com status 429 indica limite de requisições', () {
-      final error = ApiException(statusCode: 429, rawBody: 'Too Many Requests');
+    test('Limite de requisições do Firestore indica espera', () {
+      final error = FirebaseException(plugin: 'cloud_firestore', code: 'resource-exhausted');
       final msg = PartidasService.formatErrorMessage(error);
       expect(msg, 'Limite de requisições atingido. Aguarde alguns instantes e tente novamente.');
     });
 
-    test('ApiException com status 500 indica servidor indisponível', () {
-      final error = ApiException(statusCode: 500, rawBody: 'Internal Server Error');
+    test('Firestore indisponível gera mensagem amigável', () {
+      final error = FirebaseException(plugin: 'cloud_firestore', code: 'unavailable');
       final msg = PartidasService.formatErrorMessage(error);
-      expect(msg, 'O servidor de partidas está temporariamente indisponível. Tente novamente mais tarde.');
+      expect(msg, 'Serviço de partidas temporariamente indisponível. Verifique sua conexão e tente novamente.');
     });
 
     test('TimeoutException gera mensagem amigável de tempo esgotado', () {
@@ -129,14 +129,14 @@ void main() {
 
     test('Falha inicial sem dados antigos define errorMessage amigável', () async {
       final provider = PartidasProvider(
-        partidasService: FakeErrorPartidasService(ApiException(statusCode: 503)),
+        partidasService: FakeErrorPartidasService(FirebaseException(plugin: 'cloud_firestore', code: 'unavailable')),
       );
 
       await provider.carregarPartidas();
 
       expect(provider.isLoading, isFalse);
       expect(provider.partidas, isEmpty);
-      expect(provider.errorMessage, 'O servidor de partidas está temporariamente indisponível. Tente novamente mais tarde.');
+      expect(provider.errorMessage, 'Serviço de partidas temporariamente indisponível. Verifique sua conexão e tente novamente.');
       expect(provider.hasRefreshError, isFalse);
     });
 
@@ -154,7 +154,7 @@ void main() {
       expect(provider.errorMessage, isNull);
 
       // 2. Simula falha no refresh subsequente
-      mutableService.error = ApiException(statusCode: 429);
+      mutableService.error = FirebaseException(plugin: 'cloud_firestore', code: 'resource-exhausted');
       await provider.carregarPartidas(silencioso: true);
 
       // Dados anteriores continuam no cache e erro de refresh é sinalizado
