@@ -8,7 +8,11 @@ import { ErroDeAmizade } from "../src/amigos/friendship";
 import { HttpsError } from "firebase-functions/https";
 import { acceptFriendRequest } from "../src/amigos/acceptFriendRequest";
 import { rejectFriendRequest } from "../src/amigos/rejectFriendRequest";
+import { getFriendRequests } from "../src/amigos/getFriendRequests";
 import {
+  LIMITE_DE_ENVIO_DE_SOLICITACOES,
+  LIMITE_DE_REABERTURA_DE_SOLICITACOES,
+  recusarSolicitacaoAmizadeNaTransacao,
   COLECAO_DE_AMIZADES,
   COLECAO_DE_USUARIOS,
   aceitarSolicitacaoAmizadeNaTransacao,
@@ -281,6 +285,50 @@ describe(
         assert.deepEqual(erros[0], erros[1]);
         assert.deepEqual(erros[0], { code: "not-found", message: "Solicitação de amizade não encontrada.", details: { motivo: "solicitacao-inexistente" } });
       }
+    });
+    test("remetente precisa de perfil e cotas de envio e reabertura são atômicas (N-11)", async () => {
+      const agora = new Date("2026-11-20T12:00:00Z");
+      const enviar = () => db.runTransaction((t) => enviarSolicitacaoAmizadeNaTransacao(t, db, ALICE, BOB, agora));
+      await db.collection(COLECAO_DE_USUARIOS).doc(ALICE).delete();
+      await assert.rejects(enviar(), (err: unknown) => err instanceof HttpsError && err.code === "failed-precondition");
+      assert.equal((await db.collection(COLECAO_DE_AMIZADES).get()).size, 0);
+      await db.collection(COLECAO_DE_USUARIOS).doc(ALICE).set({ displayName: "Alice", username: "alice" });
+      const envio = await enviar();
+      const recusar = () => db.runTransaction((t) => recusarSolicitacaoAmizadeNaTransacao(t, db, BOB, envio.friendshipId));
+      for (let i = 0; i < LIMITE_DE_REABERTURA_DE_SOLICITACOES.maximo; i++) {
+        await recusar();
+        await enviar();
+      }
+      await recusar();
+      await assert.rejects(enviar(), (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted");
+      assert.equal((await db.doc(`rateLimits/sendFriendRequest_${ALICE}`).get()).get("count"), 4);
+      assert.equal((await db.collection(COLECAO_DE_AMIZADES).doc(envio.friendshipId).get()).get("status"), "REJECTED");
+      await db.doc(`rateLimits/sendFriendRequest_${ALICE}`).update({ count: LIMITE_DE_ENVIO_DE_SOLICITACOES.maximo });
+      await assert.rejects(db.runTransaction((t) => enviarSolicitacaoAmizadeNaTransacao(t, db, ALICE, CARLOS, agora)),
+        (err: unknown) => err instanceof HttpsError && err.code === "resource-exhausted");
+      assert.equal((await db.collection(COLECAO_DE_AMIZADES).get()).size, 1);
+    });
+
+    test("pagina recebidas sem repetir, ignorando enviadas e terminais (N-11)", async () => {
+      const lote = db.batch();
+      for (let i = 0; i < 5; i++) {
+        const uid = `remetente${i}`;
+        lote.set(db.collection(COLECAO_DE_USUARIOS).doc(uid), { displayName: uid, username: uid });
+        lote.set(db.collection(COLECAO_DE_AMIZADES).doc(`pagina_${i}`), { participants: [ALICE, uid], requesterId: uid, status: "PENDING" });
+      }
+      lote.set(db.collection(COLECAO_DE_AMIZADES).doc("pagina_enviada"), { participants: [ALICE, BOB], requesterId: ALICE, status: "PENDING" });
+      lote.set(db.collection(COLECAO_DE_AMIZADES).doc("pagina_terminal"), { participants: [ALICE, BOB], requesterId: BOB, status: "REJECTED" });
+      await lote.commit();
+      const chamar = (data: unknown) => getFriendRequests.run({ data, auth: { uid: ALICE, rawToken: "t", token: { uid: ALICE } } } as Parameters<typeof getFriendRequests.run>[0]);
+      const primeira = await chamar({ limit: 2 });
+      const segunda = await chamar({ limit: 2, cursor: primeira.nextCursor });
+      const terceira = await chamar({ limit: 2, cursor: segunda.nextCursor });
+      assert.deepEqual([primeira.requests.length, segunda.requests.length, terceira.requests.length], [2, 2, 1]);
+      assert.equal(terceira.nextCursor, null);
+      assert.equal(new Set([...primeira.requests, ...segunda.requests, ...terceira.requests].map((r) => r.friendshipId)).size, 5);
+      assert.equal((await chamar(undefined)).requests.length, 5);
+      await assert.rejects(chamar({ limit: 201 }), (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument");
+      await assert.rejects(chamar({ cursor: { requesterId: "x" } }), (err: unknown) => err instanceof HttpsError && err.code === "invalid-argument");
     });
   },
 );

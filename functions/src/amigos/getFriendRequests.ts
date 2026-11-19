@@ -1,9 +1,11 @@
 import { authedCallable } from "../core/callable";
 import { db } from "../core/firebase";
-import { SolicitacaoPendenteDto, obterSolicitacoesPendentesRecebidas } from "./friendshipFirestore";
+import { requireInt, requireObject, requireString } from "../core/validation";
+import { CursorDeSolicitacoes, PaginacaoDeSolicitacoes, SolicitacaoPendenteDto, obterSolicitacoesPendentesRecebidas } from "./friendshipFirestore";
 
 export interface GetFriendRequestsResponse {
   readonly requests: SolicitacaoPendenteDto[];
+  readonly nextCursor: CursorDeSolicitacoes | null;
 }
 
 /**
@@ -16,11 +18,26 @@ export interface GetFriendRequestsResponse {
  * - E-mail, saldos e dados privados NUNCA são expostos (RN-PROF-002).
  */
 export const getFriendRequests = authedCallable<
-  void,
+  PaginacaoDeSolicitacoes,
   GetFriendRequestsResponse
 >(
-  async (_data, auth) => {
-    const requests = await obterSolicitacoesPendentesRecebidas(db, auth.uid);
-    return { requests };
+  async (data, auth) => {
+    const requests = await obterSolicitacoesPendentesRecebidas(db, auth.uid, data);
+    const ultimo = requests.at(-1);
+    const nextCursor = ultimo && requests.length === data.limit
+      ? { requesterId: ultimo.remetente.userId, friendshipId: ultimo.friendshipId } : null;
+    return { requests, nextCursor };
+  },
+  {
+    parse: (raw) => {
+      const data = raw == null ? {} : requireObject(raw);
+      const limit = data.limit === undefined ? 100 : requireInt(data, "limit", { min: 1, max: 200 });
+      if (data.cursor == null) return { limit };
+      const cursor = requireObject(data.cursor);
+      return { limit, cursor: {
+        requesterId: requireString(cursor, "requesterId", { maxLength: 128 }),
+        friendshipId: requireString(cursor, "friendshipId", { maxLength: 1500 }),
+      } };
+    },
   },
 );

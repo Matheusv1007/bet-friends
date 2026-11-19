@@ -525,6 +525,7 @@ O app nunca grava saldo, transação, estado de desafio, resultado ou vencedor (
 | `challenges` | `matchId ASC`, `status ASC` | Expiração, início, liquidação | KAN-65 a KAN-68, KAN-82 |
 | `challenges` | `challengerId ASC`, `matchId ASC`, `status ASC`; `participants CONTAINS`, `matchId ASC`, `status ASC` | Existência de desafio ativo por papel, sem ler histórico terminal; declarados em `firestore.indexes.json` | N-10 |
 | `friendships` | `participants CONTAINS`, `status ASC` | Amigos e solicitações | KAN-35, KAN-38 |
+| `friendships` | `participants CONTAINS`, `status ASC`, `requesterId ASC` (`__name__ ASC` implícito) | Solicitações recebidas paginadas, excluindo as enviadas; declarado em `firestore.indexes.json` | N-11 |
 | `matches` | `competitionCode ASC`, `season ASC`, `startsAtUtc ASC` | Próximas partidas | KAN-42 |
 | `matches` | `status ASC`, `startsAtUtc ASC` | Janelas da sincronização | KAN-50 |
 
