@@ -14,7 +14,7 @@ import {
 import { EventoDoDesafio } from "./maquinaDeEstados";
 import { carregarContextoDoProcessamento, ContextoDoProcessamento, partidaDoContexto } from "./contextoDoProcessamento";
 import { CONCORRENCIA_COM_CARTEIRA, processarComConcorrencia } from "./concorrenciaLimitada";
-import { limiteDeAdiamento, remarcadaAlemDoTolerado } from "./prazoDeAdiamento";
+import { DIAS_DE_ADIAMENTO_TOLERADO, limiteDeAdiamento, remarcadaAlemDoTolerado } from "./prazoDeAdiamento";
 
 /**
  * Recusa, cancelamento pelo criador e cancelamento pela partida (A-01;
@@ -27,6 +27,10 @@ import { limiteDeAdiamento, remarcadaAlemDoTolerado } from "./prazoDeAdiamento";
  * a reserva do criador, e desafio já aceito libera as duas.
  */
 
+const MS_DE_UM_DIA = 24 * 60 * 60 * 1000;
+/** Política reversível: sem resultado confiável, devolve as duas reservas após sete dias em espera. */
+export const DIAS_DE_ESPERA_DE_RESULTADO_TOLERADO = 7;
+export const HORAS_EM_ANDAMENTO_PARA_ALERTA = 24;
 
 export interface ResultadoDoEncerramento {
   readonly challengeId: string;
@@ -155,6 +159,14 @@ export function motivoDeCancelamentoPelaPartida(
   if (STATUS_TERMINAL[desafio.status]) return null;
   if (partida.status === "CANCELADA") return "MATCH_CANCELLED";
 
+  if (desafio.status === "IN_PROGRESS" && partida.status === "EM_ANDAMENTO" &&
+      agora.getTime() - desafio.startedAt!.getTime() > HORAS_EM_ANDAMENTO_PARA_ALERTA * 60 * 60 * 1000) {
+    logger.error("Partida em andamento além do prazo de alerta", { challengeId: desafio.id, matchId: partida.id });
+  }
+  if (desafio.status === "ACCEPTED" && partida.status === "AGENDADA" &&
+      agora.getTime() - partida.startsAtUtc.getTime() > DIAS_DE_ADIAMENTO_TOLERADO * MS_DE_UM_DIA) return "MATCH_POSTPONED";
+  if (desafio.status === "WAITING_RESULT" && (partida.status === "SUSPENSA" || partida.status === "REVISAO_NECESSARIA") &&
+      agora.getTime() - desafio.updatedAt.getTime() > DIAS_DE_ESPERA_DE_RESULTADO_TOLERADO * MS_DE_UM_DIA) return "MATCH_POSTPONED";
   const limite = limiteDeAdiamento(partida);
   const remarcadaParaDepoisDoLimite = remarcadaAlemDoTolerado(partida);
   if (partida.status === "ADIADA") {

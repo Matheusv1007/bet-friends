@@ -275,6 +275,8 @@ Criação e aceite recusam com `partida-invalida` partidas remarcadas mais de se
 
 `rejectChallenge` e `cancelChallenge` liberam a reserva do criador na mesma transação em que mudam o estado. O cancelamento depois do aceite não tem Callable: só o sistema cancela (partida cancelada ou adiada além do tolerado), dentro do `processarResultados`. Detalhes e regras em `docs/firestore-schema.md` §3.5. Depois do deploy, as funções precisam ser publicadas (seção 7) para o app conseguir recusar e cancelar.
 
+Saídas por tempo (N-05/A-01): `ACCEPTED` com partida `AGENDADA` há mais de sete dias é cancelado como `MATCH_POSTPONED`. `IN_PROGRESS`/`EM_ANDAMENTO` há mais de 24h desde `startedAt` gera `logger.error` com `challengeId`, sem cancelar. `WAITING_RESULT` com partida `SUSPENSA`/`REVISAO_NECESSARIA` há mais de `DIAS_DE_ESPERA_DE_RESULTADO_TOLERADO` (7 dias desde a entrada em espera, `updatedAt`) é cancelado pelo mesmo caminho transacional e libera as duas reservas, sem pagar vencedor. É a política segura e reversível para ausência prolongada de resultado confiável; exatamente no prazo ainda espera.
+
 ## 12 - App Check e limite de uso (A-05)
 
 Duas proteções contra uso do backend por quem não é o app, ou em volume abusivo:
