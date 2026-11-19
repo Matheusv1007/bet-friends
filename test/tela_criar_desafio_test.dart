@@ -8,6 +8,8 @@ import 'package:betfriends/provider/partidas_provider.dart';
 import 'package:betfriends/services/challenge_service.dart';
 import 'package:betfriends/tela_criar_desafio/modal_aceitar_desafio.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
+import 'package:betfriends/services/user_profile_service.dart';
+import 'package:betfriends/models/carteira.dart';
 
 class FakePartidasProvider extends ChangeNotifier implements PartidasProvider {
   final List<PartidaModel> _partidas;
@@ -156,6 +158,13 @@ class FakeChallengeService implements ChallengeService {
   Future<List<AmigoItem>> listarAmigosAceitos() async => [];
 }
 
+class FakeCarteiraService extends Fake implements UserProfileService {
+  FakeCarteiraService(this.stream);
+  final Stream<Carteira?> stream;
+  @override
+  Stream<Carteira?> observarCarteiraAtual() => stream;
+}
+
 void main() {
   final List<PartidaModel> partidasFake = [
     PartidaModel(
@@ -197,6 +206,21 @@ void main() {
   }
 
   group('CriarDesafioScreen UI e Interação', () {
+    testWidgets('falha da carteira não bloqueia a carga independente de amigos', (tester) async {
+      await tester.pumpWidget(montarAppComNavegacao(
+        provider: FakePartidasProvider(partidasFake),
+        child: CriarDesafioScreen(
+          challengeService: FakeChallengeService(),
+          userProfileService: FakeCarteiraService(Stream.error(StateError('offline'))),
+        ),
+      ));
+      await tester.tap(find.byKey(const Key('btn_abrir_tela')));
+      await tester.pumpAndSettle();
+      expect(find.text('Não foi possível carregar o saldo.'), findsOneWidget);
+      expect(find.text('Tentar novamente: saldo'), findsOneWidget);
+      expect(find.text('Carregando...'), findsNothing);
+    });
+
     testWidgets('renderiza elementos principais e palpite do criador', (tester) async {
       final fakeProvider = FakePartidasProvider(partidasFake);
       final fakeService = FakeChallengeService();

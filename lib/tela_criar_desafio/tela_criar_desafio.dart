@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -7,6 +9,8 @@ import '../models/partida_model.dart';
 import '../provider/partidas_provider.dart';
 import '../services/challenge_service.dart';
 import '../services/registro_de_erros.dart';
+import '../services/user_profile_service.dart';
+import '../models/carteira.dart';
 import '../telas_principais/home_page.dart';
 import 'saldo_desafio.dart';
 import 'seletor_valor_desafio.dart';
@@ -22,6 +26,7 @@ class CriarDesafioScreen extends StatefulWidget {
   final ChallengeService? challengeService;
   final List<AmigoItem>? amigosIniciais;
   final int? saldoInicial;
+  final UserProfileService? userProfileService;
 
   const CriarDesafioScreen({
     super.key,
@@ -31,6 +36,7 @@ class CriarDesafioScreen extends StatefulWidget {
     this.challengeService,
     this.amigosIniciais,
     this.saldoInicial,
+    this.userProfileService,
   });
 
   @override
@@ -51,6 +57,9 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
   bool isSubmitting = false;
 
   int? saldoDisponivel;
+  StreamSubscription<Carteira?>? _carteiraSubscription;
+  String? _erroSaldo;
+  String? _erroAmigos;
 
   @override
   void initState() {
@@ -74,38 +83,64 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
       if (provider.partidas.isEmpty) {
         provider.carregarPartidas();
       }
-      _carregarAmigosESaldo();
+      if (widget.saldoInicial == null) _observarSaldo();
+      if (widget.amigosIniciais == null) _carregarAmigos();
     });
   }
 
-  Future<void> _carregarAmigosESaldo() async {
-    setState(() => isLoadingAmigos = true);
-
+  void _observarSaldo() {
+    _carteiraSubscription?.cancel();
+    setState(() => _erroSaldo = null);
     try {
-      final saldo = await _challengeService.buscarSaldoDisponivel();
-      final amigos = await _challengeService.listarAmigosAceitos();
-
-      if (mounted) {
+      final service = widget.userProfileService ??
+          context.read<UserProfileService?>() ?? UserProfileService();
+      _carteiraSubscription = service.observarCarteiraAtual().listen((carteira) {
+        if (!mounted) return;
         setState(() {
-          if (saldo != null) {
-            saldoDisponivel = saldo;
-          }
-          if (amigos.isNotEmpty) {
-            amigosAceitos = amigos;
-            if (amigoId == null) {
-              amigoId = amigos.first.uid;
-              amigoNome = amigos.first.displayName;
-            }
-          }
+          saldoDisponivel = carteira?.saldoDisponivel;
+          _erroSaldo = carteira == null ? 'Carteira indisponível.' : null;
         });
-      }
+      }, onError: (Object e, StackTrace s) {
+        registrarErro('Observar saldo para criar desafio', e, s);
+        if (mounted) {
+          setState(() {
+            saldoDisponivel = null;
+            _erroSaldo = 'Não foi possível carregar o saldo.';
+          });
+        }
+      });
     } catch (e, s) {
-      registrarErro('Carregar saldo e amigos para criar desafio', e, s);
-    } finally {
-      if (mounted) {
-        setState(() => isLoadingAmigos = false);
-      }
+      registrarErro('Observar saldo para criar desafio', e, s);
+      setState(() => _erroSaldo = 'Não foi possível carregar o saldo.');
     }
+  }
+
+  Future<void> _carregarAmigos() async {
+    setState(() { isLoadingAmigos = true; _erroAmigos = null; });
+    try {
+      final amigos = await _challengeService.listarAmigosAceitos();
+      if (!mounted) return;
+      setState(() {
+        amigosAceitos = amigos;
+        if (amigoId == null && amigos.isNotEmpty) {
+          amigoId = amigos.first.uid;
+          amigoNome = amigos.first.displayName;
+        }
+      });
+    } catch (e, s) {
+      registrarErro('Carregar amigos para criar desafio', e, s);
+      if (mounted) {
+        setState(() => _erroAmigos = 'Não foi possível carregar os amigos.');
+      }
+    } finally {
+      if (mounted) setState(() => isLoadingAmigos = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _carteiraSubscription?.cancel();
+    super.dispose();
   }
 
   void _reconciliarSelecao(List<PartidaModel> elegiveis) {
@@ -281,7 +316,14 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             children: [
               // Card de Saldo Disponível
-              SaldoDesafio(saldoDisponivel: saldoDisponivel),
+              if (_erroSaldo == null)
+                SaldoDesafio(saldoDisponivel: saldoDisponivel)
+              else
+                Column(children: [
+                  Text(_erroSaldo!, style: const TextStyle(color: Colors.white)),
+                  TextButton(onPressed: _observarSaldo,
+                    child: const Text('Tentar novamente: saldo')),
+                ]),
               const SizedBox(height: 22),
 
               // Seção Escolha a Partida
@@ -398,6 +440,12 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
               const SizedBox(height: 22),
 
               // Seção Convidar Amigo
+              if (_erroAmigos != null)
+                Column(children: [
+                  Text(_erroAmigos!, style: const TextStyle(color: Colors.white)),
+                  TextButton(onPressed: _carregarAmigos,
+                    child: const Text('Tentar novamente: amigos')),
+                ]),
               SeletorAmigoDesafio(
                 isLoadingAmigos: isLoadingAmigos,
                 amigosAceitos: amigosAceitos,
