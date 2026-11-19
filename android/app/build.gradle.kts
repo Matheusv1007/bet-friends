@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
@@ -6,6 +8,18 @@ plugins {
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Assinatura de release (A-04): lê android/key.properties, que fica fora do git.
+// Chaves esperadas: storeFile, storePassword, keyAlias, keyPassword (ver README).
+val keystorePropertiesFile = rootProject.file("key.properties")
+val temKeystore = keystorePropertiesFile.exists()
+val keystoreProperties = Properties()
+if (temKeystore) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+}
+
+fun propriedadeDoKeystore(nome: String): String =
+    requireNotNull(keystoreProperties.getProperty(nome)) { "android/key.properties sem a chave '$nome'." }
 
 android {
     namespace = "com.unirv.betfriends"
@@ -18,7 +32,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.unirv.betfriends"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -32,11 +45,27 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (temKeystore) {
+            create("release") {
+                keyAlias = propriedadeDoKeystore("keyAlias")
+                keyPassword = propriedadeDoKeystore("keyPassword")
+                storeFile = file(propriedadeDoKeystore("storeFile"))
+                storePassword = propriedadeDoKeystore("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Sem key.properties (ambiente de desenvolvimento) cai na chave de debug
+            // para `flutter run --release` funcionar; esse artefato não é publicável.
+            signingConfig = if (temKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn("android/key.properties ausente: release assinado com a chave de debug.")
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
