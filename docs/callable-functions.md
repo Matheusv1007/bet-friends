@@ -253,3 +253,14 @@ Logo depois, na mesma execução, `processarResultados` (KAN-86, `functions/src/
 - **Requisitos para rodar em produção:** plano Blaze, `FOOTBALL_DATA_TOKEN` configurado (seção 8.2) e deploy das Functions (seção 7).
 - **Alcance atual da liquidação:** nada em produção cria ou inicia desafios ainda (KAN-66 e Callables de desafio pendentes); o processamento só encontra desafios em testes.
 - **No emulador:** sem o emulador de Pub/Sub, o Functions Emulator só carrega a definição e não dispara a agenda.
+
+## 11 - Callables de recusa e cancelamento de desafio (A-01)
+
+Mesmo padrão das demais Callables de desafio (`authedCallable`; o UID vem do token): o payload é só o ID do desafio e a regra fica em `functions/src/desafios/cancelamento.ts`. Os erros de domínio viram `HttpsError` por `traduzirErroDeDesafio` (`desafios/errosHttps.ts`), com o código do domínio em `details.motivo`.
+
+| Função | Payload | Resposta | Quem pode |
+|---|---|---|---|
+| `rejectChallenge` | `{ challengeId }` | `{ challengeId, status: "REJECTED" }` | só o desafiado, com o desafio `PENDING` |
+| `cancelChallenge` | `{ challengeId }` | `{ challengeId, status: "CANCELLED" }` | só o criador, com o desafio `PENDING` |
+
+As duas liberam a reserva do criador na mesma transação em que mudam o estado. O cancelamento depois do aceite não tem Callable: só o sistema cancela (partida cancelada ou adiada além do tolerado), dentro do `processarResultados`. Detalhes e regras em `docs/firestore-schema.md` §3.5. Depois do deploy, as duas funções precisam ser publicadas (seção 7) para o app conseguir recusar e cancelar.
