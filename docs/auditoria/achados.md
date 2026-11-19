@@ -335,8 +335,8 @@ Ficam sem divisão, por serem menores e com estado mais entrelaçado: `tela_busc
 ## A-12 — Sem CI
 
 - **Severidade:** Baixa
-- **Status:** Aberto
-- **Onde:** raiz do repositório (não existe `.github/`)
+- **Status:** Corrigido no código (branch `ci/A-12-github-actions`). Falta ligar a proteção de branch e ver a primeira execução.
+- **Onde:** `.github/workflows/ci.yml` (novo)
 
 ### O que foi encontrado
 
@@ -345,6 +345,16 @@ Nada executa `flutter analyze`, `flutter test` ou `npm test` automaticamente nos
 ### Correção proposta
 
 Workflow no GitHub Actions com `flutter analyze`, `flutter test` e, em `functions/`, `npm ci` + `npm test`. Testes de emulador em job separado.
+
+### O que foi feito
+
+`.github/workflows/ci.yml`, com três jobs independentes que rodam em pull requests e pushes para `qas` e `main`, sem segredo e sem tocar o Firebase real: **App Flutter** (`flutter analyze` sem nenhum aviso e `flutter test`, Flutter 3.47.5), **Functions** (`npm ci` e `npm test`, Node 22 de `functions/.nvmrc`) e **Backend e Security Rules** (testes de `functions/` e de `tests/firestore-rules/` no Firestore Emulator, JDK 21 e `firebase-tools@15.32.1` pelo npm, com o emulador em cache). Uma execução nova na mesma branch cancela a anterior; permissões mínimas (`contents: read`). O README ganhou a seção de CI e perdeu a tabela de resultados de 01/11, que estava desatualizada.
+
+### Pendências do A-12
+
+- **Exigir os checks para o merge** é configuração do GitHub, não do repositório: *Settings → Branches → Branch protection rules → `qas` → Require status checks to pass* e marcar os três jobs (só aparecem na lista depois da primeira execução). Sem isso o CI avisa, mas não bloqueia.
+- O workflow só foi validado aqui por sintaxe e pela execução local dos mesmos comandos; a primeira execução real é a do pull request desta branch. Se algum job falhar por diferença de ambiente do GitHub (versão do Flutter, cache do emulador), ajustar o `ci.yml`.
+- `integration_test/` (Android) não roda no CI.
 
 ---
 
