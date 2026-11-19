@@ -6,7 +6,7 @@ import 'package:betfriends/provider/partidas_provider.dart';
 import 'package:betfriends/services/api/api_client.dart';
 import 'package:betfriends/services/api/partidas_service.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
-import 'package:betfriends/telas_principais/homePage.dart';
+import 'package:betfriends/telas_principais/home_page.dart';
 
 class FakeTestPartidasService extends PartidasService {
   List<PartidaModel> matches;

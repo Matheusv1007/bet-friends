@@ -7,7 +7,7 @@ import '../models/partida_model.dart';
 import '../provider/partidas_provider.dart';
 import '../services/challenge_service.dart';
 import '../services/registro_de_erros.dart';
-import '../telas_principais/homePage.dart';
+import '../telas_principais/home_page.dart';
 
 class CriarDesafioScreen extends StatefulWidget {
   final String? preSelectedFriendId;

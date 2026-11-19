@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../provider/auth_provider.dart';
-import '../telas_principais/homePage.dart';
+import '../telas_principais/home_page.dart';
 import 'login_page.dart';
 
 /// Decide entre Login e Home a partir da sessão do Firebase.

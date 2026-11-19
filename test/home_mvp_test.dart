@@ -11,7 +11,7 @@ import 'package:betfriends/provider/partidas_provider.dart';
 import 'package:betfriends/services/user_profile_service.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
 import 'package:betfriends/tela_perfil/tela_perfil.dart';
-import 'package:betfriends/telas_principais/homePage.dart';
+import 'package:betfriends/telas_principais/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';

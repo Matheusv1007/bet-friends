@@ -9,7 +9,7 @@ import 'package:betfriends/tela_perfil/tela_perfil.dart';
 import 'package:betfriends/telas_autenticacao/cadastro_page.dart';
 import 'package:betfriends/telas_autenticacao/login_page.dart';
 import 'package:betfriends/telas_autenticacao/validacao_cadastro.dart';
-import 'package:betfriends/telas_principais/homePage.dart';
+import 'package:betfriends/telas_principais/home_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

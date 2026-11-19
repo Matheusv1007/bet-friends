@@ -12,7 +12,7 @@ import 'services/user_profile_service.dart';
 import 'telas_autenticacao/auth_gate.dart';
 
 // kaue = Homepage
-//import 'telas_principais/homePage.dart';
+//import 'telas_principais/home_page.dart';
 
 class App extends StatelessWidget {
   /// Os serviços são opcionais para permitir fakes em testes.

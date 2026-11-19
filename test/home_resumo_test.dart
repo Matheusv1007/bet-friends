@@ -27,7 +27,7 @@ import 'package:betfriends/models/user_profile.dart';
 import 'package:betfriends/services/api/partidas_service.dart';
 import 'package:betfriends/services/challenge_service.dart';
 import 'package:betfriends/services/user_profile_service.dart';
-import 'package:betfriends/telas_principais/homePage.dart';
+import 'package:betfriends/telas_principais/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
