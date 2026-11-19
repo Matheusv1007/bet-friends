@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:betfriends/models/partida_model.dart';
 import 'package:betfriends/provider/partidas_provider.dart';
-import 'package:betfriends/services/api/api_client.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:betfriends/services/api/partidas_service.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
 import 'package:betfriends/telas_principais/homePage.dart';
@@ -39,7 +39,7 @@ void main() {
   group('HomePage - Cenários de Interface', () {
     testWidgets('Exibe mensagem amigável de erro e botão Tentar novamente quando ocorre falha', (tester) async {
       final fakeService = FakeTestPartidasService(
-        error: ApiException(statusCode: 403),
+        error: FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied'),
       );
       final provider = PartidasProvider(partidasService: fakeService);
       await provider.carregarPartidas();
@@ -100,7 +100,7 @@ void main() {
   group('CriarDesafioScreen - Cenários de Interface', () {
     testWidgets('Exibe erro amigável e botão de tentar novamente em CriarDesafioScreen', (tester) async {
       final fakeService = FakeTestPartidasService(
-        error: ApiException(statusCode: 500),
+        error: FirebaseException(plugin: 'cloud_firestore', code: 'unavailable'),
       );
       final provider = PartidasProvider(partidasService: fakeService);
       await provider.carregarPartidas();

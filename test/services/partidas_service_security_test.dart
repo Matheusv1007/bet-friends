@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:betfriends/data/firestore/partidas_repository.dart';
-import 'package:betfriends/services/api/api_client.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:betfriends/services/api/partidas_service.dart';
 
 void main() {
@@ -11,9 +11,10 @@ void main() {
     });
 
     test('formatErrorMessage não expõe credenciais ou tokens em caso de falha', () {
-      final erroComToken = ApiException(
-        statusCode: 401,
-        rawBody: '{"message": "Your API token fake_secret_token_12345 is invalid"}',
+      final erroComToken = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'permission-denied',
+        message: 'fake_secret_token_12345',
       );
       final mensagem = PartidasService.formatErrorMessage(erroComToken);
       expect(mensagem.contains('fake_secret_token_12345'), isFalse);
@@ -22,24 +23,27 @@ void main() {
     });
 
     test('formatErrorMessage trata erros do Firestore sem vazar dados técnicos', () {
-      final erroFirebase = ApiException(
-        statusCode: 503,
-        rawBody: 'unavailable',
+      final erroFirebase = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'unavailable',
+        message: 'Dados técnicos internos',
       );
       final mensagem = PartidasService.formatErrorMessage(erroFirebase);
-      expect(mensagem, 'O servidor de partidas está temporariamente indisponível. Tente novamente mais tarde.');
+      expect(mensagem, 'Serviço de partidas temporariamente indisponível. Verifique sua conexão e tente novamente.');
     });
 
-    test('Token exposto e novas credenciais não constam no código Flutter nem em arquivos versionados (KAN-102; RN-SEC-005, RNF-004)', () {
-      final service = PartidasService();
-      // O repositório não armazena nenhuma chave de API nem cabeçalhos de autenticação
-      expect(service.repository, isA<FirestorePartidasRepository>());
+    test('Serviço não aceita chave de API no construtor (RN-SEC-003)', () {
+      expect(
+        () => Function.apply(PartidasService.new, [], {#apiKey: 'chave-proibida'}),
+        throwsA(isA<NoSuchMethodError>()),
+      );
     });
 
-    test('Tratamento de credencial revogada/recusada não vaza o token na mensagem amigável (KAN-102)', () {
-      final erroCredencialRevogada = ApiException(
-        statusCode: 403,
-        rawBody: '{"message": "Your API token is restricted or has been revoked.", "errorCode": 403}',
+    test('Permissão recusada no Firestore não vaza dados técnicos na mensagem amigável', () {
+      final erroCredencialRevogada = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'permission-denied',
+        message: 'token revoked',
       );
       final mensagem = PartidasService.formatErrorMessage(erroCredencialRevogada);
       expect(mensagem, 'Não foi possível autorizar o acesso ao serviço de partidas.');

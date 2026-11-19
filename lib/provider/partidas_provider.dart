@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import '../models/partida_model.dart';
-import '../services/api/api_client.dart';
 import '../services/api/partidas_service.dart';
 
 /// Provider para gerenciamento do estado das partidas na Home e telas de criação de desafio.
 ///
-/// Implementa as diretrizes de KAN-105 (Redução de risco de limite de taxa):
-/// - Cache com TTL para evitar requisições redundantes na navegação Home → Criar Desafio → Home.
-/// - Detecção e tratamento amigável de HTTP 429 (Too Many Requests).
-/// - Cooldown de rate limit para impedir que o polling silencioso bombardeie a API após um 429.
+/// Implementa as diretrizes de KAN-105 para evitar consultas redundantes ao Firestore:
+/// - Cache com TTL na navegação Home → Criar Desafio → Home.
+/// - Tratamento amigável de limites de requisições do Firestore.
+/// - Cooldown para impedir consultas automáticas repetidas após atingir esse limite.
 /// - Suporte a [forcar: true] para que o pull-to-refresh e o botão "Tentar novamente" continuem funcionando.
 class PartidasProvider extends ChangeNotifier {
   final PartidasService _partidasService;
@@ -28,7 +27,7 @@ class PartidasProvider extends ChangeNotifier {
   /// Janela de frescor dos dados em memória (60 segundos). Evita re-fetch redundante em transição de telas.
   static const Duration cacheTtl = Duration(seconds: 60);
 
-  /// Cooldown após HTTP 429 (60 segundos) durante o qual polling automático é pausado.
+  /// Cooldown após limite de requisições (60 segundos), pausando o polling automático.
   static const Duration rateLimitCooldown = Duration(seconds: 60);
 
   PartidasProvider({PartidasService? partidasService})
@@ -81,7 +80,7 @@ class PartidasProvider extends ChangeNotifier {
     }
 
     // 2. Proteção contra polling em rate-limit (KAN-105):
-    // Se estiver em cooldown após 429, rejeita novas chamadas silenciosas automáticas
+    // Se estiver em cooldown por limite de requisições, rejeita chamadas automáticas
     if (!forcar && _isRateLimited) {
       if (_rateLimitCooldownAte != null &&
           DateTime.now().isBefore(_rateLimitCooldownAte!)) {
@@ -122,11 +121,9 @@ class PartidasProvider extends ChangeNotifier {
       _refreshErrorMessage = null;
     } catch (e) {
       final formattedMsg = PartidasService.formatErrorMessage(e);
-      final is429 = (e is ApiException && e.statusCode == 429) ||
-          formattedMsg.contains('Limite de requisições') ||
-          e.toString().contains('429');
+      final isRateLimitError = formattedMsg.contains('Limite de requisições');
 
-      if (is429) {
+      if (isRateLimitError) {
         _isRateLimited = true;
         _rateLimitCooldownAte = DateTime.now().add(rateLimitCooldown);
       }
