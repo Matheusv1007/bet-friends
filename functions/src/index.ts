@@ -6,7 +6,6 @@ export { systemPing } from "./system/ping";
 export { createUserProfile } from "./perfil/createUserProfile";
 export { claimRecoveryBonus } from "./betcoins/claimRecoveryBonus";
 export { syncMatches } from "./partidas/syncMatches";
-export { getMatchesRest } from "./partidas/getMatchesRest";
 export { searchUsers } from "./perfil/searchUsers";
 export { sendFriendRequest } from "./amigos/sendFriendRequest";
 export { acceptFriendRequest } from "./amigos/acceptFriendRequest";
