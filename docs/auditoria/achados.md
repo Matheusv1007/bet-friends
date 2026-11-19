@@ -52,7 +52,7 @@ Saldo reservado permanentemente para o usuário. Isso também bloqueia o bônus 
 ## A-02 — `getMatchesRest` público e sem proteção
 
 - **Severidade:** Alta
-- **Status:** Aberto
+- **Status:** Corrigido no código (branch `fix/A-02-remover-getmatchesrest`), removendo o endpoint. Falta apagar a função publicada.
 - **Onde:** `functions/src/partidas/getMatchesRest.ts:12`, `lib/services/api/partidas_rest_service.dart`, `lib/tela_academica/`
 
 ### O que foi encontrado
@@ -68,6 +68,14 @@ Custo de leitura do Firestore por abuso. Dado corrompido mascarado como válido.
 - Exigir App Check ou ID token, ou remover o endpoint do deploy depois da entrega acadêmica.
 - Restringir `cors` aos origens necessários.
 - Remover o fallback silencioso; registrar em log e omitir o documento inválido.
+
+### O que foi feito
+
+Decisão do responsável: o endpoint não é mais exigido pela atividade acadêmica, então foi **removido** em vez de protegido. Saíram a função `getMatchesRest` (`functions/src/partidas/getMatchesRest.ts` e o export em `index.ts`), o cliente `PartidasRestService`, a tela `TelaPartidasRest`, os dois atalhos para ela (menu da conta na Home e botão no Perfil) e os testes dessas peças. O app continua lendo `matches` direto do Firestore (`PartidasRepository`), por isso o índice composto de `matches` (A-03) continua necessário.
+
+### Pendência do A-02
+
+Tirar o código do repositório não apaga a função já publicada. É preciso removê-la do projeto real: `firebase functions:delete getMatchesRest --region southamerica-east1 --project betfriends-unirv-2026`.
 
 ---
 
