@@ -171,10 +171,28 @@ export function transicionarDesafio(db: Firestore, id: string, evento: EventoDoD
 }
 
 /**
- * Verifica se um usuário possui algum desafio ativo (estados não terminais)
+ * Se um desafio conta como "ativo" para [userId] na partida dele (RN-CHL-010,
+ * RN-CHL-011, RN-CHL-012, D-SCH-11): qualquer estado não terminal, **exceto o
+ * convite `PENDING` recebido** (userId é o desafiado). Quem foi convidado
+ * ainda não reservou nada nem se comprometeu; só passa a ter desafio ativo ao
+ * aceitar. Quem criou o convite tem a reserva e o compromisso desde a criação.
+ *
+ * Sem essa exceção, receber dois convites para a mesma partida impediria
+ * aceitar qualquer um dos dois, e um amigo bloquearia o outro de criar desafio.
+ */
+export function contaComoDesafioAtivo(status: StatusDoDesafio, challengedId: string, userId: string): boolean {
+  if (STATUS_TERMINAL[status]) return false;
+  return !(status === "PENDING" && challengedId === userId);
+}
+
+/**
+ * Verifica se um usuário possui algum desafio ativo ([contaComoDesafioAtivo])
  * associado a uma partida (RN-CHL-010, RN-CHL-011, RN-CHL-012, D-010).
  * Considera ambos os papéis (criador ou desafiado em participants).
  * Se [ignorarChallengeId] for informado, esse desafio específico é desconsiderado.
+ *
+ * A consulta lê todos os desafios do usuário na partida dentro da transação, então
+ * duas aceitações simultâneas de convites diferentes conflitam e só uma passa.
  */
 export async function temDesafioAtivoNaPartida(
   transacao: Transaction,
@@ -191,8 +209,8 @@ export async function temDesafioAtivoNaPartida(
   );
   return snapshot.docs.some((doc) => {
     if (ignorarChallengeId && doc.id === ignorarChallengeId) return false;
-    const status = doc.data().status as StatusDoDesafio;
-    return !STATUS_TERMINAL[status];
+    const { status, challengedId } = doc.data();
+    return contaComoDesafioAtivo(status as StatusDoDesafio, String(challengedId), userId);
   });
 }
 

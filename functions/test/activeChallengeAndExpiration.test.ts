@@ -3,8 +3,33 @@ import { describe, test } from "node:test";
 
 import { atingiuCorte, limiteDoCorte } from "../src/desafios/challenge";
 import { TRANSICOES_PERMITIDAS } from "../src/desafios/maquinaDeEstados";
+import { contaComoDesafioAtivo } from "../src/desafios/challengeFirestore";
 
 describe("Regras de Expiração e Desafio Ativo (RN-CHL-010, RN-CHL-011, RN-CHL-021, RN-CHL-022)", () => {
+  describe("Quando um desafio conta como ativo para o usuário (RN-CHL-010/011/012, D-SCH-11)", () => {
+    const STATUS_ATIVOS = ["ACCEPTED", "IN_PROGRESS", "WAITING_RESULT"] as const;
+    const STATUS_TERMINAIS = ["FINISHED", "REJECTED", "EXPIRED", "CANCELLED"] as const;
+
+    test("estados terminais nunca contam, em nenhum papel", () => {
+      for (const status of STATUS_TERMINAIS) {
+        assert.equal(contaComoDesafioAtivo(status, "desafiado", "desafiado"), false, status);
+        assert.equal(contaComoDesafioAtivo(status, "desafiado", "criador"), false, status);
+      }
+    });
+
+    test("aceito, em andamento e aguardando resultado contam para os dois", () => {
+      for (const status of STATUS_ATIVOS) {
+        assert.equal(contaComoDesafioAtivo(status, "desafiado", "desafiado"), true, status);
+        assert.equal(contaComoDesafioAtivo(status, "desafiado", "criador"), true, status);
+      }
+    });
+
+    test("convite pendente conta para quem criou, mas não para quem o recebeu", () => {
+      assert.equal(contaComoDesafioAtivo("PENDING", "desafiado", "criador"), true);
+      assert.equal(contaComoDesafioAtivo("PENDING", "desafiado", "desafiado"), false);
+    });
+  });
+
   describe("Máquina de estados: transição para EXPIRED", () => {
     test("somente PENDING pode transicionar para EXPIRED (RN-CHL-021)", () => {
       assert.ok(TRANSICOES_PERMITIDAS.PENDING.includes("EXPIRED"));

@@ -455,5 +455,86 @@ describe(
       assert.ok(falha.reason instanceof ErroDeDesafio);
       assert.equal(falha.reason.code, "desafio-ativo-existente");
     });
+
+    test("12. convite recebido pendente não bloqueia criar o próprio desafio; aceitar o convite depois é que é recusado (D-SCH-11)", async () => {
+      // Alice convida Bob na MATCH_1: para Bob é só um convite recebido
+      const conviteAlice = await db.runTransaction((t) =>
+        criarDesafioParaAmigoNaTransacao(t, db, {
+          challengerId: ALICE,
+          challengedId: BOB,
+          matchId: MATCH_1,
+          challengerPrediction: "HOME_WIN",
+          amount: 50,
+        }),
+      );
+
+      // Bob cria um desafio próprio na mesma partida: permitido
+      const desafioBob = await db.runTransaction((t) =>
+        criarDesafioParaAmigoNaTransacao(t, db, {
+          challengerId: BOB,
+          challengedId: CHARLIE,
+          matchId: MATCH_1,
+          challengerPrediction: "DRAW",
+          amount: 50,
+        }),
+      );
+      assert.ok(desafioBob.challengeId);
+
+      // Agora Bob tem desafio ativo (como criador): aceitar o convite de Alice é recusado
+      await assert.rejects(
+        db.runTransaction((t) =>
+          aceitarDesafioNaTransacao(t, db, {
+            challengeId: conviteAlice.challengeId,
+            challengedId: BOB,
+            challengedPrediction: "AWAY_WIN",
+          }),
+        ),
+        (err: unknown) => err instanceof ErroDeDesafio && err.code === "desafio-ativo-existente",
+      );
+      assert.equal((await lerDesafio(db, conviteAlice.challengeId))?.status, "PENDING");
+    });
+
+    test("13. concorrência: aceitar dois convites da mesma partida ao mesmo tempo deixa só um aceito", async () => {
+      const convites = [];
+      for (const [criador, palpite] of [
+        [ALICE, "HOME_WIN"],
+        [BOB, "DRAW"],
+      ] as const) {
+        convites.push(
+          await db.runTransaction((t) =>
+            criarDesafioParaAmigoNaTransacao(t, db, {
+              challengerId: criador,
+              challengedId: CHARLIE,
+              matchId: MATCH_1,
+              challengerPrediction: palpite,
+              amount: 50,
+            }),
+          ),
+        );
+      }
+
+      const resultados = await Promise.allSettled(
+        convites.map((c, i) =>
+          db.runTransaction((t) =>
+            aceitarDesafioNaTransacao(t, db, {
+              challengeId: c.challengeId,
+              challengedId: CHARLIE,
+              challengedPrediction: i === 0 ? "AWAY_WIN" : "HOME_WIN",
+            }),
+          ),
+        ),
+      );
+
+      assert.equal(resultados.filter((r) => r.status === "fulfilled").length, 1);
+      const recusa = resultados.find((r): r is PromiseRejectedResult => r.status === "rejected");
+      assert.ok(recusa?.reason instanceof ErroDeDesafio);
+      assert.equal(recusa.reason.code, "desafio-ativo-existente");
+
+      const status = await Promise.all(convites.map(async (c) => (await lerDesafio(db, c.challengeId))?.status));
+      assert.deepEqual([...status].sort(), ["ACCEPTED", "PENDING"]);
+      // só a reserva do aceito foi feita pelo desafiado: Charlie reservou uma vez
+      const charlie = (await db.collection("users").doc(CHARLIE).get()).data()!;
+      assert.equal(charlie.saldoReservado, 50);
+    });
   },
 );
