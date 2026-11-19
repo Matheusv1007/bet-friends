@@ -290,7 +290,7 @@ Confirmar com o grupo se algum teste ou a entrega acadêmica depende do `ApiClie
 ## A-11 — Arquivos grandes e nomes fora do padrão
 
 - **Severidade:** Baixa
-- **Status:** Aberto
+- **Status:** Corrigido no código (branch `refactor/A-11-nomes-snake-case`) para os nomes e os quatro maiores arquivos. Restam arquivos de 400 a 700 linhas (ver pendências).
 - **Onde:** `lib/telas_principais/homePage.dart` (918 linhas), `lib/tela_criar_desafio/tela_criar_desafio.dart` (911), `lib/widgets_homePage/cardDeDesafiosAtivos.dart` (668), `lib/tela_perfil/tela_perfil.dart` (720)
 
 ### O que foi encontrado
@@ -301,6 +301,22 @@ Seis arquivos violam `file_names` (único aviso do `flutter analyze`): `homePage
 
 - Renomear para `snake_case` com `git mv` e atualizar imports, em um commit isolado.
 - Extrair widgets menores dos arquivos acima, sem mudar comportamento.
+
+### O que foi feito
+
+- **Nomes:** os seis arquivos e a pasta `widgets_homePage/` passaram para `snake_case` (`home_page.dart`, `widgets_home_page/appbar_das_partidas.dart`, `card_de_carteira.dart`, `card_de_desafio.dart`, `card_de_desafios_ativos.dart`, `card_de_partidas.dart`) com `git mv`, em commit isolado. `flutter analyze` ficou com **zero** avisos.
+- **Extração de widgets**, sem mudar comportamento (mesmas chaves, textos e API pública; os 340 testes seguem passando):
+
+| Arquivo | Antes | Depois | Extraído |
+|---|---|---|---|
+| `telas_principais/home_page.dart` | 893 | 373 | lista de partidas, cabeçalho, menu da conta, barra de navegação e alerta de pendentes |
+| `tela_criar_desafio/tela_criar_desafio.dart` | 913 | 424 | seletores de amigo, partida, palpite e valor, saldo e botão de envio |
+| `widgets_home_page/card_de_desafios_ativos.dart` | 827 | 172 | seções de recebidos, enviados, em aberto, finalizados, estados vazio e demonstrativo, e detalhes |
+| `tela_perfil/tela_perfil.dart` | 701 | 158 | dados, cabeçalho, diálogo de edição de nome e avisos |
+
+### Pendências do A-11
+
+Ficam sem divisão, por serem menores e com estado mais entrelaçado: `tela_buscar_usuarios.dart` (~690 linhas), `tela_lista_amigos.dart` (~570), `tela_comunicacoes_amizade.dart` (~520), `cadastro_page.dart` (~460), `card_de_partidas.dart` (~395) e `modal_aceitar_desafio.dart` (~385). Podem seguir o mesmo caminho se o grupo quiser.
 
 ---
 
