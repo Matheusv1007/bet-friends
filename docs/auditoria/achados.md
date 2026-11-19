@@ -254,7 +254,7 @@ Nenhuma.
 ## A-09 — Aliases de payload e tabela de erros duplicada
 
 - **Severidade:** Baixa
-- **Status:** Parcial: a tabela de erros duplicada foi extraída para `desafios/errosHttps.ts` (branch `fix/A-01-cancelar-rejeitar-desafio`). Faltam os aliases de payload (`friendId`, `desafiadoId`, `prediction`, `palpite`).
+- **Status:** Corrigido no código (branches `fix/A-01-cancelar-rejeitar-desafio` e `refactor/A-09-payload-desafios`). Falta publicar as duas callables.
 - **Onde:** `functions/src/desafios/createChallenge.ts`, `functions/src/desafios/acceptChallenge.ts`
 
 ### O que foi encontrado
@@ -266,6 +266,14 @@ Nenhuma.
 
 - Manter só os nomes que o app usa (confirmar em `lib/data/firestore/challenge_repository.dart`) e atualizar `docs/callable-functions.md`.
 - Extrair a tradução de erros de desafio para um módulo compartilhado.
+
+### O que foi feito
+
+A tabela de erros já tinha sido extraída (A-01). Agora a leitura do payload das duas callables saiu para `desafios/payload.ts` (`lerCriacaoDeDesafio`, `lerAceiteDeDesafio`, com `requirePalpite` compartilhado) e só aceita os nomes que o app envia, conferidos em `lib/models/challenge_model.dart`; os apelidos `friendId`, `desafiadoId`, `prediction` e `palpite` saíram. Teste novo: `functions/test/payloadDeDesafio.test.ts`. As mensagens para campo ausente passaram a ser as de `requireString`/`requireInt`, iguais às das demais callables; o código de erro (`invalid-argument`) e `motivo: "palpite-invalido"` não mudaram.
+
+### Pendências do A-09
+
+Publicar `createChallenge` e `acceptChallenge` (`firebase deploy --only functions:createChallenge,functions:acceptChallenge`). O app atual envia só os nomes canônicos, então não há risco para quem já usa a versão nova; um app antigo que usasse apelidos deixaria de funcionar, mas nenhum foi distribuído.
 
 ---
 

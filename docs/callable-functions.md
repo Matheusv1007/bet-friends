@@ -266,8 +266,12 @@ Mesmo padrão das demais Callables de desafio (`authedCallable`; o UID vem do to
 |---|---|---|---|
 | `rejectChallenge` | `{ challengeId }` | `{ challengeId, status: "REJECTED" }` | só o desafiado, com o desafio `PENDING` |
 | `cancelChallenge` | `{ challengeId }` | `{ challengeId, status: "CANCELLED" }` | só o criador, com o desafio `PENDING` |
+| `createChallenge` | `{ challengedId, matchId, challengerPrediction, amount }` | dados do desafio `PENDING` | qualquer usuário com amizade aceita com `challengedId` |
+| `acceptChallenge` | `{ challengeId, challengedPrediction }` | dados do desafio `ACCEPTED` | só o desafiado, com o desafio `PENDING` |
 
-As duas liberam a reserva do criador na mesma transação em que mudam o estado. O cancelamento depois do aceite não tem Callable: só o sistema cancela (partida cancelada ou adiada além do tolerado), dentro do `processarResultados`. Detalhes e regras em `docs/firestore-schema.md` §3.5. Depois do deploy, as duas funções precisam ser publicadas (seção 7) para o app conseguir recusar e cancelar.
+O payload de `createChallenge` e `acceptChallenge` tem **uma forma só**, a que o app envia (`lib/models/challenge_model.dart`). Os apelidos antigos (`friendId`, `desafiadoId`, `prediction`, `palpite`) deixaram de valer: payload fora do contrato é `invalid-argument`, e palpite ausente ou inválido é `invalid-argument` com `details.motivo = "palpite-invalido"`. A leitura fica em `desafios/payload.ts`.
+
+`rejectChallenge` e `cancelChallenge` liberam a reserva do criador na mesma transação em que mudam o estado. O cancelamento depois do aceite não tem Callable: só o sistema cancela (partida cancelada ou adiada além do tolerado), dentro do `processarResultados`. Detalhes e regras em `docs/firestore-schema.md` §3.5. Depois do deploy, as funções precisam ser publicadas (seção 7) para o app conseguir recusar e cancelar.
 
 ## 12 - App Check e limite de uso (A-05)
 
