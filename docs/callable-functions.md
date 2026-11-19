@@ -157,10 +157,24 @@ firebase deploy --only functions
    - Destruir versões antigas/revogadas no Secret Manager: `firebase functions:secrets:prune --project betfriends-unirv-2026`.
 
 2. **Registro de Segurança para a Equipe:**
-   - **Credencial antiga invalidada:** A credencial identificada na auditoria de 10/05/2026 como exposta no histórico do repositório (`lib/services/api/partidas_service.dart`) e embutida no APK anterior está formalmente **revogada e descontinuada**. Ela não deve ser utilizada em nenhum ambiente (desenvolvimento, homologação ou produção).
-   - **Isolamento de Credenciais (KAN-21 / RN-SEC-003, RN-SEC-005):** Nenhuma credencial do provedor de futebol é adicionada ao código Flutter nem a qualquer arquivo versionado no repositório. Arquivos locais de segredos (`functions/.secret.local`, `.env*`, `*.local`) estão protegidos no `.gitignore`.
+   - **Credencial antiga descontinuada:** não deve ser usada em nenhum ambiente. O registro anterior a descrevia como revogada; a revogação no provedor não é comprovável pelo repositório e requer a confirmação manual abaixo.
+   - **Histórico completo identificado (N-30):** exposição em `8462ffe` e `8f685f7` (02/11/2026, inclusive em teste negativo); remoção em `34fd242`. A remoção não apaga a credencial dos commits anteriores nem dos APKs antigos.
+   - **Isolamento de Credenciais (KAN-21 / RN-SEC-003, RN-SEC-005):** nenhum segredo novo deve entrar no Flutter ou em arquivos versionados. `.secret.local`, `.env*` e `*.local` são ignorados, exceto `functions/.env.betfriends-unirv-2026`, que contém apenas configuração pública.
    - **Consumo Exclusivo via Firestore (KAN-42 / RNF-005):** O aplicativo Flutter consome exclusivamente a coleção `matches` do Cloud Firestore sincronizada pela Cloud Function agendada `syncMatches`, sem chamadas diretas do cliente à Football-Data.org.
    - **Proteção em Registros Públicos:** Nenhum valor secreto de credencial pode ser registrado em texto claro em commits, Pull Requests, documentações ou descrições/comentários do Jira.
+
+3. **Checklist manual de confirmação da revogação (responsável pelo provedor):**
+   - [ ] Confirmar no painel da Football-Data.org que a credencial exposta foi revogada/substituída.
+   - [ ] Em terminal privado, sem gravar token no histórico, testar a credencial antiga. O exemplo usa somente um placeholder; nunca cole o valor em documentos, logs ou capturas:
+
+     ```bash
+     curl --silent --output /dev/null --write-out '%{http_code}\n' \
+       --header 'X-Auth-Token: <TOKEN_ANTIGO_REVOGADO>' \
+       https://api.football-data.org/v4/competitions/BSA/matches
+     ```
+
+   - [ ] Confirmar **HTTP 401 ou 403**. `200` indica credencial ainda válida; `429`, falha de rede ou outro status não comprovam revogação.
+   - [ ] Registrar responsável, data e status HTTP, sem token nem conteúdo da resposta, e confirmar que o backend usa a nova versão do Secret Manager.
 
 ### 8.4 - No emulador
 
