@@ -287,6 +287,30 @@ describe(
       assert.deepEqual(await carteira(ALICE), { total: 1000, reservado: 0 });
     });
 
+    test("recusa criar e aceitar após remarcação além do tolerado (N-04)", async () => {
+      const original = new Date("2026-06-01T20:00:00Z");
+      const inicio = new Date("2026-07-15T20:00:00Z");
+      const agora = new Date("2026-07-10T12:00:00Z");
+      const params = { challengerId: ALICE, challengedId: BOB, matchId: PARTIDA, challengerPrediction: "HOME_WIN" as const, amount: 50 };
+      await semearPartida({ inicio, original });
+      const invalida = (err: unknown) => err instanceof ErroDeDesafio && err.code === "partida-invalida";
+      await assert.rejects(db.runTransaction((t) => criarDesafioParaAmigoNaTransacao(t, db, params, agora)), invalida);
+      assert.deepEqual(await carteira(ALICE), { total: 1000, reservado: 0 });
+
+      // A partida normal é aceita; depois da remarcação, o convite existente não pode ser aceito.
+      await semearPartida({ inicio });
+      const convite = await db.runTransaction((t) => criarDesafioParaAmigoNaTransacao(t, db, params, agora));
+      await semearPartida({ inicio, original });
+      await assert.rejects(db.runTransaction((t) => aceitarDesafioNaTransacao(t, db, {
+        challengeId: convite.challengeId, challengedId: BOB, challengedPrediction: "AWAY_WIN",
+      }, agora)), invalida);
+      assert.deepEqual(await carteira(BOB), { total: 1000, reservado: 0 });
+      await semearPartida({ inicio });
+      assert.equal((await db.runTransaction((t) => aceitarDesafioNaTransacao(t, db, {
+        challengeId: convite.challengeId, challengedId: BOB, challengedPrediction: "AWAY_WIN",
+      }, agora))).status, "ACCEPTED");
+    });
+
     test("desafio aceito cuja partida terminou sem o sync vê-la em andamento é iniciado e liquidado, sem prender reservas", async () => {
       const id = await criarEAceitar(100);
       await semearPartida({ status: "FINALIZADA", inicio: new Date("2026-11-01T19:00:00Z"), placar: [2, 0] });

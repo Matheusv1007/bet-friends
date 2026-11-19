@@ -16,6 +16,7 @@ import { verificarAmizadeAceitaNaTransacao } from "../amigos/friendshipFirestore
 import { lerMatchNaTransacao } from "../partidas/matchFirestore";
 import { RESULTADOS_DA_PARTIDA } from "../partidas/match";
 import { EventoDoDesafio, aplicarEvento } from "./maquinaDeEstados";
+import { remarcadaAlemDoTolerado } from "./prazoDeAdiamento";
 
 /**
  * Persistência do desafio em `challenges/{id}` (KAN-62;
@@ -289,7 +290,7 @@ export async function criarDesafioParaAmigoNaTransacao(
   if (match === null) {
     throw new ErroDeDesafio("Partida não encontrada.", "desafio-invalido");
   }
-  if (match.status !== "AGENDADA") {
+  if (match.status !== "AGENDADA" || remarcadaAlemDoTolerado(match)) {
     throw new ErroDeDesafio("A partida não está disponível para criação de desafios.", "partida-invalida");
   }
   if (atingiuCorte(match.startsAtUtc, agora)) {
@@ -394,6 +395,9 @@ export async function aceitarDesafioNaTransacao(
   const match = await lerMatchNaTransacao(transacao, db, challenge.matchId);
   if (match === null) {
     throw new ErroDeDesafio("Partida não encontrada.", "desafio-invalido");
+  }
+  if (remarcadaAlemDoTolerado(match)) {
+    throw new ErroDeDesafio("A partida foi remarcada além do adiamento tolerado.", "partida-invalida");
   }
   if (match.status !== "AGENDADA" || atingiuCorte(match.startsAtUtc, agora)) {
     throw new ErroDeDesafio("A partida atingiu o corte de 5 minutos antes do início.", "partida-no-corte");

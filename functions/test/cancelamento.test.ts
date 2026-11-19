@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { Challenge, ErroDeDesafio } from "../src/desafios/challenge";
-import { DIAS_DE_ADIAMENTO_TOLERADO, motivoDeCancelamentoPelaPartida } from "../src/desafios/cancelamento";
+import { motivoDeCancelamentoPelaPartida } from "../src/desafios/cancelamento";
+import { DIAS_DE_ADIAMENTO_TOLERADO } from "../src/desafios/prazoDeAdiamento";
 import { INICIA_DESAFIO } from "../src/desafios/iniciarDesafios";
 import { aplicarEvento } from "../src/desafios/maquinaDeEstados";
 import { Match, STATUS_DA_PARTIDA, StatusDaPartida } from "../src/partidas/match";

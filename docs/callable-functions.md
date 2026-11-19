@@ -271,6 +271,8 @@ Mesmo padrão das demais Callables de desafio (`authedCallable`; o UID vem do to
 
 O payload de `createChallenge` e `acceptChallenge` tem **uma forma só**, a que o app envia (`lib/models/challenge_model.dart`). Os apelidos antigos (`friendId`, `desafiadoId`, `prediction`, `palpite`) deixaram de valer: payload fora do contrato é `invalid-argument`, e palpite ausente ou inválido é `invalid-argument` com `details.motivo = "palpite-invalido"`. A leitura fica em `desafios/payload.ts`.
 
+Criação e aceite recusam com `partida-invalida` partidas remarcadas mais de sete dias após `originalStartsAtUtc`, usando o mesmo prazo do cancelamento automático (N-04). A data original é a primeira data sincronizada; a recusa é explícita, em vez de aceitar uma reserva que seria cancelada no próximo job.
+
 `rejectChallenge` e `cancelChallenge` liberam a reserva do criador na mesma transação em que mudam o estado. O cancelamento depois do aceite não tem Callable: só o sistema cancela (partida cancelada ou adiada além do tolerado), dentro do `processarResultados`. Detalhes e regras em `docs/firestore-schema.md` §3.5. Depois do deploy, as funções precisam ser publicadas (seção 7) para o app conseguir recusar e cancelar.
 
 ## 12 - App Check e limite de uso (A-05)
