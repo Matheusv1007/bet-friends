@@ -32,6 +32,22 @@
         { "fieldPath": "matchId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "friendships",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "participants", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "matches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "competitionCode", "order": "ASCENDING" },
+        { "fieldPath": "startsAtUtc", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
