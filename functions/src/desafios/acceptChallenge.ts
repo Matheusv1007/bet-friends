@@ -1,12 +1,9 @@
-import { HttpsError } from "firebase-functions/https";
-
 import { authedCallable } from "../core/callable";
 import { db } from "../core/firebase";
-import { requireObject, requireString } from "../core/validation";
-import { RESULTADOS_DA_PARTIDA } from "../partidas/match";
 import { Palpite } from "./challenge";
 import { ResultadoAceitarDesafio, aceitarDesafio } from "./challengeFirestore";
 import { traduzirErroDeDesafio } from "./errosHttps";
+import { lerAceiteDeDesafio } from "./payload";
 
 export interface AcceptChallengeRequest {
   readonly challengeId: string;
@@ -46,36 +43,6 @@ export const acceptChallenge = authedCallable<
       throw traduzirErroDeDesafio(err);
     }
   },
-  {
-    parse: (raw) => {
-      const data = requireObject(raw);
-      const challengeId = requireString(data, "challengeId").trim();
-      if (!challengeId) {
-        throw new HttpsError("invalid-argument", 'Campo "challengeId" é obrigatório.');
-      }
-
-      const prediction =
-        typeof data.challengedPrediction === "string"
-          ? data.challengedPrediction
-          : typeof data.prediction === "string"
-            ? data.prediction
-            : typeof data.palpite === "string"
-              ? data.palpite
-              : "";
-
-      if (!RESULTADOS_DA_PARTIDA.includes(prediction as Palpite)) {
-        throw new HttpsError(
-          "invalid-argument",
-          'Campo "challengedPrediction" deve ser "HOME_WIN", "DRAW" ou "AWAY_WIN".',
-          { motivo: "palpite-invalido" },
-        );
-      }
-
-      return {
-        challengeId,
-        challengedPrediction: prediction as Palpite,
-      };
-    },
-  },
+  { parse: lerAceiteDeDesafio },
 );
 

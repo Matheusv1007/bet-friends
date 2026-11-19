@@ -1,13 +1,9 @@
-import { HttpsError } from "firebase-functions/https";
-
 import { authedCallable } from "../core/callable";
 import { db } from "../core/firebase";
-import { requireInt, requireObject, requireString } from "../core/validation";
-import { APOSTA_MAXIMA, APOSTA_MINIMA } from "../betcoins/reserva";
-import { RESULTADOS_DA_PARTIDA } from "../partidas/match";
 import { Palpite } from "./challenge";
 import { ResultadoCriarDesafio, criarDesafioParaAmigo } from "./challengeFirestore";
 import { traduzirErroDeDesafio } from "./errosHttps";
+import { lerCriacaoDeDesafio } from "./payload";
 
 export interface CreateChallengeRequest {
   readonly challengedId: string;
@@ -49,54 +45,6 @@ export const createChallenge = authedCallable<
       throw traduzirErroDeDesafio(err);
     }
   },
-  {
-    parse: (raw) => {
-      const data = requireObject(raw);
-      const target =
-        typeof data.challengedId === "string"
-          ? data.challengedId
-          : typeof data.friendId === "string"
-            ? data.friendId
-            : typeof data.desafiadoId === "string"
-              ? data.desafiadoId
-              : "";
-
-      const challengedId = target.trim();
-      if (!challengedId) {
-        throw new HttpsError("invalid-argument", 'Campo "challengedId" é obrigatório.');
-      }
-
-      const matchId = requireString(data, "matchId").trim();
-      if (!matchId) {
-        throw new HttpsError("invalid-argument", 'Campo "matchId" é obrigatório.');
-      }
-
-      const prediction =
-        typeof data.challengerPrediction === "string"
-          ? data.challengerPrediction
-          : typeof data.prediction === "string"
-            ? data.prediction
-            : typeof data.palpite === "string"
-              ? data.palpite
-              : "";
-
-      if (!RESULTADOS_DA_PARTIDA.includes(prediction as Palpite)) {
-        throw new HttpsError(
-          "invalid-argument",
-          'Campo "challengerPrediction" deve ser "HOME_WIN", "DRAW" ou "AWAY_WIN".',
-          { motivo: "palpite-invalido" },
-        );
-      }
-
-      const amount = requireInt(data, "amount", { min: APOSTA_MINIMA, max: APOSTA_MAXIMA });
-
-      return {
-        challengedId,
-        matchId,
-        challengerPrediction: prediction as Palpite,
-        amount,
-      };
-    },
-  },
+  { parse: lerCriacaoDeDesafio },
 );
 
