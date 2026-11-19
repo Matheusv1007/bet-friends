@@ -1,10 +1,11 @@
 import { Firestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 
-import { ErroDePartida, StatusDaPartida } from "../partidas/match";
+import { StatusDaPartida } from "../partidas/match";
 import { lerMatchNaTransacao } from "../partidas/matchFirestore";
-import { ErroDeDesafio } from "./challenge";
-import { COLECAO_DE_DESAFIOS, desafioDoDocumento, lerDesafioNaTransacao, transicionarDesafioNaTransacao } from "./challengeFirestore";
+import { gravarTransicaoNaTransacao, lerDesafioNaTransacao } from "./challengeFirestore";
+import { carregarContextoDoProcessamento, ContextoDoProcessamento, partidaDoContexto } from "./contextoDoProcessamento";
+import { processarComConcorrencia } from "./concorrenciaLimitada";
 
 /**
  * Desafio em andamento passa a aguardar resultado (KAN-67; RN-MAT-012,
@@ -47,31 +48,40 @@ export interface ResultadoDaAtualizacao {
  * novo dentro da própria transação: se já mudou de estado, não é tocado.
  * Repetir a execução não move nada a mais.
  */
-export async function moverDesafiosParaAguardandoResultado(db: Firestore): Promise<ResultadoDaAtualizacao> {
-  const emAndamento = await db.collection(COLECAO_DE_DESAFIOS).where("status", "==", "IN_PROGRESS").get();
+export async function moverDesafiosParaAguardandoResultado(
+  db: Firestore,
+  contexto?: ContextoDoProcessamento,
+): Promise<ResultadoDaAtualizacao> {
+  const inicio = Date.now();
+  contexto ??= await carregarContextoDoProcessamento(db, ["IN_PROGRESS"]);
+  const emAndamento = [...contexto.desafios.values()].filter((d) => d.status === "IN_PROGRESS");
   const movidos: string[] = [];
-  const ignorados: { id: string; motivo: string }[] = [];
+  const ignorados: { id: string; motivo: string }[] = contexto.invalidos.filter((d) => d.status === "IN_PROGRESS");
 
-  for (const doc of emAndamento.docs) {
+  await processarComConcorrencia(emAndamento, async (desafio) => {
     try {
-      const { matchId } = desafioDoDocumento(doc.id, doc.data());
-      const movido = await db.runTransaction(async (t) => {
-        const partida = await lerMatchNaTransacao(t, db, matchId);
-        if (partida === null || !LEVA_A_AGUARDAR_RESULTADO[partida.status]) return false;
-        if ((await lerDesafioNaTransacao(t, db, doc.id))?.status !== "IN_PROGRESS") return false;
-        await transicionarDesafioNaTransacao(t, db, doc.id, { tipo: "AGUARDAR_RESULTADO" });
-        return true;
+      const partida = partidaDoContexto(contexto, desafio);
+      if (partida === null || !LEVA_A_AGUARDAR_RESULTADO[partida.status]) return;
+      const r = await db.runTransaction(async (t) => {
+        const atual = await lerDesafioNaTransacao(t, db, desafio.id);
+        if (atual === null || atual.status !== "IN_PROGRESS") return { movido: false, desafio: atual };
+        const relida = await lerMatchNaTransacao(t, db, atual.matchId);
+        if (relida === null || !LEVA_A_AGUARDAR_RESULTADO[relida.status]) return { movido: false, desafio: atual };
+        return { movido: true, desafio: gravarTransicaoNaTransacao(t, db, atual, { tipo: "AGUARDAR_RESULTADO" }) };
       });
-      if (movido) movidos.push(doc.id);
+      if (r.desafio === null) contexto.desafios.delete(desafio.id);
+      else contexto.desafios.set(desafio.id, r.desafio);
+      if (r.movido) movidos.push(desafio.id);
     } catch (err) {
-      if (!(err instanceof ErroDeDesafio) && !(err instanceof ErroDePartida)) throw err;
-      ignorados.push({ id: doc.id, motivo: err.message });
+      ignorados.push({ id: desafio.id, motivo: err instanceof Error ? err.message : String(err) });
     }
-  }
+  });
 
   if (ignorados.length > 0) {
-    logger.warn("Desafios em andamento não avaliados: desafio ou partida fora do schema", { ignorados });
+    logger.warn("Desafios em andamento não avaliados: falha ao avaliar ou transicionar", { ignorados });
   }
-  logger.info("Desafios movidos para aguardar resultado", { movidos: movidos.length, ignorados: ignorados.length });
+  logger.info("Desafios movidos para aguardar resultado", {
+    avaliados: emAndamento.length, movidos: movidos.length, ignorados: ignorados.length, duracaoMs: Date.now() - inicio,
+  });
   return { movidos, ignorados };
 }
