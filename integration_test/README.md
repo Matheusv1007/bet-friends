@@ -74,12 +74,20 @@ Consulta o histórico com o serviço real e as Security Rules: criador ou desafi
 
 Chama a Callable `claimRecoveryBonus` pelo `FunctionsService` (HTTP do Functions Emulator), sem tela (a interface é da KAN-71). Verifica: sem sessão → `unauthenticated`; `uidEva` (5 BetCoins) recebe +100 com a transação `RECOVERY_BONUS` e `lastRecoveryBonusAt`, ignorando `userId`/`amount` do payload; o cliente não altera saldo, `lastRecoveryBonusAt` nem o ledger; repetir é negado (`saldo-suficiente`); conta com 1.000 e conta sem perfil são negadas com o motivo.
 
+## `jornada_mvp_emulator_test.dart` (KAN-107, N-02/N-15)
+
+Usa contas exclusivas `uidAnaJornada` / `ana.jornada@example.com` e `uidBiaJornada` / `bia.jornada@example.com`, com os nomes Ana Lima e Bia Rocha. Verifica autenticação, perfil/carteira próprios, negação de leitura privada de terceiros e amigos públicos via `FunctionsChallengeRepository.listarAmigosAceitos`/`getFriends`. Não cria, aceita ou liquida desafios. Requer também Functions compiladas; não compartilha os perfis alterados pelos testes de edição de nome.
+
+## `partidas_emulator_test.dart` (N-01)
+
+Consulta o `FirestorePartidasRepository` real com mais de 30 partidas passadas e cinco futuras no seed. Verifica que partidas futuras aparecem primeiro e continuam disponíveis offline. Usa Auth e Firestore; não chama a Football-Data.org.
+
 ## Pré-requisitos
 
 - Emulador Android em execução (`flutter emulators --launch Pixel_10_Pro`). O teste acessa os emuladores do host por `10.0.2.2`.
 - JDK 21+, Firebase CLI e Firestore Emulator, como em `tests/firestore-rules/README.md`.
 - `cd functions && npm ci`, para o `firebase-admin` usado pelo seed.
-- Para `criar_perfil_emulator_test.dart`, `cadastro_emulator_test.dart` e `recuperacao_emulator_test.dart`: `cd functions && npm run build`, para o Functions Emulator carregar `functions/lib/`.
+- Para `criar_perfil_emulator_test.dart`, `cadastro_emulator_test.dart`, `jornada_mvp_emulator_test.dart` e `recuperacao_emulator_test.dart`: `cd functions && npm run build`, para o Functions Emulator carregar `functions/lib/`.
 - Node 22 no PATH e Firebase CLI 15.32.1 pelo npm (`npx firebase-tools@15.32.1`), conforme [`docs/callable-functions.md`](../docs/callable-functions.md) §9. O binário standalone (`/usr/local/bin/firebase`) usa um Node 20 embutido, que não carrega o `firebase-admin` 14 (`ERR_REQUIRE_ESM` em `jose`) e deixa o Functions Emulator sem funções (`not-found`).
 
 ## Executar
@@ -88,17 +96,17 @@ Na raiz do repositório, com o Node 22 no PATH (`docs/callable-functions.md` §9
 
 ```bash
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH="$JAVA_HOME/bin:$PATH" \
-  npx firebase-tools@15.32.1 \
+  flock /tmp/betfriends-emulator.lock npx firebase-tools@15.32.1 \
   emulators:exec --only auth,firestore,functions --project demo-betfriends \
   "$(command -v node) integration_test/support/seed_emulators.mjs && \
    { $(command -v node) integration_test/support/proxy_conexao.mjs & P=\$!; \
      $(command -v flutter) test integration_test/ -d emulator-5554; R=\$?; kill \$P; exit \$R; }"
 ```
 
-O proxy só é necessário para `modo_offline_emulator_test.dart`; os demais arquivos funcionam com o comando sem ele. O Functions Emulator só é necessário para `criar_perfil_emulator_test.dart`, `cadastro_emulator_test.dart` e `recuperacao_emulator_test.dart`.
+O proxy só é necessário para `modo_offline_emulator_test.dart`; os demais arquivos funcionam com o comando sem ele. O Functions Emulator também é necessário para `jornada_mvp_emulator_test.dart`, além de `criar_perfil_emulator_test.dart`, `cadastro_emulator_test.dart` e `recuperacao_emulator_test.dart`.
 
 Os arquivos rodam em sequência na mesma sessão dos emuladores. Cada um altera só a própria conta (`uidAna` na KAN-32, `uidCaio` na KAN-29, `uidDani` na KAN-24); a tela da KAN-28 usa `uidBia`, que ninguém altera.
 
 O seed aborta se `FIRESTORE_EMULATOR_HOST`/`FIREBASE_AUTH_EMULATOR_HOST` não estiverem definidos ou se o projeto não começar com `demo-`. O teste Dart verifica que o app usado é `demo-*`.
 
-Estes testes **não** rodam com `flutter test` comum: precisam de um dispositivo e dos emuladores.
+Estes testes **não** rodam com `flutter test` comum: precisam de um dispositivo e dos emuladores. Toda execução dos emuladores deve usar `flock /tmp/betfriends-emulator.lock` para não disputar as portas fixas com outros worktrees. As novas integrações N-01/N-02 ficaram não executadas nesta correção por falta de Android; análise estática não substitui a execução nativa.

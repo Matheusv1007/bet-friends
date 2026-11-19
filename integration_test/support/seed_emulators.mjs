@@ -45,6 +45,9 @@ const perfil = (displayName, username, email) => ({
 });
 
 const contas = [
+  // Exclusivas da jornada: nenhum teste de edição altera estes perfis.
+  { uid: "uidAnaJornada", email: "ana.jornada@example.com", doc: perfil("Ana Lima", "AnaJornada", "ana.jornada@example.com") },
+  { uid: "uidBiaJornada", email: "bia.jornada@example.com", doc: perfil("Bia Rocha", "BiaJornada", "bia.jornada@example.com") },
   { uid: "uidAna", email: "ana@example.com", doc: perfil("Ana Lima", "AnaL", "ana@example.com") },
   { uid: "uidBia", email: "bia@example.com", doc: perfil("Bia Rocha", "BiaR", "bia@example.com") },
   // Usada só pelos testes de edição do nome (KAN-29)
@@ -78,6 +81,12 @@ for (const { uid, email, doc } of contas) {
   await auth.createUser({ uid, email, password: SENHA });
   if (doc) await db.doc(`users/${uid}`).create({ ...doc, updatedAt: doc.updatedAt ?? FieldValue.serverTimestamp() });
 }
+
+await db.doc('friendships/uidAnaJornada_uidBiaJornada').set({
+  userAId: 'uidAnaJornada', userBId: 'uidBiaJornada',
+  participants: ['uidAnaJornada', 'uidBiaJornada'], status: 'ACCEPTED',
+  createdAt: CRIADO_EM, updatedAt: CRIADO_EM,
+});
 
 // Desafios do histórico (KAN-89): todos os estados, empate de finishedAt, terceiro e documento inválido
 const hora = (h) => Timestamp.fromDate(new Date(Date.UTC(2026, 9, 30, h)));
