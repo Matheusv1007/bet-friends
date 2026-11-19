@@ -5,6 +5,9 @@ import { deleteApp, initializeApp } from "firebase-admin/app";
 import { Firestore, getFirestore } from "firebase-admin/firestore";
 
 import { ErroDeAmizade } from "../src/amigos/friendship";
+import { HttpsError } from "firebase-functions/https";
+import { acceptFriendRequest } from "../src/amigos/acceptFriendRequest";
+import { rejectFriendRequest } from "../src/amigos/rejectFriendRequest";
 import {
   COLECAO_DE_AMIZADES,
   COLECAO_DE_USUARIOS,
@@ -256,8 +259,28 @@ describe(
             aceitarSolicitacaoAmizadeNaTransacao(t, db, CARLOS, envio.friendshipId),
           ),
         (err: unknown) =>
-          err instanceof ErroDeAmizade && err.code === "nao-participante",
+          err instanceof ErroDeAmizade && err.code === "solicitacao-inexistente",
       );
+    });
+
+    test("aceite e recusa não revelam existência de relação entre terceiros (N-09)", async () => {
+      const envio = await db.runTransaction((t) => enviarSolicitacaoAmizadeNaTransacao(t, db, ALICE, BOB));
+      for (const callable of [acceptFriendRequest, rejectFriendRequest]) {
+        const erros: unknown[] = [];
+        for (const friendshipId of [envio.friendshipId, "inexistente_relacao"]) {
+          try {
+            await callable.run({
+              data: { friendshipId }, auth: { uid: CARLOS, rawToken: "t", token: { uid: CARLOS } },
+            } as Parameters<typeof callable.run>[0]);
+            assert.fail("deveria recusar");
+          } catch (err) {
+            assert.ok(err instanceof HttpsError);
+            erros.push({ code: err.code, message: err.message, details: err.details });
+          }
+        }
+        assert.deepEqual(erros[0], erros[1]);
+        assert.deepEqual(erros[0], { code: "not-found", message: "Solicitação de amizade não encontrada.", details: { motivo: "solicitacao-inexistente" } });
+      }
     });
   },
 );

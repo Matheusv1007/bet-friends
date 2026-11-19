@@ -166,7 +166,7 @@ export async function aceitarSolicitacaoAmizadeNaTransacao(
   const friendshipRef = db.collection(COLECAO_DE_AMIZADES).doc(friendshipId);
   const doc = await transacao.get(friendshipRef);
 
-  if (!doc.exists) {
+  if (!doc.exists || (doc.get("userAId") !== userId && doc.get("userBId") !== userId)) {
     throw new ErroDeAmizade("solicitacao-inexistente", "Solicitação de amizade não encontrada.");
   }
 
@@ -257,7 +257,7 @@ export async function recusarSolicitacaoAmizadeNaTransacao(
   const friendshipRef = db.collection(COLECAO_DE_AMIZADES).doc(friendshipId);
   const doc = await transacao.get(friendshipRef);
 
-  if (!doc.exists) {
+  if (!doc.exists || (doc.get("userAId") !== userId && doc.get("userBId") !== userId)) {
     throw new ErroDeAmizade("solicitacao-inexistente", "Solicitação de amizade não encontrada.");
   }
 
