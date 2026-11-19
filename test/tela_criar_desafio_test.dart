@@ -211,22 +211,33 @@ void main() {
 
   group('CriarDesafioScreen UI e Interação', () {
     testWidgets('N-17: seleção indisponível é limpa sem escolher outra partida', (tester) async {
-      final partidas = List<PartidaModel>.from(partidasFake);
+      final partidas = [
+        ...partidasFake,
+        PartidaModel(id: 'm9d7', timeMandante: 'Time C', timeVisitante: 'Time D',
+          startsAtUtc: DateTime.now().toUtc().add(const Duration(hours: 4))),
+      ];
       final provider = FakePartidasProvider(partidas);
       final service = FakeChallengeService();
       await tester.pumpWidget(montarAppComNavegacao(
         provider: provider,
         child: CriarDesafioScreen(
           preSelectedMatchId: partidas.first.id,
+          preSelectedFriendId: 'p8r6', preSelectedFriendName: 'Bia Rocha',
           challengeService: service, saldoInicial: 500, amigosIniciais: const [],
         ),
       ));
       await tester.tap(find.byKey(const Key('btn_abrir_tela')));
       await tester.pumpAndSettle();
-      partidas.clear();
+      partidas.removeAt(0);
       provider.notifyListeners();
       await tester.pumpAndSettle();
       expect(find.text('A partida selecionada não está mais disponível. Escolha outra partida.'), findsOneWidget);
+      expect(find.byKey(const Key('partida_desafio_m9d7')), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('btn_enviar_desafio')));
+      await tester.pumpAndSettle();
+      expect(find.text('Selecione uma partida válida para criar o desafio.'), findsOneWidget);
       expect(service.lastMatchId, isNull);
     });
 
