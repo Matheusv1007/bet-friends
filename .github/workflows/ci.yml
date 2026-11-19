@@ -1,0 +1,106 @@
+name: CI
+
+# Roda nos pull requests e nos pushes para qas e main (A-12). Nenhum job usa
+# segredo nem projeto Firebase real: os testes de backend usam o Firestore
+# Emulator com o projeto demo-betfriends.
+on:
+  pull_request:
+    branches: [qas, main]
+  push:
+    branches: [qas, main]
+
+# Uma execução nova na mesma branch cancela a anterior.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Mesma versão major do runtime das Functions (functions/.nvmrc) e do CLI
+  # documentado em docs/callable-functions.md §9.
+  FIREBASE_TOOLS_VERSION: 15.32.1
+
+jobs:
+  app:
+    name: App Flutter (analyze e test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.5
+          cache: true
+
+      - run: flutter pub get
+
+      # A análise precisa terminar sem nenhum aviso (a base está com zero).
+      - run: flutter analyze
+
+      - run: flutter test
+
+  functions:
+    name: Functions (build e testes unitários)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: functions/.nvmrc
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - run: npm ci
+
+      # Compila com tsc e roda os testes puros; os de emulador são pulados aqui.
+      - run: npm test
+
+  emulador:
+    name: Backend e Security Rules (Firestore Emulator)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: functions/.nvmrc
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      # O Firestore Emulator exige JDK 21 ou superior.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # O emulador é baixado uma vez e reaproveitado entre execuções.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-${{ env.FIREBASE_TOOLS_VERSION }}
+
+      - name: Instalar dependências e compilar as Functions
+        working-directory: functions
+        run: |
+          npm ci
+          npm run build
+
+      # Padrões de arquivo entre aspas: o node --test do Node 22 não aceita pasta.
+      # --test-concurrency=1 é obrigatório: os arquivos limpam o emulador.
+      - name: Testes de backend e de Security Rules no emulador
+        run: >
+          npx --yes firebase-tools@${{ env.FIREBASE_TOOLS_VERSION }}
+          emulators:exec --only firestore --project demo-betfriends
+          "$(command -v node) --test --test-concurrency=1
+          'functions/lib/test/**/*.test.js'
+          'tests/firestore-rules/*.test.mjs'"
