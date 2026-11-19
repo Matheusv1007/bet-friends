@@ -513,11 +513,13 @@ O app nunca grava saldo, transação, estado de desafio, resultado ou vencedor (
 
 ## 6 - Índices declarados
 
-Em 19/11/2026, `firestore.indexes.json` declara **nove índices compostos**, todos com escopo `COLLECTION`. A tabela descreve o arquivo versionado, não confirma o estado de publicação no console.
+Em 19/11/2026, `firestore.indexes.json` declara **doze índices compostos**, todos com escopo `COLLECTION`. A tabela descreve o arquivo versionado, não confirma o estado de publicação no console.
 
 | Coleção | Campos, na ordem declarada | Consulta |
 |---|---|---|
 | `challenges` | `participants CONTAINS`, `status ASC`, `finishedAt DESC` | Histórico |
+| `challenges` | `participants CONTAINS`, `status ASC`, `updatedAt DESC` | Desafios terminais recentes do usuário, com limite (N-19) |
+| `challenges` | `participants CONTAINS`, `status ASC` | Desafios não terminais do usuário (`status in`, N-19) |
 | `challenges` | `challengerId ASC`, `matchId ASC` | Desafio do criador por partida |
 | `challenges` | `participants CONTAINS`, `matchId ASC` | Participação por partida |
 | `challenges` | `challengerId ASC`, `matchId ASC`, `status ASC` | Existência de desafio ativo do criador, sem ler histórico terminal (N-10) |
@@ -526,6 +528,7 @@ Em 19/11/2026, `firestore.indexes.json` declara **nove índices compostos**, tod
 | `friendships` | `participants CONTAINS`, `status ASC` | Amigos e solicitações |
 | `friendships` | `participants CONTAINS`, `status ASC`, `requesterId ASC` (`__name__ ASC` implícito) | Solicitações recebidas paginadas, excluindo as enviadas (N-11) |
 | `matches` | `competitionCode ASC`, `startsAtUtc ASC` | Partidas da competição |
+| `matches` | `competitionCode ASC`, `startsAtUtc DESC` | Partidas encerradas recentes, com limite (N-01) |
 
 Não há índices compostos de `betCoinTransactions` declarados neste arquivo.
 
