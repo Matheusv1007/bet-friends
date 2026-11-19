@@ -205,15 +205,21 @@ Amizades, criação e aceite de desafios pelo app, início de partida (KAN-66), 
 
 ## Testes
 
-Últimos resultados (01/11/2026, `805eea8`, Node 22.23.4, emuladores em `demo-betfriends`). Nenhum teste automatizado usa o Firebase de produção.
+Nenhum teste automatizado usa o Firebase de produção: o backend roda no Firestore Emulator, com o projeto `demo-betfriends`.
 
-| Suíte | Resultado |
+### Integração contínua
+
+O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda a cada pull request e a cada push para `qas` e `main`, em três jobs independentes:
+
+| Job | O que roda |
 |---|---|
-| `flutter test` | 176/176 |
-| `flutter analyze` | 0 erros; 7 avisos já conhecidos (2 variáveis sem uso em teste e 5 nomes de arquivo) |
-| Backend (`functions/`): `npm test`, testes puros | 118/118 |
-| Backend + Security Rules no Firestore Emulator | 365/365 |
-| `integration_test/` no Android contra os emuladores | 54/54 |
+| **App Flutter** | `flutter analyze` (precisa terminar sem nenhum aviso) e `flutter test` |
+| **Functions** | `npm ci` e `npm test` em `functions/` (compila com `tsc` e roda os testes puros) |
+| **Backend e Security Rules** | os testes de `functions/` e de `tests/firestore-rules/` contra o Firestore Emulator (Node 22, JDK 21, Firebase CLI 15.32.1 pelo npm) |
+
+Os resultados atuais ficam na aba **Actions** do GitHub. Para o merge só entrar com os três verdes, marque os jobs como obrigatórios em *Settings → Branches → Branch protection rules* da `qas` (*Require status checks to pass*). O `integration_test/` (Android contra os emuladores) **não** roda no CI, porque precisa de dispositivo ou emulador Android; veja [`integration_test/README.md`](integration_test/README.md).
+
+Os mesmos comandos rodam localmente (seções acima e `docs/callable-functions.md` §9.3).
 
 A validação controlada no Firebase real (01/11/2026) está em [`docs/entrega-2/validacao-tecnica.md`](docs/entrega-2/validacao-tecnica.md).
 
