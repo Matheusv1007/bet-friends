@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../data/firestore/friendship_repository.dart';
 import '../models/usuario_publico.dart';
+import '../services/challenge_service.dart';
 import '../services/friendship_service.dart';
 import '../services/registro_de_erros.dart';
+import '../services/user_search_service.dart';
 import '../tela_criar_desafio/tela_criar_desafio.dart';
 import 'tela_buscar_usuarios.dart';
 import 'tela_comunicacoes_amizade.dart';
@@ -221,10 +224,13 @@ class _TelaListaAmigosState extends State<TelaListaAmigos> {
               ElevatedButton.icon(
                 key: const Key('btn_buscar_amigos_vazio'),
                 onPressed: () {
+                  final searchService =
+                      Provider.of<UserSearchService?>(context, listen: false);
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => TelaBuscarUsuarios(
                         friendshipService: _friendshipService,
+                        searchService: searchService,
                       ),
                     ),
                   ).then((_) => _carregarAmigos());
@@ -334,9 +340,15 @@ class _TelaListaAmigosState extends State<TelaListaAmigos> {
           ElevatedButton.icon(
             key: Key('btn_desafiar_amigo_${amigo.userId}'),
             onPressed: () {
+              final challengeService =
+                  Provider.of<ChallengeService?>(context, listen: false);
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const CriarDesafioScreen(),
+                  builder: (_) => CriarDesafioScreen(
+                    preSelectedFriendId: amigo.userId,
+                    preSelectedFriendName: amigo.displayName,
+                    challengeService: challengeService,
+                  ),
                 ),
               );
             },
@@ -518,10 +530,13 @@ class _TelaListaAmigosState extends State<TelaListaAmigos> {
             tooltip: 'Buscar novos amigos',
             icon: const Icon(Icons.person_add_alt_1_outlined, color: Color(0xFF00D084)),
             onPressed: () {
+              final searchService =
+                  Provider.of<UserSearchService?>(context, listen: false);
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => TelaBuscarUsuarios(
                     friendshipService: _friendshipService,
+                    searchService: searchService,
                   ),
                 ),
               ).then((_) => _carregarAmigos());
