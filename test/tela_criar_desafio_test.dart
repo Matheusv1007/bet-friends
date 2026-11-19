@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +10,8 @@ import 'package:betfriends/provider/partidas_provider.dart';
 import 'package:betfriends/services/challenge_service.dart';
 import 'package:betfriends/tela_criar_desafio/modal_aceitar_desafio.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
+import 'package:betfriends/services/user_profile_service.dart';
+import 'package:betfriends/models/carteira.dart';
 
 class FakePartidasProvider extends ChangeNotifier implements PartidasProvider {
   final List<PartidaModel> _partidas;
@@ -71,6 +75,7 @@ ChallengeModel _desafioPendente() => ChallengeModel(
 class FakeChallengeService implements ChallengeService {
   CriarDesafioResponse? createResult;
   AceitarDesafioResponse? acceptResult;
+  Completer<void>? bloqueioAceite;
 
   String? lastChallengedId;
   String? lastMatchId;
@@ -109,6 +114,7 @@ class FakeChallengeService implements ChallengeService {
     required String challengeId,
     required Palpite challengedPrediction,
   }) async {
+    await bloqueioAceite?.future;
     lastAcceptedChallengeId = challengeId;
     lastAcceptedPrediction = challengedPrediction;
 
@@ -156,6 +162,13 @@ class FakeChallengeService implements ChallengeService {
   Future<List<AmigoItem>> listarAmigosAceitos() async => [];
 }
 
+class FakeCarteiraService extends Fake implements UserProfileService {
+  FakeCarteiraService(this.stream);
+  final Stream<Carteira?> stream;
+  @override
+  Stream<Carteira?> observarCarteiraAtual() => stream;
+}
+
 void main() {
   final List<PartidaModel> partidasFake = [
     PartidaModel(
@@ -197,6 +210,52 @@ void main() {
   }
 
   group('CriarDesafioScreen UI e Interação', () {
+    testWidgets('N-17: seleção indisponível é limpa sem escolher outra partida', (tester) async {
+      final partidas = [
+        ...partidasFake,
+        PartidaModel(id: 'm9d7', timeMandante: 'Time C', timeVisitante: 'Time D',
+          startsAtUtc: DateTime.now().toUtc().add(const Duration(hours: 4))),
+      ];
+      final provider = FakePartidasProvider(partidas);
+      final service = FakeChallengeService();
+      await tester.pumpWidget(montarAppComNavegacao(
+        provider: provider,
+        child: CriarDesafioScreen(
+          preSelectedMatchId: partidas.first.id,
+          preSelectedFriendId: 'p8r6', preSelectedFriendName: 'Bia Rocha',
+          challengeService: service, saldoInicial: 500, amigosIniciais: const [],
+        ),
+      ));
+      await tester.tap(find.byKey(const Key('btn_abrir_tela')));
+      await tester.pumpAndSettle();
+      partidas.removeAt(0);
+      provider.notifyListeners();
+      await tester.pumpAndSettle();
+      expect(find.text('A partida selecionada não está mais disponível. Escolha outra partida.'), findsOneWidget);
+      expect(find.byKey(const Key('partida_desafio_m9d7')), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('btn_enviar_desafio')));
+      await tester.pumpAndSettle();
+      expect(find.text('Selecione uma partida válida para criar o desafio.'), findsOneWidget);
+      expect(service.lastMatchId, isNull);
+    });
+
+    testWidgets('falha da carteira não bloqueia a carga independente de amigos', (tester) async {
+      await tester.pumpWidget(montarAppComNavegacao(
+        provider: FakePartidasProvider(partidasFake),
+        child: CriarDesafioScreen(
+          challengeService: FakeChallengeService(),
+          userProfileService: FakeCarteiraService(Stream.error(StateError('offline'))),
+        ),
+      ));
+      await tester.tap(find.byKey(const Key('btn_abrir_tela')));
+      await tester.pumpAndSettle();
+      expect(find.text('Não foi possível carregar o saldo.'), findsOneWidget);
+      expect(find.text('Tentar novamente: saldo'), findsOneWidget);
+      expect(find.text('Carregando...'), findsNothing);
+    });
+
     testWidgets('renderiza elementos principais e palpite do criador', (tester) async {
       final fakeProvider = FakePartidasProvider(partidasFake);
       final fakeService = FakeChallengeService();
@@ -251,6 +310,9 @@ void main() {
       await tester.tap(find.byKey(const Key('btn_abrir_tela')));
       await tester.pumpAndSettle();
 
+      await tester.tap(find.byKey(const Key('partida_desafio_match_flamengo_palmeiras')));
+      await tester.pumpAndSettle();
+
       // Altera valor clicando no chip de 100
       await tester.tap(find.byKey(const Key('chip_valor_100')));
       await tester.pumpAndSettle();
@@ -273,6 +335,30 @@ void main() {
   });
 
   group('ModalAceitarDesafio UI e Interação', () {
+    testWidgets('N-18: modal impede fechamento durante o aceite', (tester) async {
+      final service = FakeChallengeService()..bloqueioAceite = Completer<void>();
+      await tester.pumpWidget(MaterialApp(home: Builder(builder: (context) => Scaffold(
+        body: TextButton(onPressed: () => ModalAceitarDesafio.exibir(
+          context: context, desafio: _desafioPendente(), challengeService: service,
+        ), child: const Text('Abrir aceite')),
+      ))));
+      await tester.tap(find.text('Abrir aceite'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('CONFIRMAR E ACEITAR'));
+      await tester.pump();
+      final fechar = tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.close));
+      expect(fechar.onPressed, isNull);
+      final scope = tester.widget<PopScope>(find.byType(PopScope));
+      expect(scope.canPop, isFalse);
+      final contexto = tester.element(find.byType(ModalAceitarDesafio));
+      await Navigator.of(contexto).maybePop();
+      await tester.pump();
+      expect(find.byType(ModalAceitarDesafio), findsOneWidget);
+      service.bloqueioAceite!.complete();
+      await tester.pumpAndSettle();
+      expect(find.byType(ModalAceitarDesafio), findsNothing);
+    });
+
     testWidgets('exibe informações e restringe palpite diferente do criador (RN-PRD-003)', (tester) async {
       final fakeService = FakeChallengeService();
       final desafio = ChallengeModel(

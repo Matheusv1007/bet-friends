@@ -38,7 +38,7 @@ class DesafiosVazios extends StatelessWidget {
               children: [
                 const Icon(
                   Icons.sports_kabaddi,
-                  color: Color(0xFF64748B),
+                  color: Color(0xFF94A3B8),
                   size: 36,
                 ),
                 const SizedBox(height: 10),

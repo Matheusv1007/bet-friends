@@ -114,10 +114,11 @@ class DesafioResumoItem extends StatelessWidget {
           ),
 
           // Botão de ação
-          GestureDetector(
+          InkWell(
             key: botaoKey,
             onTap: onTap,
             child: Container(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: const Color(0xFF0F2425),

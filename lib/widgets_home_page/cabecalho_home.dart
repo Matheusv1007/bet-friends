@@ -74,15 +74,16 @@ class CabecalhoHome extends StatelessWidget {
                       "Saldo indisponível",
                       key: Key('home_saldo'),
                       style: TextStyle(
-                        color: Color(0xFF64748B),
+                        color: Color(0xFF94A3B8),
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
                       ),
                     )
                   else
-                    GestureDetector(
+                    TextButton(
+                        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                       key: const Key('home_saldo_interativo'),
-                      onTap: () => _exibirDetalhesCarteira(
+                      onPressed: () => _exibirDetalhesCarteira(
                         context,
                         carteira,
                         snapshot.data?.doCache ?? false,

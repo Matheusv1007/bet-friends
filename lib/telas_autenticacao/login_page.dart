@@ -191,7 +191,7 @@ class _LoginPageState extends State<LoginPage> {
                       labelStyle: const TextStyle(color: textMuted),
                       prefixIcon: const Icon(
                         Icons.email_outlined,
-                        color: Color(0xFF64748B),
+                        color: Color(0xFF94A3B8),
                         size: 20,
                       ),
                       filled: true,
@@ -236,7 +236,7 @@ class _LoginPageState extends State<LoginPage> {
                       labelStyle: const TextStyle(color: textMuted),
                       prefixIcon: const Icon(
                         Icons.lock_outline,
-                        color: Color(0xFF64748B),
+                        color: Color(0xFF94A3B8),
                         size: 20,
                       ),
                       suffixIcon: IconButton(
@@ -244,7 +244,7 @@ class _LoginPageState extends State<LoginPage> {
                           _obscurePassword
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
-                          color: const Color(0xFF64748B),
+                          color: const Color(0xFF94A3B8),
                           size: 20,
                         ),
                         onPressed: _isLoading
@@ -332,8 +332,9 @@ class _LoginPageState extends State<LoginPage> {
                         'Não tem uma conta? ',
                         style: TextStyle(color: textMuted, fontSize: 14),
                       ),
-                      GestureDetector(
-                        onTap: _isLoading
+                      TextButton(
+                        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                        onPressed: _isLoading
                             ? null
                             : () {
                                 Navigator.push(

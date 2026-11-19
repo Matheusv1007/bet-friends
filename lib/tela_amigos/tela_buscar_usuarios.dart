@@ -45,6 +45,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
   late final Set<String> _solicitacoesRecebidas;
   final TextEditingController _controller = TextEditingController();
   Timer? _debounceTimer;
+  int _requisicaoBusca = 0;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -71,6 +72,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
   }
 
   void _aoDigitar(String valor) {
+    _requisicaoBusca++;
     _debounceTimer?.cancel();
     // Abaixo do tamanho de um username o backend devolve lista vazia (A-05);
     // nem chamamos, e a tela volta à orientação em vez de "nenhum usuário".
@@ -90,6 +92,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
   }
 
   Future<void> _executarBusca(String termo) async {
+    final requisicao = ++_requisicaoBusca;
     final query = termo.trim();
     if (query.isEmpty) return;
 
@@ -100,21 +103,21 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
 
     try {
       final usuarios = await _searchService.buscarUsuarios(query);
-      if (!mounted) return;
+      if (!mounted || requisicao != _requisicaoBusca) return;
       setState(() {
         _resultados = usuarios;
         _pesquisaRealizada = true;
         _isLoading = false;
       });
     } on UserProfileException catch (e) {
-      if (!mounted) return;
+      if (!mounted || requisicao != _requisicaoBusca) return;
       setState(() {
         _errorMessage = e.message;
         _isLoading = false;
       });
     } catch (e, s) {
       registrarErro('Buscar usuários', e, s);
-      if (!mounted) return;
+      if (!mounted || requisicao != _requisicaoBusca) return;
       setState(() {
         _errorMessage = 'Não foi possível buscar usuários. Tente novamente.';
         _isLoading = false;
@@ -292,7 +295,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
                   decoration: InputDecoration(
                     hintText: 'Buscar por nome ou @username...',
                     hintStyle: const TextStyle(
-                      color: Color(0xFF64748B),
+                      color: Color(0xFF94A3B8),
                       fontSize: 13.5,
                     ),
                     prefixIcon: const Icon(
@@ -304,7 +307,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
                         ? IconButton(
                             icon: const Icon(
                               Icons.close,
-                              color: Color(0xFF64748B),
+                              color: Color(0xFF94A3B8),
                               size: 18,
                             ),
                             onPressed: () {
@@ -419,7 +422,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
                 'Digite ao menos 3 letras do @username para buscar outros jogadores cadastrados.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Color(0xFF64748B),
+                  color: Color(0xFF94A3B8),
                   fontSize: 12.5,
                 ),
               ),
@@ -440,7 +443,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
               const Icon(
                 Icons.search_off,
                 size: 46,
-                color: Color(0xFF64748B),
+                color: Color(0xFF94A3B8),
               ),
               const SizedBox(height: 12),
               const Text(
@@ -608,7 +611,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
           color: const Color(0xFF1E293B),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: const Color(0xFF64748B).withValues(alpha: 0.5),
+            color: const Color(0xFF94A3B8).withValues(alpha: 0.5),
           ),
         ),
         child: const Row(

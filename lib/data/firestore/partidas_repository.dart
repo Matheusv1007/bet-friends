@@ -22,39 +22,49 @@ class FirestorePartidasRepository implements PartidasRepository {
   // Resolvido sob demanda para permitir testes sem Firebase inicializado
   FirebaseFirestore get _db => firestore ?? FirebaseFirestore.instance;
 
+  /// Busca uma partida fora da janela da Home para descrever desafios antigos.
+  Future<PartidaModel?> buscarPorId(String id) async {
+    final doc = await _db.collection(FirestoreCollections.matches).doc(id).get();
+    return doc.exists ? PartidaModel.fromFirestoreMap(doc.data()!, doc.id) : null;
+  }
+
   @override
   Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
-    try {
-      // Partidas do Brasileirão Série A (BSA) sincronizadas pelo backend.
-      // A consulta exige o índice composto de `matches` (firestore.indexes.json);
-      // sem ele o erro sobe, em vez de cair numa consulta sem filtro (A-03).
-      final snapshot = await _db
-          .collection(FirestoreCollections.matches)
-          .where('competitionCode', isEqualTo: 'BSA')
-          .orderBy('startsAtUtc', descending: false)
-          .limit(limit * 2)
-          .get(const GetOptions(source: Source.serverAndCache));
-
-      final partidas = snapshot.docs
-          .map((d) => PartidaModel.fromFirestoreMap(d.data(), d.id))
-          .toList();
-
+    final agora = DateTime.now().toUtc();
+    final base = _db.collection(FirestoreCollections.matches)
+        .where('competitionCode', isEqualTo: 'BSA');
+    final janela = base
+        .where('startsAtUtc', isGreaterThanOrEqualTo: Timestamp.fromDate(
+          agora.subtract(const Duration(days: 3)),
+        ))
+        .orderBy('startsAtUtc')
+        .limit(limit * 2);
+    final recentes = base
+        .where('startsAtUtc', isLessThan: Timestamp.fromDate(agora))
+        .orderBy('startsAtUtc', descending: true)
+        .limit(5);
+    Future<List<PartidaModel>> consultar(Source source) async {
+      final snapshots = await Future.wait([
+        janela.get(GetOptions(source: source)),
+        recentes.get(GetOptions(source: source)),
+      ]);
+      final partidas = {
+        for (final snapshot in snapshots)
+          for (final doc in snapshot.docs)
+            doc.id: PartidaModel.fromFirestoreMap(doc.data(), doc.id),
+      }.values.toList()
+        ..sort((a, b) => a.startsAtUtc!.compareTo(b.startsAtUtc!));
       return _ordenarPartidas(partidas, limit);
+    }
+    try {
+      return await consultar(Source.serverAndCache);
     } catch (e, s) {
       registrarErro('carregar partidas antes de consultar o cache', e, s);
       // 2. Resiliência (RN-CACHE-001, RN-CACHE-003): em caso de falha de conexão ou indisponibilidade,
       // busca do cache local persistente do Firestore
       try {
-        final cacheSnapshot = await _db
-            .collection(FirestoreCollections.matches)
-            .limit(limit)
-            .get(const GetOptions(source: Source.cache));
-        if (cacheSnapshot.docs.isNotEmpty) {
-          final partidasCache = cacheSnapshot.docs
-              .map((d) => PartidaModel.fromFirestoreMap(d.data(), d.id))
-              .toList();
-          return _ordenarPartidas(partidasCache, limit);
-        }
+        final partidas = await consultar(Source.cache);
+        if (partidas.isNotEmpty) return partidas;
       } catch (erroCache, pilhaCache) {
         registrarErro('carregar partidas do cache local', erroCache, pilhaCache);
       }

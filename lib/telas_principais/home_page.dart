@@ -27,7 +27,7 @@ class Homepage extends StatefulWidget {
   final Duration? pollingInterval;
 
   /// Intervalo ajustado de polling em segundo plano (KAN-105: reduz consumo da API)
-  static const Duration intervalPollingPadrao = Duration(seconds: 60);
+  static const Duration intervalPollingPadrao = Duration(minutes: 5);
 
   const Homepage({
     super.key,
@@ -40,7 +40,7 @@ class Homepage extends StatefulWidget {
   State<Homepage> createState() => _HomepageState();
 }
 
-class _HomepageState extends State<Homepage> {
+class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
   int _currentNavIndex = 0;
   Timer? _realTimeTimer;
   bool _mostrarTodas = false;
@@ -81,6 +81,7 @@ class _HomepageState extends State<Homepage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _perfil = _observarPerfil();
     _desafios = _observarDesafios();
 
@@ -93,12 +94,28 @@ class _HomepageState extends State<Homepage> {
     });
 
     // 2. POLLING EM TEMPO REAL AJUSTADO (KAN-105): Atualiza periodicamente com consumo reduzido
-    final intervalo = widget.pollingInterval ?? Homepage.intervalPollingPadrao;
+    _iniciarPolling();
+  }
+
+  void _iniciarPolling() {
+    _realTimeTimer?.cancel();
+    final solicitado = widget.pollingInterval ?? Homepage.intervalPollingPadrao;
+    final intervalo = solicitado < Homepage.intervalPollingPadrao
+        ? Homepage.intervalPollingPadrao : solicitado;
     _realTimeTimer = Timer.periodic(intervalo, (_) {
-      if (mounted) {
+      if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
         context.read<PartidasProvider>().carregarPartidas(silencioso: true);
       }
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _iniciarPolling();
+    } else {
+      _realTimeTimer?.cancel();
+    }
   }
 
   Stream<List<ChallengeModel>>? _observarDesafios() {
@@ -108,7 +125,7 @@ class _HomepageState extends State<Homepage> {
       return s == null ? null : (s.isBroadcast ? s : s.asBroadcastStream());
     } catch (e, s) {
       registrarErro('Observar desafios na página inicial', e, s);
-      return null;
+      return Stream<List<ChallengeModel>>.error(e, s).asBroadcastStream();
     }
   }
 
@@ -135,6 +152,7 @@ class _HomepageState extends State<Homepage> {
   void dispose() {
     // Cancela o timer quando a tela for fechada para economizar bateria e rede
     _realTimeTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -272,7 +290,13 @@ class _HomepageState extends State<Homepage> {
                       final service = widget.challengeService ?? context.read<ChallengeService?>();
 
                       return DesafiosAtivosWidget(
-                        desafios: snapshot.hasError ? null : snapshot.data,
+                        desafios: snapshot.hasError ? null : snapshot.data ?? const [],
+                        carregando: _desafios != null &&
+                            snapshot.connectionState == ConnectionState.waiting && !snapshot.hasError,
+                        erro: snapshot.hasError,
+                        onTentarNovamente: () => setState(() {
+                          _desafios = _observarDesafios();
+                        }),
                         currentUserId: currentUid,
                         challengeService: service,
                       );

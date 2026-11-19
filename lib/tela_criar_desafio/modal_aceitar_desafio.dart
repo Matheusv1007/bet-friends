@@ -40,6 +40,8 @@ class ModalAceitarDesafio extends StatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: const Color(0xFF151E2E),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -105,6 +107,7 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
     required String sucesso,
     required String falha,
   }) async {
+    if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
 
     try {
@@ -157,7 +160,9 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
         .where((p) => p != widget.desafio.challengerPrediction)
         .toList();
 
-    return Padding(
+    return PopScope(
+      canPop: !_isSubmitting,
+      child: Padding(
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
@@ -182,7 +187,7 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
               ),
               IconButton(
                 icon: const Icon(Icons.close, color: textMuted),
-                onPressed: () => Navigator.of(context).pop(false),
+                onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
               ),
             ],
           ),
@@ -284,7 +289,7 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
           const Text(
             'O palpite do desafiado deve ser diferente do palpite do criador.',
             style: TextStyle(
-              color: Color(0xFF64748B),
+              color: Color(0xFF94A3B8),
               fontSize: 11,
             ),
           ),
@@ -294,9 +299,10 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
             children: opcoesPermitidas.map((p) {
               final sel = _palpiteSelecionado == p;
               return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _palpiteSelecionado = p),
+                child: InkWell(
+                  onTap: _isSubmitting ? null : () => setState(() => _palpiteSelecionado = p),
                   child: Container(
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
@@ -362,7 +368,7 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
           // Recusa: o desafio vira REJECTED e a reserva do criador é liberada
           SizedBox(
             width: double.infinity,
-            height: 44,
+            height: 48,
             child: TextButton(
               key: const Key('btn_recusar_desafio'),
               onPressed: _isSubmitting ? null : _recusar,
@@ -379,6 +385,6 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
           ),
         ],
       ),
-    );
+    ));
   }
 }

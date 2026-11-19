@@ -1,6 +1,8 @@
 // Cache de partidas e redução de consultas redundantes ao Firestore (KAN-105).
 // Valida cooldown, navegação sem repetição de consultas e atualização explícita.
 
+import 'dart:async';
+
 import 'package:betfriends/models/partida_model.dart';
 import 'package:betfriends/provider/partidas_provider.dart';
 import 'package:betfriends/data/firestore/partidas_repository.dart';
@@ -19,12 +21,14 @@ class _ContadorPartidasRepository implements PartidasRepository {
   int chamadasGetPartidas = 0;
   List<PartidaModel> partidasRetorno;
   Object? erroParaLancar;
+  Completer<void>? bloqueio;
 
   _ContadorPartidasRepository({this.partidasRetorno = const [], this.erroParaLancar});
 
   @override
   Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
     chamadasGetPartidas++;
+    await bloqueio?.future;
     if (erroParaLancar != null) {
       throw erroParaLancar!;
     }
@@ -33,6 +37,20 @@ class _ContadorPartidasRepository implements PartidasRepository {
 }
 
 void main() {
+  test('N-07: consultas simultâneas compartilham Future e polling respeita TTL vazio', () async {
+    final repo = _ContadorPartidasRepository()..bloqueio = Completer<void>();
+    final provider = PartidasProvider(partidasService: PartidasService(repository: repo));
+    final primeira = provider.carregarPartidas();
+    final segunda = provider.carregarPartidas(silencioso: true);
+    expect(identical(primeira, segunda), isTrue);
+    expect(repo.chamadasGetPartidas, 1);
+    repo.bloqueio!.complete();
+    await Future.wait([primeira, segunda]);
+    await provider.carregarPartidas(silencioso: true);
+    expect(repo.chamadasGetPartidas, 1);
+    expect(Homepage.intervalPollingPadrao, greaterThanOrEqualTo(const Duration(minutes: 5)));
+  });
+
   group('KAN-105: Redução de Risco de Limite de Taxa (Rate Limit)', () {
     test('Limite de requisições do Firestore é tratado de forma compreensível', () {
       final erro = FirebaseException(plugin: 'cloud_firestore', code: 'resource-exhausted');

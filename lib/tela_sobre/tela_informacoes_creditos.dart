@@ -196,7 +196,7 @@ class TelaInformacoesCreditos extends StatelessWidget {
                       'do estado de conexão ou disponibilidade do provedor externo.',
                       key: Key('nota_disponibilidade_atribuicao'),
                       style: TextStyle(
-                        color: Color(0xFF64748B),
+                        color: Color(0xFF94A3B8),
                         fontSize: 11,
                         height: 1.3,
                       ),
@@ -257,7 +257,7 @@ class TelaInformacoesCreditos extends StatelessWidget {
                       'siglas e ícones vetoriais padronizados, garantindo funcionamento '
                       'robusto sem dependência de mídias externas.',
                       style: TextStyle(
-                        color: Color(0xFF64748B),
+                        color: Color(0xFF94A3B8),
                         fontSize: 12,
                         height: 1.3,
                       ),

@@ -197,7 +197,7 @@ class _CadastroPageState extends State<CadastroPage> {
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: textMuted),
-        prefixIcon: Icon(prefixIcon, color: const Color(0xFF64748B), size: 20),
+        prefixIcon: Icon(prefixIcon, color: const Color(0xFF94A3B8), size: 20),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: cardBg,
@@ -329,7 +329,7 @@ class _CadastroPageState extends State<CadastroPage> {
                           _obscureSenha
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
-                          color: const Color(0xFF64748B),
+                          color: const Color(0xFF94A3B8),
                           size: 20,
                         ),
                         onPressed: () =>
@@ -350,7 +350,7 @@ class _CadastroPageState extends State<CadastroPage> {
                           _obscureConfirmarSenha
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
-                          color: const Color(0xFF64748B),
+                          color: const Color(0xFF94A3B8),
                           size: 20,
                         ),
                         onPressed: () => setState(
@@ -414,8 +414,9 @@ class _CadastroPageState extends State<CadastroPage> {
                         'Já possui uma conta? ',
                         style: TextStyle(color: textMuted, fontSize: 14),
                       ),
-                      GestureDetector(
-                        onTap: _voltarParaLogin,
+                      TextButton(
+                        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                        onPressed: _voltarParaLogin,
                         child: const Text(
                           'Entrar',
                           style: TextStyle(

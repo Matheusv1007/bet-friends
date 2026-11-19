@@ -155,7 +155,7 @@ void main() {
 
       // 2. Simula falha no refresh subsequente
       mutableService.error = FirebaseException(plugin: 'cloud_firestore', code: 'resource-exhausted');
-      await provider.carregarPartidas(silencioso: true);
+      await provider.carregarPartidas(silencioso: true, forcar: true);
 
       // Dados anteriores continuam no cache e erro de refresh é sinalizado
       expect(provider.partidas.length, 1);

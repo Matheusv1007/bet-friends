@@ -6,6 +6,7 @@
 
 import 'package:betfriends/data/firestore/challenge_repository.dart';
 import 'package:betfriends/data/firestore/partidas_repository.dart';
+import 'package:betfriends/services/functions/functions_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -86,7 +87,31 @@ class _Partida extends Fake
       };
 }
 
+class _Functions extends Fake implements FunctionsService {
+  String? chamada;
+  @override
+  Future<Map<String, dynamic>> call(String name, [Map<String, dynamic>? data]) async {
+    chamada = name;
+    return {'friends': [
+      {'userId': 'x9ZpQ7', 'displayName': 'Bia Rocha', 'username': 'BiaR'},
+    ]};
+  }
+}
+
 void main() {
+  test('amigos vêm da callable pública sem ler perfil privado', () async {
+    final functions = _Functions();
+    final repo = FunctionsChallengeRepository(
+      functions: functions,
+      firestore: _Firestore(_Colecao(erroServidor: StateError('Leitura privada'))),
+    );
+    final amigos = await repo.listarAmigosAceitos('a8Rk');
+    expect(functions.chamada, CallableNames.getFriends);
+    expect(amigos.single.uid, 'x9ZpQ7');
+    expect(amigos.single.displayName, 'Bia Rocha');
+    expect(amigos.single.username, 'BiaR');
+  });
+
   test('partidas preservam os dados locais quando o servidor falha', () async {
     final db = _Firestore(_Colecao(
       erroServidor: FirebaseException(plugin: 'cloud_firestore', code: 'unavailable'),
@@ -127,7 +152,6 @@ void main() {
       final erro = isA<ChallengeException>().having((e) => e.code, 'code', dominio);
 
       await expectLater(repository.buscarSaldoDisponivel('uid'), throwsA(erro));
-      await expectLater(repository.listarAmigosAceitos('uid'), throwsA(erro));
     });
   }
 }

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../models/challenge_model.dart';
+import 'apresentacao_desafios.dart';
 
 class DesafiosEnviadosCard extends StatelessWidget {
   final List<ChallengeModel> desafios;
   final ValueChanged<ChallengeModel> onCancelar;
+  final Set<String> cancelando;
 
-  const DesafiosEnviadosCard({super.key, required this.desafios, required this.onCancelar});
+  const DesafiosEnviadosCard({super.key, required this.desafios, required this.onCancelar, this.cancelando = const {}});
 
   @override
   Widget build(BuildContext context) {
+    final dados = ApresentacaoDesafios.of(context);
     return Container(
             key: const Key('home_desafios_enviados_pendentes'),
             margin: const EdgeInsets.only(bottom: 20),
@@ -51,7 +54,7 @@ class DesafiosEnviadosCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Aguardando ${c.challengedId}",
+                                "Aguardando ${dados?.nome(c.challengedId) ?? 'Amigo'}",
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -60,7 +63,7 @@ class DesafiosEnviadosCard extends StatelessWidget {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                "Partida #${c.matchId} • ${c.amount} BetCoins",
+                                "${dados?.partida(c.matchId) ?? 'Partida indisponível'} • ${c.amount} BetCoins",
                                 style: const TextStyle(
                                   color: Color(0xFF94A3B8),
                                   fontSize: 12,
@@ -80,7 +83,7 @@ class DesafiosEnviadosCard extends StatelessWidget {
                         ),
                         OutlinedButton(
                           key: Key('btn_cancelar_desafio_${c.id}'),
-                          onPressed: () => onCancelar(c),
+                          onPressed: cancelando.contains(c.id) ? null : () => onCancelar(c),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFFEF4444),
                             side: const BorderSide(color: Color(0xFFEF4444)),

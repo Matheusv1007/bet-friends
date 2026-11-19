@@ -1,6 +1,10 @@
+import '../../services/combinar_desafios.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../models/challenge_model.dart';
+import '../../models/carteira.dart';
+import 'friendship_repository.dart';
 import '../../services/functions/functions_service.dart';
 import '../../services/registro_de_erros.dart';
 import 'firestore_collections.dart';
@@ -268,13 +272,20 @@ class FunctionsChallengeRepository implements ChallengeRepository {
 
   @override
   Stream<List<ChallengeModel>> observarDesafiosDoUsuario(String uid) {
-    return _firestore
-        .collection(FirestoreCollections.challenges)
-        .where('participants', arrayContains: uid)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ChallengeModel.fromMap(doc.id, doc.data()))
-            .toList());
+    final base = _firestore.collection(FirestoreCollections.challenges)
+        .where('participants', arrayContains: uid);
+    final consultas = [
+      base.where('status', whereIn: [
+        for (final s in StatusDesafio.values) if (!s.isTerminal) s.valor,
+      ]),
+      base.where('status', whereIn: [
+        for (final s in StatusDesafio.values) if (s.isTerminal) s.valor,
+      ]).orderBy('updatedAt', descending: true).limit(20),
+    ];
+    Stream<List<ChallengeModel>> observar(Query<Map<String, dynamic>> consulta) =>
+        consulta.snapshots().map((snapshot) => snapshot.docs.map((doc) =>
+            ChallengeModel.fromMap(doc.id, doc.data())).toList());
+    return combinarDesafios(observar(consultas[0]), observar(consultas[1]));
   }
 
   @override
@@ -282,10 +293,7 @@ class FunctionsChallengeRepository implements ChallengeRepository {
     try {
       final doc = await _firestore.collection(FirestoreCollections.users).doc(uid).get();
       if (!doc.exists) return null;
-      final data = doc.data() ?? {};
-      final total = (data['saldoTotal'] as num?)?.toInt() ?? 1000;
-      final reservado = (data['saldoReservado'] as num?)?.toInt() ?? 0;
-      return total - reservado;
+      return Carteira.fromMap(doc.data()!).saldoDisponivel;
     } on FirebaseException catch (e, s) {
       registrarErro('buscar saldo disponível', e, s);
       throw _erroDeLeitura(e);
@@ -301,31 +309,15 @@ class FunctionsChallengeRepository implements ChallengeRepository {
   @override
   Future<List<AmigoItem>> listarAmigosAceitos(String uid) async {
     try {
-      final snapshot = await _firestore
-          .collection(FirestoreCollections.friendships)
-          .where('participants', arrayContains: uid)
-          .where('status', isEqualTo: 'ACCEPTED')
-          .get();
-
-      var resultado = <AmigoItem>[];
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final userAId = data['userAId']?.toString() ?? '';
-        final userBId = data['userBId']?.toString() ?? '';
-        final otherUid = userAId == uid ? userBId : userAId;
-
-        if (otherUid.isNotEmpty) {
-          final friendDoc = await _firestore.collection(FirestoreCollections.users).doc(otherUid).get();
-          final friendData = friendDoc.data() ?? {};
-          final name = friendData['displayName']?.toString() ?? 'Amigo';
-          final uname = friendData['username']?.toString() ?? otherUid;
-          resultado = [...resultado, AmigoItem(uid: otherUid, displayName: name, username: uname)];
-        }
-      }
-      return resultado;
-    } on FirebaseException catch (e, s) {
-      registrarErro('carregar amigos elegíveis para desafio', e, s);
-      throw _erroDeLeitura(e);
+      final amigos = await FunctionsFriendshipRepository(functions: _functions)
+          .listarAmigosAceitos();
+      return [
+        for (final amigo in amigos)
+          AmigoItem(uid: amigo.userId, displayName: amigo.displayName,
+            username: amigo.username),
+      ];
+    } on FriendshipException catch (e) {
+      throw ChallengeException(ChallengeErrorCode.unknown, e.message);
     } catch (e, s) {
       registrarErro('carregar amigos elegíveis para desafio', e, s);
       throw const ChallengeException(

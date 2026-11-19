@@ -97,7 +97,7 @@ class SeletorPartidaDesafio extends StatelessWidget {
         ),
         child: Column(
           children: [
-            const Icon(Icons.sports_soccer, size: 32, color: Color(0xFF64748B)),
+            const Icon(Icons.sports_soccer, size: 32, color: Color(0xFF94A3B8)),
             const SizedBox(height: 8),
             const Text(
               'Nenhuma partida encontrada no momento',
@@ -136,16 +136,18 @@ class SeletorPartidaDesafio extends StatelessWidget {
       );
     }
 
-    final partidaAtivaId = partidaId ?? elegiveis.first.id;
+    final partidaAtivaId = partidaId;
 
     return Column(
       children: elegiveis.map((PartidaModel p) {
         final sel = partidaAtivaId == p.id;
         final horarioOuStatus = p.horario ?? p.status;
 
-        return GestureDetector(
+        return InkWell(
+          key: Key('partida_desafio_${p.id}'),
           onTap: () => onChanged(p.id),
           child: Container(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             decoration: BoxDecoration(
@@ -163,7 +165,7 @@ class SeletorPartidaDesafio extends StatelessWidget {
                 Icon(
                   Icons.sports_soccer,
                   size: 20,
-                  color: sel ? primaryGreen : const Color(0xFF64748B),
+                  color: sel ? primaryGreen : const Color(0xFF94A3B8),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -211,7 +213,7 @@ class SeletorPartidaDesafio extends StatelessWidget {
                 Icon(
                   Icons.sports_soccer,
                   size: 20,
-                  color: sel ? primaryGreen : const Color(0xFF64748B),
+                  color: sel ? primaryGreen : const Color(0xFF94A3B8),
                 ),
               ],
             ),

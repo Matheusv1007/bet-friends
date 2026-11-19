@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/challenge_model.dart';
+import 'apresentacao_desafios.dart';
 import 'desafio_resumo_item.dart';
 
 class DesafiosFinalizadosSecao extends StatelessWidget {
@@ -12,6 +13,7 @@ class DesafiosFinalizadosSecao extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dados = ApresentacaoDesafios.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -55,7 +57,7 @@ class DesafiosFinalizadosSecao extends StatelessWidget {
           ...desafios.map((c) {
             final venceu = currentUserId != null && c.winnerId == currentUserId;
             final resultadoLabel = c.winnerId != null
-                ? (venceu ? "Você venceu!" : "Vencedor: ${c.winnerId}")
+                ? (venceu ? "Você venceu!" : "Vencedor: ${dados?.nome(c.winnerId!) ?? 'Amigo'}")
                 : c.motivoDoCancelamento ?? "Status: ${c.status.label}";
             final resultadoColor = venceu
                 ? const Color(0xFF00D084)
@@ -64,9 +66,9 @@ class DesafiosFinalizadosSecao extends StatelessWidget {
             return DesafioResumoItem(
               itemKey: Key('card_desafio_finalizado_${c.id}'),
               botaoKey: Key('btn_detalhes_desafio_finalizado_${c.id}'),
-              jogador1: c.challengerId,
-              jogador2: c.challengedId,
-              subtitulo: "Partida #${c.matchId} • ${c.amount} BetCoins",
+              jogador1: dados?.nome(c.challengerId) ?? 'Amigo',
+              jogador2: dados?.nome(c.challengedId) ?? 'Amigo',
+              subtitulo: "${dados?.partida(c.matchId) ?? 'Partida indisponível'} • ${c.amount} BetCoins",
               statusLabel: resultadoLabel,
               statusColor: resultadoColor,
               botaoLabel: "Resultado",

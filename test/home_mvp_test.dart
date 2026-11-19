@@ -224,11 +224,12 @@ void main() {
     });
   });
 
-  testWidgets('desafios ativos fixos aparecem marcados como demonstrativos', (tester) async {
+  testWidgets('falha de desafios mostra mensagem e retry, nunca dados demonstrativos', (tester) async {
     await abrirHome(tester);
 
-    await tester.scrollUntilVisible(find.text('DESAFIOS ATIVOS'), 300);
-    expect(find.byKey(const Key('desafios_ativos_demonstrativo')), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Não foi possível carregar os desafios.'), 300);
+    expect(find.text('Tentar novamente'), findsOneWidget);
+    expect(find.byKey(const Key('desafios_ativos_demonstrativo')), findsNothing);
 
     await encerrar(tester);
   });

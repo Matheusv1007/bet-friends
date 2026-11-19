@@ -206,15 +206,15 @@ void main() {
       final partidas = CountingPartidasService();
       await abrirApp(tester, auth, partidas: partidas);
 
-      // O polling está ativo antes do logout (intervalo ajustado KAN-105)
+      // N-07: não relê a cada minuto durante a janela de cache.
       final iniciais = partidas.chamadas;
       await tester.pump(const Duration(seconds: 61));
-      expect(partidas.chamadas, greaterThan(iniciais));
+      expect(partidas.chamadas, iniciais);
 
       await sairPeloMenu(tester);
       final aposLogout = partidas.chamadas;
 
-      await tester.pump(const Duration(seconds: 95));
+      await tester.pump(const Duration(minutes: 6));
       expect(partidas.chamadas, aposLogout);
       expect(find.byType(Homepage), findsNothing);
     });

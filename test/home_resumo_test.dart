@@ -18,6 +18,7 @@
 import 'dart:async';
 
 import 'package:betfriends/app.dart';
+import 'package:betfriends/widgets_home_page/card_de_desafios_ativos.dart';
 import 'package:betfriends/data/firestore/challenge_repository.dart';
 import 'package:betfriends/data/firestore/user_profile_repository.dart';
 import 'package:betfriends/models/carteira.dart';
@@ -61,7 +62,10 @@ class _FakeChallengeServiceControlado implements ChallengeService {
   }
 
   @override
-  Stream<List<ChallengeModel>> observarDesafios() => _desafiosController.stream;
+  Stream<List<ChallengeModel>> observarDesafios() async* {
+    yield _ultimoValor;
+    yield* _desafiosController.stream;
+  }
 
   @override
   Future<List<ChallengeModel>> listarDesafios() async => _ultimoValor;
@@ -70,7 +74,11 @@ class _FakeChallengeServiceControlado implements ChallengeService {
   Future<int?> buscarSaldoDisponivel() async => 750;
 
   @override
-  Future<List<AmigoItem>> listarAmigosAceitos() async => [];
+  Future<List<AmigoItem>> listarAmigosAceitos() async => const [
+    AmigoItem(uid: 'u7P9x', displayName: 'Pedro', username: 'pedro'),
+    AmigoItem(uid: 'v8Q0z', displayName: 'Lucas', username: 'lucas'),
+    AmigoItem(uid: 'w1R2a', displayName: 'Guilherme', username: 'gui'),
+  ];
 
   @override
   Future<CriarDesafioResponse> criarDesafio({
@@ -97,7 +105,7 @@ class _FakeChallengeServiceControlado implements ChallengeService {
       AceitarDesafioResponse(
         challengeId: challengeId,
         status: StatusDesafio.accepted,
-        challengerId: 'Pedro',
+        challengerId: 'u7P9x',
         challengedId: 'uid-ana',
         matchId: 'partida_101',
         challengerPrediction: Palpite.homeWin,
@@ -132,6 +140,18 @@ class _FakePartidasServiceConfiguravel extends PartidasService {
 }
 
 void main() {
+  testWidgets('N-20: falha tem retry sem desafios demonstrativos', (tester) async {
+    var tentativas = 0;
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: DesafiosAtivosWidget(
+      erro: true, onTentarNovamente: () => tentativas++,
+    ))));
+    await tester.pumpAndSettle();
+    expect(find.text('Não foi possível carregar os desafios.'), findsOneWidget);
+    expect(find.textContaining('DEMONSTRATIVO'), findsNothing);
+    await tester.tap(find.text('Tentar novamente'));
+    expect(tentativas, 1);
+  });
+
   const currentUserId = 'uid-ana';
   late FakeAuthService authService;
   late _RepositorioPerfilControlado perfilRepo;
@@ -164,9 +184,9 @@ void main() {
 
   final desafioPendenteRecebido = ChallengeModel(
     id: 'chl_pendente_1',
-    challengerId: 'Pedro',
+    challengerId: 'u7P9x',
     challengedId: currentUserId,
-    participants: ['Pedro', currentUserId],
+    participants: ['u7P9x', currentUserId],
     matchId: 'partida_101',
     challengerPrediction: Palpite.homeWin,
     amount: 50,
@@ -178,8 +198,8 @@ void main() {
   final desafioEmAberto = ChallengeModel(
     id: 'chl_aberto_2',
     challengerId: currentUserId,
-    challengedId: 'Lucas',
-    participants: [currentUserId, 'Lucas'],
+    challengedId: 'v8Q0z',
+    participants: [currentUserId, 'v8Q0z'],
     matchId: 'partida_102',
     challengerPrediction: Palpite.awayWin,
     challengedPrediction: Palpite.draw,
@@ -191,9 +211,9 @@ void main() {
 
   final desafioFinalizadoVitoria = ChallengeModel(
     id: 'chl_finalizado_3',
-    challengerId: 'Guilherme',
+    challengerId: 'w1R2a',
     challengedId: currentUserId,
-    participants: ['Guilherme', currentUserId],
+    participants: ['w1R2a', currentUserId],
     matchId: 'partida_103',
     challengerPrediction: Palpite.homeWin,
     challengedPrediction: Palpite.awayWin,
@@ -207,8 +227,8 @@ void main() {
   final desafioEnviadoPendente = ChallengeModel(
     id: 'chl_enviado_4',
     challengerId: currentUserId,
-    challengedId: 'Lucas',
-    participants: [currentUserId, 'Lucas'],
+    challengedId: 'v8Q0z',
+    participants: [currentUserId, 'v8Q0z'],
     matchId: 'partida_104',
     challengerPrediction: Palpite.homeWin,
     amount: 60,
@@ -219,9 +239,9 @@ void main() {
 
   final desafioCanceladoPelaPartida = ChallengeModel(
     id: 'chl_cancelado_5',
-    challengerId: 'Guilherme',
+    challengerId: 'w1R2a',
     challengedId: currentUserId,
-    participants: ['Guilherme', currentUserId],
+    participants: ['w1R2a', currentUserId],
     matchId: 'partida_105',
     challengerPrediction: Palpite.homeWin,
     challengedPrediction: Palpite.awayWin,
@@ -299,15 +319,15 @@ void main() {
       expect(find.byKey(const Key('badge_desafios_pendentes')), findsOneWidget);
       expect(find.byKey(const Key('card_desafio_pendente_chl_pendente_1')), findsOneWidget);
       expect(find.text('Desafio de Pedro'), findsOneWidget);
-      expect(find.text('Partida #partida_101 • 50 BetCoins'), findsOneWidget);
+      expect(find.text('Flamengo x Vasco, Amanhã 16:00 • 50 BetCoins'), findsOneWidget);
       expect(find.byKey(const Key('btn_responder_desafio_chl_pendente_1')), findsOneWidget);
 
       // 5. Seção de Desafios em Aberto
       await tester.scrollUntilVisible(find.byKey(const Key('card_desafio_aberto_chl_aberto_2')), 200);
       expect(find.byKey(const Key('home_desafios_em_aberto')), findsOneWidget);
       expect(find.byKey(const Key('card_desafio_aberto_chl_aberto_2')), findsOneWidget);
-      expect(find.text('$currentUserId x Lucas'), findsOneWidget);
-      expect(find.text('Partida #partida_102 • 100 BetCoins'), findsOneWidget);
+      expect(find.text('Você x Lucas'), findsOneWidget);
+      expect(find.textContaining('Palmeiras x'), findsOneWidget);
 
       // 6. Destaque de Desafios Recentemente Finalizados
       await tester.scrollUntilVisible(find.byKey(const Key('card_desafio_finalizado_chl_finalizado_3')), 200);

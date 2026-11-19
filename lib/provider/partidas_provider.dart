@@ -13,6 +13,7 @@ class PartidasProvider extends ChangeNotifier {
   final PartidasService _partidasService;
 
   List<PartidaModel> _partidas = [];
+  Future<void>? _carregamento;
   bool _isLoading = false;
   bool _isAutoRefreshing = false;
   String? _errorMessage;
@@ -24,8 +25,8 @@ class PartidasProvider extends ChangeNotifier {
   DateTime? _rateLimitCooldownAte;
   bool _isRateLimited = false;
 
-  /// Janela de frescor dos dados em memória (60 segundos). Evita re-fetch redundante em transição de telas.
-  static const Duration cacheTtl = Duration(seconds: 60);
+  /// Janela de frescor dos dados em memória (5 minutos). Evita re-fetch redundante em transição de telas.
+  static const Duration cacheTtl = Duration(minutes: 5);
 
   /// Cooldown após limite de requisições (60 segundos), pausando o polling automático.
   static const Duration rateLimitCooldown = Duration(seconds: 60);
@@ -44,7 +45,7 @@ class PartidasProvider extends ChangeNotifier {
 
   /// Indica se os dados em memória precisam ser atualizados (vazios ou cache expirado).
   bool get deveAtualizar {
-    if (_partidas.isEmpty || _ultimoFetchSucesso == null) return true;
+    if (_ultimoFetchSucesso == null) return true;
     return DateTime.now().difference(_ultimoFetchSucesso!) >= cacheTtl;
   }
 
@@ -72,10 +73,19 @@ class PartidasProvider extends ChangeNotifier {
     int limit = 15,
     bool silencioso = false,
     bool forcar = false,
+  }) {
+    return _carregamento ??= _carregarPartidas(
+      limit: limit, silencioso: silencioso, forcar: forcar,
+    ).whenComplete(() => _carregamento = null);
+  }
+
+  Future<void> _carregarPartidas({
+    required int limit,
+    required bool silencioso,
+    required bool forcar,
   }) async {
-    // 1. Otimização de navegação (KAN-105): se os dados já estão em memória e frescos,
-    // e a chamada não for forçada nem silenciosa, evita nova requisição
-    if (!forcar && !silencioso && !deveAtualizar && _partidas.isNotEmpty) {
+    // O TTL também vale para polling e resultados vazios.
+    if (!forcar && !deveAtualizar) {
       return;
     }
 

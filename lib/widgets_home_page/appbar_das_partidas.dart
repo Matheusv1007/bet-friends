@@ -55,7 +55,7 @@ class Appbardaspartidas extends StatelessWidget {
                   Text(
                     ultimaAtualizacao!,
                     style: const TextStyle(
-                      color: Color(0xFF64748B),
+                      color: Color(0xFF94A3B8),
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
                     ),
@@ -65,8 +65,9 @@ class Appbardaspartidas extends StatelessWidget {
             ),
           ],
         ),
-        GestureDetector(
-          onTap: onVerTodasPressed ?? () {},
+        TextButton(
+                        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+          onPressed: onVerTodasPressed ?? () {},
           child: const Text(
             "Ver todas",
             style: TextStyle(
