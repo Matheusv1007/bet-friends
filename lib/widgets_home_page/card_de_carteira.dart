@@ -278,7 +278,7 @@ class Carddecarteira extends StatelessWidget {
                 const Icon(
                   Icons.lock_outline,
                   size: 13,
-                  color: Color(0xFF64748B),
+                  color: Color(0xFF94A3B8),
                 ),
                 const SizedBox(width: 6),
                 Expanded(

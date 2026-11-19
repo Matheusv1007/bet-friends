@@ -26,7 +26,7 @@ class BarraNavegacaoHome extends StatelessWidget {
         elevation: 0,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: const Color(0xFF00D084),
-        unselectedItemColor: const Color(0xFF64748B),
+        unselectedItemColor: const Color(0xFF94A3B8),
         selectedLabelStyle: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,

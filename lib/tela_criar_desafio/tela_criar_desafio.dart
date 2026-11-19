@@ -347,8 +347,9 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                           ),
                         );
                       }
-                      return GestureDetector(
-                        onTap: () => provider.carregarPartidas(),
+                      return TextButton(
+                        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                        onPressed: () => provider.carregarPartidas(forcar: true),
                         child: const Row(
                           children: [
                             Icon(Icons.refresh, size: 14, color: primaryGreen),

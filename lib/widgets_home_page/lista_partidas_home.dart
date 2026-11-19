@@ -134,7 +134,7 @@ class ListaPartidasHome extends StatelessWidget {
           children: [
             const Icon(
               Icons.sports_soccer,
-              color: Color(0xFF64748B),
+              color: Color(0xFF94A3B8),
               size: 36,
             ),
             const SizedBox(height: 10),
@@ -228,8 +228,9 @@ class ListaPartidasHome extends StatelessWidget {
                     ),
                   ),
                 ),
-                GestureDetector(
-                  onTap: onRecarregar,
+                TextButton(
+                        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                  onPressed: onRecarregar,
                   child: const Text(
                     "Recarregar",
                     style: TextStyle(

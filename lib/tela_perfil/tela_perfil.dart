@@ -110,7 +110,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 // perfil é concluído pela própria tela de cadastro (KAN-25)
                 return AvisoPerfil(
                   icone: Icons.person_off_outlined,
-                  corIcone: const Color(0xFF64748B),
+                  corIcone: const Color(0xFF94A3B8),
                   titulo: 'Perfil ainda não criado',
                   mensagem:
                       'Sua conta está ativa, mas o cadastro não foi concluído. '

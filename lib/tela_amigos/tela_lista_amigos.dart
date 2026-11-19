@@ -394,11 +394,11 @@ class _TelaListaAmigosState extends State<TelaListaAmigos> {
             style: const TextStyle(color: Colors.white, fontSize: 14),
             decoration: InputDecoration(
               hintText: 'Filtrar por nome ou @username...',
-              hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
-              prefixIcon: const Icon(Icons.search, color: Color(0xFF64748B), size: 20),
+              hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+              prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8), size: 20),
               suffixIcon: _termoFiltro.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.close, color: Color(0xFF64748B), size: 18),
+                      icon: const Icon(Icons.close, color: Color(0xFF94A3B8), size: 18),
                       onPressed: () {
                         _filtroController.clear();
                         setState(() => _termoFiltro = '');
@@ -474,7 +474,7 @@ class _TelaListaAmigosState extends State<TelaListaAmigos> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.search_off, color: Color(0xFF64748B), size: 40),
+                      const Icon(Icons.search_off, color: Color(0xFF94A3B8), size: 40),
                       const SizedBox(height: 10),
                       Text(
                         'Nenhum amigo encontrado para "$_termoFiltro"',

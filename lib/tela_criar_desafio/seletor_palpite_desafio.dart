@@ -71,10 +71,11 @@ class BotaoPalpiteDesafio extends StatelessWidget {
     const cardBg = Color(0xFF151E2E);
 
     return Expanded(
-      child: GestureDetector(
+      child: InkWell(
         key: chave,
         onTap: () => onChanged(palpite),
         child: Container(
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
           decoration: BoxDecoration(
             color: sel ? primaryGreen : cardBg,

@@ -66,10 +66,11 @@ class SeletorValorDesafio extends StatelessWidget {
           children: [10, 25, 50, 100].map((v) {
             final sel = valor == v;
             return Expanded(
-              child: GestureDetector(
+              child: InkWell(
                 key: Key('chip_valor_$v'),
                 onTap: () => onChanged(v),
                 child: Container(
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(

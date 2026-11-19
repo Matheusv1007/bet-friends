@@ -15,7 +15,7 @@ class LinhaDoPerfil extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icone, color: const Color(0xFF64748B), size: 20),
+      leading: Icon(icone, color: const Color(0xFF94A3B8), size: 20),
       title: Text(
         rotulo,
         style: const TextStyle(color: Color(0xFF8E9CAB), fontSize: 12),

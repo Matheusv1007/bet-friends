@@ -21,10 +21,11 @@ class CartaoAmigoDesafio extends StatelessWidget {
     const primaryGreen = Color(0xFF00D084);
     const cardBg = Color(0xFF151E2E);
 
-    return GestureDetector(
+    return InkWell(
       key: Key('amigo_item_$uid'),
       onTap: onTap,
       child: Container(
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
@@ -74,7 +75,7 @@ class CartaoAmigoDesafio extends StatelessWidget {
             ),
             Icon(
               isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: isSelected ? primaryGreen : const Color(0xFF64748B),
+              color: isSelected ? primaryGreen : const Color(0xFF94A3B8),
               size: 20,
             ),
           ],

@@ -66,7 +66,7 @@ class DesafiosEmAbertoSecao extends StatelessWidget {
             ),
             child: const Row(
               children: [
-                Icon(Icons.sports_kabaddi, color: Color(0xFF64748B), size: 24),
+                Icon(Icons.sports_kabaddi, color: Color(0xFF94A3B8), size: 24),
                 SizedBox(width: 12),
                 Text(
                   "Nenhum desafio em aberto",

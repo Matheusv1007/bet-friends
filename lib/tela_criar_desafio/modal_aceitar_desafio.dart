@@ -289,7 +289,7 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
           const Text(
             'O palpite do desafiado deve ser diferente do palpite do criador.',
             style: TextStyle(
-              color: Color(0xFF64748B),
+              color: Color(0xFF94A3B8),
               fontSize: 11,
             ),
           ),
@@ -299,9 +299,10 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
             children: opcoesPermitidas.map((p) {
               final sel = _palpiteSelecionado == p;
               return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _palpiteSelecionado = p),
+                child: InkWell(
+                  onTap: _isSubmitting ? null : () => setState(() => _palpiteSelecionado = p),
                   child: Container(
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
@@ -367,7 +368,7 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
           // Recusa: o desafio vira REJECTED e a reserva do criador é liberada
           SizedBox(
             width: double.infinity,
-            height: 44,
+            height: 48,
             child: TextButton(
               key: const Key('btn_recusar_desafio'),
               onPressed: _isSubmitting ? null : _recusar,

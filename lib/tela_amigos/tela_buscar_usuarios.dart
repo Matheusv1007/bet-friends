@@ -295,7 +295,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
                   decoration: InputDecoration(
                     hintText: 'Buscar por nome ou @username...',
                     hintStyle: const TextStyle(
-                      color: Color(0xFF64748B),
+                      color: Color(0xFF94A3B8),
                       fontSize: 13.5,
                     ),
                     prefixIcon: const Icon(
@@ -307,7 +307,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
                         ? IconButton(
                             icon: const Icon(
                               Icons.close,
-                              color: Color(0xFF64748B),
+                              color: Color(0xFF94A3B8),
                               size: 18,
                             ),
                             onPressed: () {
@@ -422,7 +422,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
                 'Digite ao menos 3 letras do @username para buscar outros jogadores cadastrados.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Color(0xFF64748B),
+                  color: Color(0xFF94A3B8),
                   fontSize: 12.5,
                 ),
               ),
@@ -443,7 +443,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
               const Icon(
                 Icons.search_off,
                 size: 46,
-                color: Color(0xFF64748B),
+                color: Color(0xFF94A3B8),
               ),
               const SizedBox(height: 12),
               const Text(
@@ -611,7 +611,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
           color: const Color(0xFF1E293B),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: const Color(0xFF64748B).withValues(alpha: 0.5),
+            color: const Color(0xFF94A3B8).withValues(alpha: 0.5),
           ),
         ),
         child: const Row(
