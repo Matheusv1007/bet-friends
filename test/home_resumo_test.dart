@@ -18,6 +18,7 @@
 import 'dart:async';
 
 import 'package:betfriends/app.dart';
+import 'package:betfriends/data/firestore/challenge_repository.dart';
 import 'package:betfriends/data/firestore/user_profile_repository.dart';
 import 'package:betfriends/models/carteira.dart';
 import 'package:betfriends/models/challenge_model.dart';
@@ -104,6 +105,20 @@ class _FakeChallengeServiceControlado implements ChallengeService {
         amount: 50,
         acceptedAt: DateTime.now(),
       );
+
+  final cancelados = <String>[];
+  Exception? erroAoCancelar;
+
+  @override
+  Future<EncerrarDesafioResponse> recusarDesafio({required String challengeId}) async =>
+      EncerrarDesafioResponse(challengeId: challengeId, status: StatusDesafio.rejected);
+
+  @override
+  Future<EncerrarDesafioResponse> cancelarDesafio({required String challengeId}) async {
+    if (erroAoCancelar != null) throw erroAoCancelar!;
+    cancelados.add(challengeId);
+    return EncerrarDesafioResponse(challengeId: challengeId, status: StatusDesafio.cancelled);
+  }
 }
 
 /// Fake de PartidasService configurável para simular partidas presentes ou vazias.
@@ -185,6 +200,34 @@ void main() {
     winnerId: currentUserId,
     amount: 80,
     status: StatusDesafio.finished,
+    createdAt: DateTime.now(),
+    updatedAt: DateTime.now(),
+  );
+
+  final desafioEnviadoPendente = ChallengeModel(
+    id: 'chl_enviado_4',
+    challengerId: currentUserId,
+    challengedId: 'Lucas',
+    participants: [currentUserId, 'Lucas'],
+    matchId: 'partida_104',
+    challengerPrediction: Palpite.homeWin,
+    amount: 60,
+    status: StatusDesafio.pending,
+    createdAt: DateTime.now(),
+    updatedAt: DateTime.now(),
+  );
+
+  final desafioCanceladoPelaPartida = ChallengeModel(
+    id: 'chl_cancelado_5',
+    challengerId: 'Guilherme',
+    challengedId: currentUserId,
+    participants: ['Guilherme', currentUserId],
+    matchId: 'partida_105',
+    challengerPrediction: Palpite.homeWin,
+    challengedPrediction: Palpite.awayWin,
+    amount: 80,
+    status: StatusDesafio.cancelled,
+    cancelReason: 'MATCH_CANCELLED',
     createdAt: DateTime.now(),
     updatedAt: DateTime.now(),
   );
@@ -385,6 +428,88 @@ void main() {
       expect(find.byKey(const Key('home_desafios_vazio')), findsOneWidget);
       expect(find.text('Nenhum desafio no momento'), findsOneWidget);
       expect(find.byKey(const Key('btn_home_criar_desafio')), findsOneWidget);
+
+      await encerrar(tester);
+    });
+
+    testWidgets('Desafio enviado pendente aparece em DESAFIOS ENVIADOS e o criador cancela só depois de confirmar', (tester) async {
+      await renderizarHome(tester, partidas: partidasExemplo);
+
+      challengeService.emitirDesafios([desafioEnviadoPendente]);
+      await tester.pump();
+      await tester.pump();
+
+      final botaoCancelar = find.byKey(const Key('btn_cancelar_desafio_chl_enviado_4'));
+      await tester.scrollUntilVisible(botaoCancelar, 200);
+      expect(find.byKey(const Key('home_desafios_enviados_pendentes')), findsOneWidget);
+      expect(find.byKey(const Key('home_desafios_recebidos_pendentes')), findsNothing);
+
+      // Manter: nada é cancelado
+      await tester.tap(botaoCancelar);
+      await tester.pumpAndSettle();
+      expect(find.text('Cancelar desafio?'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('btn_manter_desafio')));
+      await tester.pumpAndSettle();
+      expect(challengeService.cancelados, isEmpty);
+
+      // Confirmar: cancela o desafio certo e avisa
+      await tester.tap(botaoCancelar);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('btn_confirmar_cancelamento')));
+      await tester.pumpAndSettle();
+      expect(challengeService.cancelados, ['chl_enviado_4']);
+      expect(find.text('Desafio cancelado. Suas BetCoins foram liberadas.'), findsOneWidget);
+
+      await encerrar(tester);
+    });
+
+    testWidgets('Falha ao cancelar mostra a mensagem do servidor', (tester) async {
+      challengeService.erroAoCancelar = const ChallengeException(
+        ChallengeErrorCode.notPending,
+        'Este desafio não está mais pendente.',
+      );
+      await renderizarHome(tester, partidas: partidasExemplo);
+
+      challengeService.emitirDesafios([desafioEnviadoPendente]);
+      await tester.pump();
+      await tester.pump();
+
+      final botaoCancelar = find.byKey(const Key('btn_cancelar_desafio_chl_enviado_4'));
+      await tester.scrollUntilVisible(botaoCancelar, 200);
+      await tester.tap(botaoCancelar);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('btn_confirmar_cancelamento')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Este desafio não está mais pendente.'), findsOneWidget);
+      expect(find.text('Desafio cancelado. Suas BetCoins foram liberadas.'), findsNothing);
+
+      await encerrar(tester);
+    });
+
+    testWidgets('Desafio recebido pendente não gera botão de cancelar: só o criador cancela', (tester) async {
+      await renderizarHome(tester, partidas: partidasExemplo);
+
+      challengeService.emitirDesafios([desafioPendenteRecebido]);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byKey(const Key('home_desafios_recebidos_pendentes')), findsOneWidget);
+      expect(find.byKey(const Key('home_desafios_enviados_pendentes')), findsNothing);
+      expect(find.byKey(const Key('btn_cancelar_desafio_chl_pendente_1')), findsNothing);
+
+      await encerrar(tester);
+    });
+
+    testWidgets('Desafio cancelado pela partida mostra o motivo entre os finalizados', (tester) async {
+      await renderizarHome(tester, partidas: partidasExemplo);
+
+      challengeService.emitirDesafios([desafioCanceladoPelaPartida]);
+      await tester.pump();
+      await tester.pump();
+
+      await tester.scrollUntilVisible(find.byKey(const Key('card_desafio_finalizado_chl_cancelado_5')), 200);
+      expect(find.text('Partida cancelada'), findsOneWidget);
 
       await encerrar(tester);
     });

@@ -105,6 +105,41 @@ class ChallengeService {
     );
   }
 
+  /// Recusa um desafio pendente recebido; a reserva do criador é liberada no backend.
+  Future<EncerrarDesafioResponse> recusarDesafio({
+    required String challengeId,
+  }) async {
+    final id = _idParaEncerrar(challengeId, 'recusar');
+    return _repository.recusarDesafio(id);
+  }
+
+  /// Cancela um desafio pendente criado pelo usuário; a reserva dele é liberada no backend.
+  Future<EncerrarDesafioResponse> cancelarDesafio({
+    required String challengeId,
+  }) async {
+    final id = _idParaEncerrar(challengeId, 'cancelar');
+    return _repository.cancelarDesafio(id);
+  }
+
+  /// Confere sessão e identificador antes de recusar ou cancelar ([acao] entra na mensagem).
+  String _idParaEncerrar(String challengeId, String acao) {
+    if (_authService.currentUser == null) {
+      throw ChallengeException(
+        ChallengeErrorCode.unauthenticated,
+        'É necessário estar autenticado para $acao um desafio.',
+      );
+    }
+
+    final cleanChallengeId = challengeId.trim();
+    if (cleanChallengeId.isEmpty) {
+      throw const ChallengeException(
+        ChallengeErrorCode.challengeNotFound,
+        'Identificador do desafio é obrigatório.',
+      );
+    }
+    return cleanChallengeId;
+  }
+
   /// Lista todos os desafios do usuário atual.
   Future<List<ChallengeModel>> listarDesafios() async {
     final usuarioLogado = _authService.currentUser;

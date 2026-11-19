@@ -3,6 +3,7 @@ import { logger } from "firebase-functions";
 
 import { moverDesafiosParaAguardandoResultado } from "./aguardarResultado";
 import { identificarDesafiosAptos } from "./aptosParaLiquidacao";
+import { cancelarDesafiosPelaPartida } from "./cancelamento";
 import { expirarDesafiosPendentes } from "./expirarDesafios";
 import { finalizarDesafio } from "./finalizacao";
 import { iniciarDesafiosAceitos } from "./iniciarDesafios";
@@ -14,6 +15,8 @@ import { iniciarDesafiosAceitos } from "./iniciarDesafios";
  * que já está em `matches`: nenhuma chamada ao provedor, nenhum
  * processamento por usuário ou por tela.
  *
+ * 0. desafios com partida `CANCELADA` ou adiada além do tolerado → `CANCELLED`,
+ *    com as reservas liberadas (A-01, KAN-68);
  * 1. desafios `PENDING` que atingiram o corte de 5 minutos → `EXPIRED` (KAN-65);
  * 2. desafios `IN_PROGRESS` com partida fora de campo → `WAITING_RESULT` (KAN-67);
  * 3. desafios aptos: partida `FINALIZADA` com resultado (KAN-82); casos
@@ -34,6 +37,8 @@ export interface DesafioComFalha {
 }
 
 export interface ResumoDoProcessamento {
+  /** IDs dos desafios cancelados porque a partida foi cancelada ou adiada além do tolerado (A-01). */
+  readonly cancelados: readonly string[];
   readonly iniciados: readonly string[];
   readonly aguardandoResultado: readonly string[];
   readonly finalizados: readonly string[];
@@ -44,6 +49,7 @@ export interface ResumoDoProcessamento {
 }
 
 export async function processarResultados(db: Firestore): Promise<ResumoDoProcessamento> {
+  const { cancelados } = await cancelarDesafiosPelaPartida(db);
   await expirarDesafiosPendentes(db);
   const { iniciados } = await iniciarDesafiosAceitos(db);
   const { movidos } = await moverDesafiosParaAguardandoResultado(db);
@@ -67,8 +73,17 @@ export async function processarResultados(db: Firestore): Promise<ResumoDoProces
     // Nada foi gravado para esses desafios; a próxima execução tenta de novo.
     logger.error("Desafios aptos que não puderam ser liquidados", { falhas });
   }
-  const resumo = { iniciados: [...iniciados], aguardandoResultado: movidos, finalizados, jaFinalizados, aguardando: aguardando.length, falhas };
+  const resumo = {
+    cancelados: cancelados.map((c) => c.id),
+    iniciados: [...iniciados],
+    aguardandoResultado: movidos,
+    finalizados,
+    jaFinalizados,
+    aguardando: aguardando.length,
+    falhas,
+  };
   logger.info("Processamento de resultados concluído", {
+    cancelados: cancelados.length,
     iniciados: iniciados.length,
     aguardandoResultado: movidos.length,
     finalizados: finalizados.length,

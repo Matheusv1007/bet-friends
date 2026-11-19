@@ -27,6 +27,14 @@ abstract final class CallableNames {
   static const String getFriends = 'getFriends';
   static const String createChallenge = 'createChallenge';
   static const String acceptChallenge = 'acceptChallenge';
+
+  /// Recusa de desafio pendente pelo desafiado (RF-012). Libera a reserva do criador.
+  /// Erros: `permission-denied` (`nao-desafiado`), `failed-precondition` (`desafio-nao-pendente`).
+  static const String rejectChallenge = 'rejectChallenge';
+
+  /// Cancelamento do desafio pendente pelo próprio criador. Libera a reserva do criador.
+  /// Erros: `permission-denied` (`nao-criador`), `failed-precondition` (`desafio-nao-pendente`).
+  static const String cancelChallenge = 'cancelChallenge';
 }
 
 /// Ponto único de acesso às Callable Functions do backend.

@@ -104,10 +104,12 @@ export type CodigoErroDeDesafio =
   | "partida-invalida"
   /** Já existe desafio ativo do criador para a mesma partida (RN-CHL-011). */
   | "desafio-ativo-existente"
-  /** Aceite exige que o desafio esteja pendente (RN-CHL-008). */
+  /** Aceite, recusa e cancelamento exigem que o desafio esteja pendente (RN-CHL-008). */
   | "desafio-nao-pendente"
-  /** Apenas o desafiado pode aceitar o desafio (RN-CHL-004). */
+  /** Apenas o desafiado pode aceitar ou recusar o desafio (RN-CHL-004). */
   | "nao-desafiado"
+  /** Apenas o criador pode cancelar o próprio desafio pendente. */
+  | "nao-criador"
   /** Palpite do desafiado não pode ser igual ao do criador (RN-PRD-003). */
   | "palpite-duplicado"
   /** Palpite fora dos valores permitidos (RN-PRD-001). */

@@ -123,19 +123,26 @@ describe(
       assert.equal(d2.status, "IN_PROGRESS");
     });
 
-    test("5. múltiplos desafios ACCEPTED em partidas diferentes: só os de partida EM_ANDAMENTO transitam", async () => {
+    test("5. múltiplos desafios ACCEPTED: transitam os de partida que já saiu de campo; agendada, adiada e cancelada ficam", async () => {
       await gravarMatch(db, partida("1", "EM_ANDAMENTO"));
       await gravarMatch(db, partida("2", "AGENDADA"));
       await gravarMatch(db, partida("3", "FINALIZADA"));
+      await gravarMatch(db, partida("4", "ADIADA"));
+      await gravarMatch(db, partida("5", "CANCELADA"));
       const id1 = await desafio(db, "1");
       const id2 = await desafio(db, "2");
       const id3 = await desafio(db, "3");
+      const id4 = await desafio(db, "4");
+      const id5 = await desafio(db, "5");
 
       const r = await iniciarDesafiosAceitos(db);
-      assert.deepEqual([...r.iniciados], [id1]);
+      // FINALIZADA conta: o sync pode não ter visto a partida em andamento (A-01)
+      assert.deepEqual([...r.iniciados].sort(), [id1, id3].sort());
       assert.equal(await statusDe(db, id1), "IN_PROGRESS");
       assert.equal(await statusDe(db, id2), "ACCEPTED");
-      assert.equal(await statusDe(db, id3), "ACCEPTED");
+      assert.equal(await statusDe(db, id3), "IN_PROGRESS");
+      assert.equal(await statusDe(db, id4), "ACCEPTED");
+      assert.equal(await statusDe(db, id5), "ACCEPTED");
     });
 
     test("6. desafio que já passou de IN_PROGRESS (WAITING_RESULT) não é tocado", async () => {

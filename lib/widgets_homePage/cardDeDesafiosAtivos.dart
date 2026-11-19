@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/firestore/challenge_repository.dart';
 import '../models/challenge_model.dart';
 import '../services/challenge_service.dart';
 import '../tela_criar_desafio/modal_aceitar_desafio.dart';
@@ -9,6 +10,7 @@ import '../tela_criar_desafio/tela_criar_desafio.dart';
 ///
 /// Apresenta dados reais agregados a partir do [ChallengeService]:
 /// - Desafios recebidos aguardando resposta (destacados);
+/// - Desafios enviados aguardando o amigo, que o criador pode cancelar;
 /// - Desafios em aberto (aceitos, em andamento, aguardando resultado);
 /// - Desafios recentemente finalizados (destacados);
 /// - Modo demonstrativo quando os dados de desafios não estiverem disponíveis.
@@ -231,6 +233,10 @@ class DesafiosAtivosWidget extends StatelessWidget {
             Text("Aposta: ${c.amount} BetCoins", style: const TextStyle(color: Color(0xFF00D084), fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             Text("Status: ${c.status.label}", style: const TextStyle(color: Colors.white70)),
+            if (c.motivoDoCancelamento != null) ...[
+              const SizedBox(height: 6),
+              Text(c.motivoDoCancelamento!, style: const TextStyle(color: Color(0xFFF59E0B))),
+            ],
             const SizedBox(height: 6),
             Text("Criador: ${c.challengerId} (${c.challengerPrediction.label})", style: const TextStyle(color: Colors.white70)),
             if (c.challengedPrediction != null) ...[
@@ -249,6 +255,55 @@ class DesafiosAtivosWidget extends StatelessWidget {
             child: const Text("Fechar", style: TextStyle(color: Color(0xFF00D084))),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Pede confirmação e cancela um desafio pendente criado pelo usuário; o backend libera a reserva.
+  Future<void> _confirmarCancelamento(BuildContext context, ChallengeModel c) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF151E2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          "Cancelar desafio?",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          "As ${c.amount} BetCoins reservadas voltam para o seu saldo disponível.",
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            key: const Key('btn_manter_desafio'),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Manter", style: TextStyle(color: Color(0xFF00D084))),
+          ),
+          TextButton(
+            key: const Key('btn_confirmar_cancelamento'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Cancelar desafio", style: TextStyle(color: Color(0xFFEF4444))),
+          ),
+        ],
+      ),
+    );
+    if (confirmou != true || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    var mensagem = 'Desafio cancelado. Suas BetCoins foram liberadas.';
+    var cor = const Color(0xFF00D084);
+    try {
+      await (challengeService ?? ChallengeService()).cancelarDesafio(challengeId: c.id);
+    } on ChallengeException catch (e) {
+      mensagem = e.message;
+      cor = const Color(0xFFEF4444);
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(mensagem),
+        backgroundColor: cor,
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -274,6 +329,12 @@ class DesafiosAtivosWidget extends StatelessWidget {
 
     final desafiosFinalizados = lista.where((c) {
       return c.status == StatusDesafio.finished || c.status.isTerminal;
+    }).toList();
+
+    final pendentesEnviados = lista.where((c) {
+      return c.status == StatusDesafio.pending &&
+          currentUserId != null &&
+          c.challengerId == currentUserId;
     }).toList();
 
     // Se a lista estiver vazia
@@ -522,6 +583,104 @@ class DesafiosAtivosWidget extends StatelessWidget {
           ),
         ],
 
+        // 1b. DESAFIOS ENVIADOS AGUARDANDO O AMIGO (o criador ainda pode cancelar)
+        if (pendentesEnviados.isNotEmpty) ...[
+          Container(
+            key: const Key('home_desafios_enviados_pendentes'),
+            margin: const EdgeInsets.only(bottom: 20),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF151E2E),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.08),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "DESAFIOS ENVIADOS",
+                  style: TextStyle(
+                    color: Color(0xFF8E9CAE),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...pendentesEnviados.map((c) {
+                  return Container(
+                    key: Key('card_desafio_enviado_${c.id}'),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0E1420),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Aguardando ${c.challengedId}",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13.5,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "Partida #${c.matchId} • ${c.amount} BetCoins",
+                                style: const TextStyle(
+                                  color: Color(0xFF94A3B8),
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "Seu palpite: ${c.challengerPrediction.label}",
+                                style: const TextStyle(
+                                  color: Color(0xFF60A5FA),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        OutlinedButton(
+                          key: Key('btn_cancelar_desafio_${c.id}'),
+                          onPressed: () => _confirmarCancelamento(context, c),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFEF4444),
+                            side: const BorderSide(color: Color(0xFFEF4444)),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text(
+                            "CANCELAR",
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ],
+
         // 2. DESAFIOS EM ABERTO
         Row(
           children: [
@@ -644,7 +803,7 @@ class DesafiosAtivosWidget extends StatelessWidget {
             final venceu = currentUserId != null && c.winnerId == currentUserId;
             final resultadoLabel = c.winnerId != null
                 ? (venceu ? "Você venceu!" : "Vencedor: ${c.winnerId}")
-                : "Status: ${c.status.label}";
+                : c.motivoDoCancelamento ?? "Status: ${c.status.label}";
             final resultadoColor = venceu
                 ? const Color(0xFF00D084)
                 : (c.winnerId != null ? const Color(0xFFF59E0B) : const Color(0xFF94A3B8));

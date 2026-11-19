@@ -1,7 +1,7 @@
 import { Firestore, Transaction } from "firebase-admin/firestore";
 
 import { Saldos } from "./saldos";
-import { COLECAO_DE_TRANSACOES, ErroDeTransacao, idDeTransacaoDeDesafio } from "./transacoes";
+import { COLECAO_DE_TRANSACOES, ErroDeTransacao, Movimentacao, idDeTransacaoDeDesafio } from "./transacoes";
 import { registrarMovimentacoesNaTransacao } from "./transacoesTransacao";
 
 /**
@@ -127,6 +127,27 @@ export interface ResultadoDaLiberacao {
 }
 
 /**
+ * Só lê e valida: devolve o RELEASE que libera a reserva de [userId] em
+ * [challengeId], sem gravar nada. Serve a quem precisa liberar várias
+ * reservas numa mesma transação (cancelamento do desafio já aceito), porque
+ * o Firestore não permite ler depois de gravar: planeja-se tudo e registra-se
+ * numa única chamada ao ledger. Lança `reserva-inexistente` ou
+ * `reserva-encerrada` (por LOSS ou REFUND).
+ */
+export async function planejarLiberacaoNaTransacao(
+  transacao: Transaction,
+  db: Firestore,
+  userId: string,
+  challengeId: string,
+): Promise<Movimentacao[]> {
+  const reserva = await lerReservaNaTransacao(transacao, db, userId, challengeId);
+  if (reserva.encerradaPor !== null && reserva.encerradaPor !== "RELEASE") {
+    throw new ErroDeTransacao("reserva-encerrada", `A reserva já foi encerrada por ${reserva.encerradaPor}.`);
+  }
+  return [{ userId, type: "RELEASE", amount: reserva.valor, challengeId }];
+}
+
+/**
  * Libera, numa transação já aberta, a reserva de [userId] em [challengeId]
  * (RN-CHL-017/020/022): reservado −valor, disponível +valor, total
  * inalterado, com a transação RELEASE. O valor é sempre o do RESERVE
@@ -134,7 +155,8 @@ export interface ResultadoDaLiberacao {
  *
  * A mesma reserva nunca é liberada duas vezes: repetir devolve
  * `ja-liberada` sem gravar, e liberar uma reserva já encerrada por LOSS ou
- * REFUND lança `reserva-encerrada`.
+ * REFUND lança `reserva-encerrada`. Lê antes de gravar: quem chama não pode
+ * ter gravado antes nesta transação.
  */
 export async function liberarReservaNaTransacao(
   transacao: Transaction,
@@ -142,13 +164,8 @@ export async function liberarReservaNaTransacao(
   userId: string,
   challengeId: string,
 ): Promise<ResultadoDaLiberacao> {
-  const reserva = await lerReservaNaTransacao(transacao, db, userId, challengeId);
-  if (reserva.encerradaPor !== null && reserva.encerradaPor !== "RELEASE") {
-    throw new ErroDeTransacao("reserva-encerrada", `A reserva já foi encerrada por ${reserva.encerradaPor}.`);
-  }
-  const r = await registrarMovimentacoesNaTransacao(transacao, db, [
-    { userId, type: "RELEASE", amount: reserva.valor, challengeId },
-  ]);
+  const movimentacoes = await planejarLiberacaoNaTransacao(transacao, db, userId, challengeId);
+  const r = await registrarMovimentacoesNaTransacao(transacao, db, movimentacoes);
   const [registro] = r.transacoes;
   return {
     resultado: r.resultado === "registradas" ? "liberada" : "ja-liberada",

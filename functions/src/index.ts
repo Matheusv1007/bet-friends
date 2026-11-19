@@ -15,3 +15,5 @@ export { getFriendRequests } from "./amigos/getFriendRequests";
 export { getFriends } from "./amigos/getFriends";
 export { createChallenge } from "./desafios/createChallenge";
 export { acceptChallenge } from "./desafios/acceptChallenge";
+export { rejectChallenge } from "./desafios/rejectChallenge";
+export { cancelChallenge } from "./desafios/cancelChallenge";

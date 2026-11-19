@@ -60,6 +60,10 @@ export async function expirarDesafioNaTransacao(
     return { resultado: "nao-atingiu-corte", challengeId };
   }
 
+  // Libera a reserva de BetCoins do criador (idempotente - RN-CHL-022). Vem antes da
+  // gravação do desafio: o Firestore não permite ler depois de gravar na transação.
+  await liberarReservaNaTransacao(transacao, db, challenge.challengerId, challenge.id);
+
   // Transiciona o desafio para EXPIRED
   gravarTransicaoNaTransacao(
     transacao,
@@ -68,9 +72,6 @@ export async function expirarDesafioNaTransacao(
     { tipo: "EXPIRAR" },
     agora,
   );
-
-  // Libera a reserva de BetCoins do criador (idempotente - RN-CHL-022)
-  await liberarReservaNaTransacao(transacao, db, challenge.challengerId, challenge.id);
 
   return { resultado: "expirado", challengeId };
 }

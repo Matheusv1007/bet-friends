@@ -1,13 +1,12 @@
-import { FunctionsErrorCode, HttpsError } from "firebase-functions/https";
+import { HttpsError } from "firebase-functions/https";
 
 import { authedCallable } from "../core/callable";
 import { db } from "../core/firebase";
 import { requireObject, requireString } from "../core/validation";
-import { ErroDeSaldo } from "../betcoins/saldos";
-import { ErroDeTransacao } from "../betcoins/transacoes";
 import { RESULTADOS_DA_PARTIDA } from "../partidas/match";
-import { CodigoErroDeDesafio, ErroDeDesafio, Palpite } from "./challenge";
+import { Palpite } from "./challenge";
 import { ResultadoAceitarDesafio, aceitarDesafio } from "./challengeFirestore";
+import { traduzirErroDeDesafio } from "./errosHttps";
 
 export interface AcceptChallengeRequest {
   readonly challengeId: string;
@@ -15,24 +14,6 @@ export interface AcceptChallengeRequest {
 }
 
 export type AcceptChallengeResponse = ResultadoAceitarDesafio;
-
-const CODIGO_HTTPS: Record<CodigoErroDeDesafio, FunctionsErrorCode> = {
-  "auto-desafio": "invalid-argument",
-  "palpite-invalido": "invalid-argument",
-  "amizade-necessaria": "failed-precondition",
-  "partida-no-corte": "failed-precondition",
-  "partida-invalida": "failed-precondition",
-  "desafio-ativo-existente": "already-exists",
-  "desafio-invalido": "invalid-argument",
-  "desafio-inexistente": "not-found",
-  "transicao-invalida": "failed-precondition",
-  "campo-imutavel": "failed-precondition",
-  "resultado-indisponivel": "failed-precondition",
-  "desafio-nao-pendente": "failed-precondition",
-  "nao-desafiado": "permission-denied",
-  "palpite-duplicado": "invalid-argument",
-  "saldo-insuficiente": "failed-precondition",
-};
 
 /**
  * Callable Function para aceitar um desafio pendente (RF-011).
@@ -62,19 +43,7 @@ export const acceptChallenge = authedCallable<
         challengedPrediction: data.challengedPrediction,
       });
     } catch (err) {
-      if (err instanceof ErroDeDesafio) {
-        throw new HttpsError(CODIGO_HTTPS[err.code] ?? "invalid-argument", err.message, {
-          motivo: err.code,
-        });
-      }
-      if (err instanceof ErroDeSaldo) {
-        const status = err.code === "saldo-insuficiente" ? "failed-precondition" : "invalid-argument";
-        throw new HttpsError(status, err.message, { motivo: err.code });
-      }
-      if (err instanceof ErroDeTransacao) {
-        throw new HttpsError("invalid-argument", err.message, { motivo: err.code });
-      }
-      throw err;
+      throw traduzirErroDeDesafio(err);
     }
   },
   {

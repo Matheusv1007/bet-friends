@@ -76,24 +76,46 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
     }
   }
 
-  Future<void> _confirmarAceite() async {
-    if (_palpiteSelecionado == null) return;
+  Future<void> _confirmarAceite() {
+    final palpite = _palpiteSelecionado;
+    if (palpite == null) return Future.value();
 
+    return _executar(
+      () => _challengeService.aceitarDesafio(
+        challengeId: widget.desafio.id,
+        challengedPrediction: palpite,
+      ),
+      sucesso: 'Desafio aceito com sucesso! Suas BetCoins foram reservadas.',
+      falha: 'Não foi possível aceitar o desafio. Tente novamente.',
+    );
+  }
+
+  Future<void> _recusar() {
+    return _executar(
+      () => _challengeService.recusarDesafio(challengeId: widget.desafio.id),
+      sucesso: 'Desafio recusado.',
+      falha: 'Não foi possível recusar o desafio. Tente novamente.',
+    );
+  }
+
+  /// Executa [acao] com o botão travado, mostra o resultado e fecha o modal com `true` em caso de sucesso.
+  Future<void> _executar(
+    Future<void> Function() acao, {
+    required String sucesso,
+    required String falha,
+  }) async {
     setState(() => _isSubmitting = true);
 
     try {
-      await _challengeService.aceitarDesafio(
-        challengeId: widget.desafio.id,
-        challengedPrediction: _palpiteSelecionado!,
-      );
+      await acao();
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Desafio aceito com sucesso! Suas BetCoins foram reservadas.'),
-          backgroundColor: Color(0xFF00D084),
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: Text(sucesso),
+          backgroundColor: const Color(0xFF00D084),
+          duration: const Duration(seconds: 3),
         ),
       );
 
@@ -110,10 +132,10 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível aceitar o desafio. Tente novamente.'),
-          backgroundColor: Color(0xFFEF4444),
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: Text(falha),
+          backgroundColor: const Color(0xFFEF4444),
+          duration: const Duration(seconds: 3),
         ),
       );
     } finally {
@@ -331,6 +353,26 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
                         letterSpacing: 0.8,
                       ),
                     ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Recusa: o desafio vira REJECTED e a reserva do criador é liberada
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: TextButton(
+              key: const Key('btn_recusar_desafio'),
+              onPressed: _isSubmitting ? null : _recusar,
+              child: const Text(
+                'RECUSAR DESAFIO',
+                style: TextStyle(
+                  color: Color(0xFFEF4444),
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.8,
+                ),
+              ),
             ),
           ),
         ],

@@ -7,7 +7,7 @@ Convenção: **Status** começa como `Aberto`; ao corrigir, trocar para `Corrigi
 ## A-01 — Fundos reservados podem ficar presos
 
 - **Severidade:** Alta
-- **Status:** Aberto
+- **Status:** Corrigido no código (branch `fix/A-01-cancelar-rejeitar-desafio`), exceto o item 4. Falta publicar as funções novas.
 - **Onde:** `functions/src/desafios/` (`maquinaDeEstados.ts`, `aguardarResultado.ts`, `iniciarDesafios.ts`, `aptosParaLiquidacao.ts`, `processamentoDeResultados.ts`)
 
 ### O que foi encontrado
@@ -31,6 +31,21 @@ Saldo reservado permanentemente para o usuário. Isso também bloqueia o bônus 
 - Passo no `processarResultados` que cancela por motivo sistêmico os desafios cuja partida está `ADIADA` ou `CANCELADA`, liberando as reservas.
 - Tratar `ACCEPTED` com partida já `FINALIZADA` (passar por `IN_PROGRESS` ou aceitar a transição direta).
 - Testes de unidade e de emulador para cada caminho.
+
+### O que foi feito
+
+- `rejectChallenge` e `cancelChallenge` (callables) e o cancelamento pela partida (`processarResultados`), em `functions/src/desafios/cancelamento.ts`. Cada um libera as reservas e muda o estado na mesma transação. Contrato em `docs/callable-functions.md` §11 e `docs/firestore-schema.md` §3.5.
+- `ACCEPTED` passa a `IN_PROGRESS` com a partida em qualquer status que já saiu de campo (`INICIA_DESAFIO`); o teste que fixava o comportamento antigo foi atualizado.
+- App: botão **Recusar** no modal de aceite e seção **Desafios enviados** na Home com **Cancelar** (com confirmação); desafios cancelados mostram o motivo.
+- **Bug encontrado no caminho:** `expirarDesafioNaTransacao` gravava o desafio antes de ler a reserva, o que o Firestore recusa ("reads before writes"). Desafios pendentes nunca expiravam e a reserva do criador não voltava. Estavam falhando 3 testes de emulador (6, 9 e 10 de `activeChallengeAndExpiration`); a ordem foi corrigida.
+- Extraída a tabela de erros duplicada das callables de desafio (`desafios/errosHttps.ts`), o que adianta parte do A-09.
+
+### Pendências do A-01
+
+- Publicar as funções (`firebase deploy --only functions:rejectChallenge,functions:cancelChallenge`); sem isso o app falha ao recusar/cancelar.
+- Confirmar com o Plano Mestre a regra de adiamento (limite de 7 dias da data original). É uma inferência de RN-MAT-007/008; a constante é `DIAS_DE_ADIAMENTO_TOLERADO`.
+- Partida `SUSPENSA` ou `REVISAO_NECESSARIA` continua mantendo o desafio em `WAITING_RESULT` sem prazo de saída (item 4 acima): precisa de decisão de negócio.
+- Falha pré-existente, fora do A-01: `activeChallengeAndExpiration` teste 5 (convite recebido conta como desafio ativo ao aceitar).
 
 ---
 
@@ -193,7 +208,7 @@ Falhas reais (permissão, índice, rede, dado inválido) viram comportamento deg
 ## A-09 — Aliases de payload e tabela de erros duplicada
 
 - **Severidade:** Baixa
-- **Status:** Aberto
+- **Status:** Parcial: a tabela de erros duplicada foi extraída para `desafios/errosHttps.ts` (branch `fix/A-01-cancelar-rejeitar-desafio`). Faltam os aliases de payload (`friendId`, `desafiadoId`, `prediction`, `palpite`).
 - **Onde:** `functions/src/desafios/createChallenge.ts`, `functions/src/desafios/acceptChallenge.ts`
 
 ### O que foi encontrado
