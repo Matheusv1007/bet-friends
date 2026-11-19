@@ -20,7 +20,7 @@ class _ContadorPartidasRepository implements PartidasRepository {
   List<PartidaModel> partidasRetorno;
   Object? erroParaLancar;
 
-  _ContadorPartidasService({this.partidasRetorno = const [], this.erroParaLancar});
+  _ContadorPartidasRepository({this.partidasRetorno = const [], this.erroParaLancar});
 
   @override
   Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
@@ -45,7 +45,7 @@ void main() {
     });
 
     test('Cooldown após limite do Firestore suspende novas consultas automáticas', () async {
-      final contadorService = _ContadorPartidasService(
+      final contadorService = _ContadorPartidasRepository(
         erroParaLancar: FirebaseException(plugin: 'cloud_firestore', code: 'resource-exhausted'),
       );
       final provider = PartidasProvider(partidasService: PartidasService(repository: contadorService));
@@ -71,7 +71,7 @@ void main() {
     testWidgets(
       'Navegação Home → Criar Desafio → Home não duplica requisições (exatamente 1 chamada)',
       (tester) async {
-        final contadorService = _ContadorPartidasService(
+        final contadorService = _ContadorPartidasRepository(
           partidasRetorno: [
             PartidaModel(
               id: '1',
@@ -137,7 +137,7 @@ void main() {
     );
 
     test('Puxe para atualizar (forcar: true) ignora cache e executa nova carga', () async {
-      final contadorService = _ContadorPartidasService(
+      final contadorService = _ContadorPartidasRepository(
         partidasRetorno: [
           PartidaModel(id: '1', timeMandante: 'A', timeVisitante: 'B'),
         ],
