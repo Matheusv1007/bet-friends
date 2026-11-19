@@ -36,6 +36,9 @@ class TelaBuscarUsuarios extends StatefulWidget {
 }
 
 class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
+  /// Mesmo mínimo do backend (`USERNAME_MINIMO`): termos menores não são buscados.
+  static const int _minimoDaBusca = 3;
+
   late final UserSearchService _searchService;
   late final FriendshipService _friendshipService;
   late final Set<String> _solicitacoesRecebidas;
@@ -68,7 +71,9 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
 
   void _aoDigitar(String valor) {
     _debounceTimer?.cancel();
-    if (valor.trim().isEmpty) {
+    // Abaixo do tamanho de um username o backend devolve lista vazia (A-05);
+    // nem chamamos, e a tela volta à orientação em vez de "nenhum usuário".
+    if (valor.trim().replaceFirst('@', '').length < _minimoDaBusca) {
       setState(() {
         _resultados = [];
         _pesquisaRealizada = false;
@@ -407,7 +412,7 @@ class _TelaBuscarUsuariosState extends State<TelaBuscarUsuarios> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Digite o nome ou @username para buscar outros jogadores cadastrados.',
+                'Digite ao menos 3 letras do @username para buscar outros jogadores cadastrados.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Color(0xFF64748B),
