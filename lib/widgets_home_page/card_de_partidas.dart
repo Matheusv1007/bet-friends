@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/partida_model.dart';
+import 'detalhes_da_partida_dialog.dart';
 
 class Carddepartidas extends StatelessWidget {
   final PartidaModel? partida;
+  final VoidCallback? onTap;
 
-  const Carddepartidas({super.key, this.partida});
+  const Carddepartidas({super.key, this.partida, this.onTap});
 
   Widget _buildTeamLogo(String? url, {required String fallbackName}) {
     if (url != null && url.toLowerCase().endsWith('.png')) {
@@ -85,7 +87,7 @@ class Carddepartidas extends StatelessWidget {
     final minuto = partida?.minuto;
     final horario = partida?.horario ?? "A definir";
 
-    return Container(
+    final cardContent = Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
@@ -390,6 +392,19 @@ class Carddepartidas extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    return InkWell(
+      key: Key('card_partida_${partida?.id ?? "desconhecida"}'),
+      borderRadius: BorderRadius.circular(18),
+      onTap: () {
+        if (onTap != null) {
+          onTap!();
+        } else if (partida != null) {
+          DetalhesDaPartidaDialog.exibir(context, partida!);
+        }
+      },
+      child: cardContent,
     );
   }
 }
