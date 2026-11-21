@@ -56,9 +56,15 @@ class DesafiosFinalizadosSecao extends StatelessWidget {
           const SizedBox(height: 10),
           ...desafios.map((c) {
             final venceu = currentUserId != null && c.winnerId == currentUserId;
+            final efeito = currentUserId == null ? null : c.efeitoNosBetCoins(currentUserId!);
+            final semVencedor = c.status == StatusDesafio.finished && c.winnerId == null;
             final resultadoLabel = c.winnerId != null
-                ? (venceu ? "Você venceu!" : "Vencedor: ${dados?.nome(c.winnerId!) ?? 'Amigo'}")
-                : c.motivoDoCancelamento ?? "Status: ${c.status.label}";
+                ? (venceu
+                    ? "Você venceu!${efeito == null ? '' : ' $efeito'}"
+                    : "Vencedor: ${dados?.nome(c.winnerId!) ?? 'Amigo'}${efeito == null ? '' : ' • $efeito'}")
+                : semVencedor
+                    ? "Ninguém acertou • apostas devolvidas"
+                    : c.motivoDoCancelamento ?? "Status: ${c.status.label}";
             final resultadoColor = venceu
                 ? const Color(0xFF00D084)
                 : (c.winnerId != null ? const Color(0xFFF59E0B) : const Color(0xFF94A3B8));

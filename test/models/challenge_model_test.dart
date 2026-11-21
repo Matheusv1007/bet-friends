@@ -132,5 +132,26 @@ void main() {
       expect(resp.status, StatusDesafio.accepted);
       expect(resp.challengedPrediction, Palpite.awayWin);
     });
+
+    test('efeitoNosBetCoins: vencedor, perdedor, empate estrutural e não liquidado', () {
+      ChallengeModel desafio({String status = 'FINISHED', String? winnerId}) => ChallengeModel.fromMap('c1', {
+            'challengerId': 'a',
+            'challengedId': 'b',
+            'matchId': 'm',
+            'challengerPrediction': 'HOME_WIN',
+            'challengedPrediction': 'AWAY_WIN',
+            'amount': 50,
+            'status': status,
+            'winnerId': winnerId,
+            'settledResult': status == 'FINISHED' ? (winnerId == null ? 'DRAW' : 'HOME_WIN') : null,
+          });
+
+      expect(desafio(winnerId: 'a').efeitoNosBetCoins('a'), '+50 BetCoins');
+      expect(desafio(winnerId: 'a').efeitoNosBetCoins('b'), '-50 BetCoins');
+      expect(desafio().efeitoNosBetCoins('a'), 'Apostas devolvidas, saldo inalterado');
+      expect(desafio().efeitoNosBetCoins('b'), 'Apostas devolvidas, saldo inalterado');
+      expect(desafio().efeitoNosBetCoins('estranho'), isNull);
+      expect(desafio(status: 'WAITING_RESULT').efeitoNosBetCoins('a'), isNull);
+    });
   });
 }
