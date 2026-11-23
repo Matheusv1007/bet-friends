@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/partida_model.dart';
+import '../widgets_home_page/escudo_do_time.dart';
 
 class SeletorPartidaDesafio extends StatelessWidget {
   final bool isLoading;
@@ -21,6 +22,20 @@ class SeletorPartidaDesafio extends StatelessWidget {
     required this.onRecarregar,
     required this.onChanged,
   });
+
+  /// Quantas partidas o seletor lista.
+  static const int maxPartidas = 5;
+
+  /// As [maxPartidas] primeiras partidas elegíveis. A partida já selecionada
+  /// continua visível mesmo fora delas (ex.: o desafio aberto pelos detalhes
+  /// de uma partida mais adiante), para a escolha não sumir da tela.
+  static List<PartidaModel> exibidas(
+    List<PartidaModel> elegiveis,
+    String? selecionadaId,
+  ) => [
+    for (final (i, p) in elegiveis.indexed)
+      if (i < maxPartidas || p.id == selecionadaId) p,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +154,7 @@ class SeletorPartidaDesafio extends StatelessWidget {
     final partidaAtivaId = partidaId;
 
     return Column(
-      children: elegiveis.map((PartidaModel p) {
+      children: exibidas(elegiveis, partidaAtivaId).map((PartidaModel p) {
         final sel = partidaAtivaId == p.id;
         final horarioOuStatus = p.horario ?? p.status;
 
@@ -162,10 +177,10 @@ class SeletorPartidaDesafio extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.sports_soccer,
-                  size: 20,
-                  color: sel ? primaryGreen : const Color(0xFF94A3B8),
+                EscudoDoTime(
+                  url: p.logoMandante,
+                  nome: p.timeMandante,
+                  tamanho: 32,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -210,10 +225,10 @@ class SeletorPartidaDesafio extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Icon(
-                  Icons.sports_soccer,
-                  size: 20,
-                  color: sel ? primaryGreen : const Color(0xFF94A3B8),
+                EscudoDoTime(
+                  url: p.logoVisitante,
+                  nome: p.timeVisitante,
+                  tamanho: 32,
                 ),
               ],
             ),
