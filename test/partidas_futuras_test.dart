@@ -11,7 +11,7 @@ class FakePartidasRepository implements PartidasRepository {
   FakePartidasRepository({this.matches = const [], this.error});
 
   @override
-  Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
+  Future<List<PartidaModel>> getPartidas() async {
     if (error != null) throw error!;
     return matches;
   }

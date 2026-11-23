@@ -107,7 +107,7 @@ class CountingPartidasService extends PartidasService {
   int chamadas = 0;
 
   @override
-  Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
+  Future<List<PartidaModel>> getPartidas() async {
     chamadas++;
     return [
       PartidaModel(

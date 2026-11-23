@@ -26,7 +26,7 @@ class _ContadorPartidasRepository implements PartidasRepository {
   _ContadorPartidasRepository({this.partidasRetorno = const [], this.erroParaLancar});
 
   @override
-  Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
+  Future<List<PartidaModel>> getPartidas() async {
     chamadasGetPartidas++;
     await bloqueio?.future;
     if (erroParaLancar != null) {

@@ -462,7 +462,7 @@ class _FakePartidasControlado extends PartidasService {
   _FakePartidasControlado(this.partidasElegiveis);
 
   @override
-  Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
+  Future<List<PartidaModel>> getPartidas() async {
     return List.from(partidasElegiveis);
   }
 }
