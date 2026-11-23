@@ -2,8 +2,11 @@
  * Função agendada `syncMatches` de ponta a ponta no Firestore Emulator (B-1, B-2,
  * B-5, B-6, B-9): handler real, FootballService e Adapter reais, com um `fetch`
  * falso no lugar da Football-Data, que respeita `dateFrom`/`dateTo` como a API.
- * Nenhuma chamada sai da máquina. Só roda dentro de `firebase emulators:exec`
- * com um projeto demo-*; fora dele é ignorado.
+ * Nenhuma chamada sai da máquina. Configurado com uma só competição
+ * (`PARTIDAS_SYNC_COMPETICOES=BSA`), que deve se comportar como antes das
+ * quatro ligas; a passagem por várias competições está em
+ * `sincronizacaoDasCompeticoes.emulator.test.ts`. Só roda dentro de
+ * `firebase emulators:exec` com um projeto demo-*; fora dele é ignorado.
  */
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, test } from "node:test";
@@ -60,6 +63,8 @@ describe("syncMatches (Firestore Emulator)", { skip: !noEmulador && "requer Fire
 
   before(async () => {
     process.env.FOOTBALL_DATA_TOKEN = TOKEN;
+    // Lida no carregamento de `syncMatches`: precisa vir antes do import.
+    process.env.PARTIDAS_SYNC_COMPETICOES = "BSA";
     db = (await import("../src/core/firebase")).db;
     const { syncMatches } = await import("../src/partidas/syncMatches");
     rodar = async () => syncMatches.run({ scheduleTime: new Date().toISOString() } as Parameters<typeof syncMatches.run>[0]);
@@ -108,14 +113,15 @@ describe("syncMatches (Firestore Emulator)", { skip: !noEmulador && "requer Fire
     process.stdout.write = escritaOriginal.out;
     process.stderr.write = escritaOriginal.err;
     delete process.env.FOOTBALL_DATA_TOKEN;
+    delete process.env.PARTIDAS_SYNC_COMPETICOES;
     await deleteApp(getApp());
   });
 
   const partida = async (id: number) => (await db.doc(`matches/footballdata_${id}`).get()).data()!;
-  const estado = async () => (await db.doc("system/matchSync").get()).data()!;
+  const estado = async () => (await db.doc("system/matchSync_BSA").get()).data()!;
   /** A última varredura da temporada passa a ter acontecido há 7 horas. */
   const envelhecerTemporada = () =>
-    db.doc("system/matchSync").set({ lastSeasonSuccessAt: Timestamp.fromMillis(Date.now() - 7 * 60 * 60 * 1000) }, { merge: true });
+    db.doc("system/matchSync_BSA").set({ lastSeasonSuccessAt: Timestamp.fromMillis(Date.now() - 7 * 60 * 60 * 1000) }, { merge: true });
   const logsDeErro = () => logs.filter((l) => l.includes('"severity":"ERROR"'));
 
   test("1. primeira execução: uma chamada à temporada inteira, com o token no cabeçalho, grava partidas e estado", async () => {
@@ -133,6 +139,8 @@ describe("syncMatches (Firestore Emulator)", { skip: !noEmulador && "requer Fire
     const e = await estado();
     assert.equal(e.lastRunScope, "temporada");
     assert.equal(e.consecutiveFailures, 0);
+    assert.equal(e.competitionCode, "BSA");
+    assert.equal((await db.doc("system/matchSync").get()).exists, false, "o documento único antigo não é mais gravado");
     assert.deepEqual(e.lastSummary, { criadas: 3, atualizadas: 0, inalteradas: 0, ignoradas: 0, corrigidas: 0, divergencias: 0, descartadas: 0, recusadas: 0 });
   });
 
