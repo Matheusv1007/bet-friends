@@ -4,6 +4,7 @@ import { logger } from "firebase-functions";
 
 import { Challenge, ErroDeDesafio } from "../src/desafios/challenge";
 import { motivoDeCancelamentoPelaPartida } from "../src/desafios/cancelamento";
+import { ContextoDoProcessamento, varreduraDaPartida } from "../src/desafios/contextoDoProcessamento";
 import { DIAS_DE_ADIAMENTO_TOLERADO } from "../src/desafios/prazoDeAdiamento";
 import { INICIA_DESAFIO } from "../src/desafios/iniciarDesafios";
 import { aplicarEvento } from "../src/desafios/maquinaDeEstados";
@@ -111,7 +112,7 @@ test("desafio aceito inicia com a partida fora de campo, e não com partida agen
 });
 
 test("aceito com partida agendada há mais de sete dias cancela; no limite espera", () => {
-  const varredura = depoisDe(8); // temporada confirmada depois do prazo
+  const varredura = depoisDe(8); // temporada da liga da partida confirmada depois do prazo
   assert.equal(motivoDeCancelamentoPelaPartida(ACEITO, partida("AGENDADA"), depoisDe(7), varredura), null);
   assert.equal(
     motivoDeCancelamentoPelaPartida(ACEITO, partida("AGENDADA"), new Date(depoisDe(7).getTime() + 1), varredura),
@@ -167,4 +168,20 @@ test("T-01: com a sincronização da temporada parada, as saídas por tempo não
 test("T-01: sem varredura informada, as demais regras de cancelamento continuam valendo", () => {
   assert.equal(motivoDeCancelamentoPelaPartida(ACEITO, partida("CANCELADA"), INICIO), "MATCH_CANCELLED");
   assert.equal(motivoDeCancelamentoPelaPartida(PENDENTE, partida("ADIADA", depoisDe(8)), INICIO), "MATCH_POSTPONED");
+});
+
+test("T-01 por liga: o contexto entrega a varredura da liga da partida, nunca a de outra", () => {
+  const contexto: ContextoDoProcessamento = {
+    desafios: new Map(),
+    partidas: new Map(),
+    invalidos: [],
+    varreduras: new Map([["PL", depoisDe(8)], ["BSA", depoisDe(6)], ["SA", null]]),
+  };
+  const daLiga = (competitionCode: string) => ({ ...partida("AGENDADA"), competitionCode });
+  const motivo = (competitionCode: string) =>
+    motivoDeCancelamentoPelaPartida(ACEITO, daLiga(competitionCode), depoisDe(30), varreduraDaPartida(contexto, daLiga(competitionCode)));
+
+  assert.equal(motivo("PL"), "MATCH_POSTPONED");
+  // BSA varrida antes do prazo, SA sem varredura e liga fora da configuração (sem entrada) esperam.
+  for (const liga of ["BSA", "SA", "PD", "CL"]) assert.equal(motivo(liga), null, liga);
 });
