@@ -53,10 +53,10 @@ class PartidasService {
     return 'Não foi possível carregar as partidas no momento. Tente novamente.';
   }
 
-  /// Busca as partidas do Brasileirão Série A 2026.
-  Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
+  /// Busca as partidas de todos os campeonatos suportados.
+  Future<List<PartidaModel>> getPartidas() async {
     try {
-      return await _repository.getPartidas(limit: limit);
+      return await _repository.getPartidas();
     } catch (e) {
       throw Exception(formatErrorMessage(e));
     }

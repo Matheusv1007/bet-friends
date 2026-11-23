@@ -264,7 +264,7 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
                   Consumer<PartidasProvider>(
                     builder: (context, partidasProvider, child) {
                       return ListaPartidasHome(
-                        partidas: partidasProvider.partidas,
+                        partidas: partidasProvider.partidasDaHome,
                         isLoading: partidasProvider.isLoading,
                         errorMessage: partidasProvider.errorMessage,
                         hasRefreshError: partidasProvider.hasRefreshError,

@@ -13,16 +13,23 @@ const config = lerConfigDaSincronizacao();
  * Sincronização periódica das partidas (KAN-50; RN-CACHE-004, D-015, RF-008)
  * seguida do processamento de resultados e liquidação (KAN-86). Uma
  * execução centralizada no backend abastece `matches` para todos os
- * usuários e liquida os desafios cujas partidas já têm resultado oficial;
- * o app não chama o provedor.
+ * usuários, com as competições de `PARTIDAS_SYNC_COMPETICOES` consultadas em
+ * série, e liquida os desafios cujas partidas já têm resultado oficial; o app
+ * não chama o provedor.
  *
  * Em falha do provedor, o Firestore mantém o último dado e o processamento
  * usa o que já estava sincronizado. A próxima execução tenta de novo, por
  * isso `retryCount: 0`; a liquidação é idempotente. Credencial recusada e
- * resposta inválida terminam com erro, depois do processamento. Uma instância
- * só; se execuções se sobrepuserem, o ID determinístico e a marca do provedor
- * mantêm os dados. O tempo limite cabe a temporada inteira e termina antes da
- * próxima execução.
+ * resposta inválida terminam com erro, depois das demais competições e do
+ * processamento. Uma instância só; se execuções se sobrepuserem, o ID
+ * determinístico e a marca do provedor mantêm os dados.
+ *
+ * Tempo limite: com as quatro competições padrão, uma execução pode ter até
+ * quatro varreduras de temporada em série (~380 partidas cada; todas na
+ * primeira execução depois do deploy), mais o processamento. 280 s é o máximo
+ * que ainda termina antes da próxima execução da agenda padrão (5 min), com
+ * 20 s de folga. Se o tempo acabar no meio, as competições não alcançadas não
+ * registram a execução e passam a ser as primeiras da seguinte.
  */
 export const syncMatches = onSchedule(
   {
@@ -31,7 +38,7 @@ export const syncMatches = onSchedule(
     secrets: [FOOTBALL_DATA_TOKEN],
     retryCount: 0,
     maxInstances: 1,
-    timeoutSeconds: 240,
+    timeoutSeconds: 280,
   },
   async () => {
     try {

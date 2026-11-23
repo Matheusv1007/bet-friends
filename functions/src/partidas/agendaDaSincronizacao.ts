@@ -1,19 +1,18 @@
 /**
  * Configuração da sincronização periódica de partidas (KAN-50; RN-CACHE-004,
- * D-015, RF-008). Cada execução faz **uma** chamada ao provedor: bem abaixo do
- * limite do plano Free (10 chamadas por minuto). Em geral, só a janela de dias
- * em volta de agora; a cada `horasEntreTemporadas`, a temporada inteira, para
- * alcançar as partidas que saíram da janela (adiamento longo, resultado tardio).
+ * D-015, RF-008). Cada execução faz **uma** chamada ao provedor por competição
+ * configurada (`competicoes`): com as quatro padrão, 4 chamadas a cada execução,
+ * abaixo do limite do plano Free (10 chamadas por minuto). Em geral, só a janela
+ * de dias em volta de agora; a cada `horasEntreTemporadas`, a temporada inteira,
+ * para alcançar as partidas que saíram da janela (adiamento longo, resultado
+ * tardio).
  *
  * Os valores podem ser ajustados sem mudar código (por exemplo, depois da
  * medição de atraso do plano Free, KAN-53), por variáveis de ambiente lidas
- * no deploy: `PARTIDAS_SYNC_AGENDA`, `PARTIDAS_SYNC_DIAS_ANTES`,
- * `PARTIDAS_SYNC_DIAS_DEPOIS` e `PARTIDAS_SYNC_TEMPORADA_HORAS`
- * (docs/callable-functions.md §10).
+ * no deploy: `PARTIDAS_SYNC_AGENDA`, `PARTIDAS_SYNC_COMPETICOES`,
+ * `PARTIDAS_SYNC_DIAS_ANTES`, `PARTIDAS_SYNC_DIAS_DEPOIS` e
+ * `PARTIDAS_SYNC_TEMPORADA_HORAS` (docs/callable-functions.md §10).
  */
-
-/** Competição sincronizada no MVP: Campeonato Brasileiro Série A. */
-export const COMPETICAO_SINCRONIZADA = "BSA";
 
 export interface ConfigDaSincronizacao {
   /** Agenda do Cloud Scheduler, em sintaxe cron ou App Engine (`every 5 minutes`). */
@@ -24,6 +23,8 @@ export interface ConfigDaSincronizacao {
   readonly diasDepois: number;
   /** Intervalo mínimo entre as consultas à temporada inteira. */
   readonly horasEntreTemporadas: number;
+  /** Competições sincronizadas, em ordem de preferência (códigos da Football-Data). */
+  readonly competicoes: readonly string[];
 }
 
 /** O que a execução consulta no provedor. */
@@ -31,10 +32,20 @@ export type EscopoDaSincronizacao = "janela" | "temporada";
 
 export const CONFIG_PADRAO: ConfigDaSincronizacao = {
   agenda: "every 5 minutes",
+  competicoes: ["BSA", "PL", "SA", "PD"],
   diasAntes: 3,
   diasDepois: 14,
   horasEntreTemporadas: 6,
 };
+
+/** Código de competição da Football-Data: 2 a 10 letras maiúsculas ou dígitos (`BSA`, `PL`). */
+export const CODIGO_DE_COMPETICAO = /^[A-Z0-9]{2,10}$/;
+
+/**
+ * Máximo de competições sincronizadas: cada uma custa uma chamada por execução
+ * (plano Free: 10 por minuto), então a lista não pode crescer sem medir a cota.
+ */
+export const MAXIMO_DE_COMPETICOES = 8;
 
 /** Limite de cada lado da janela, para uma configuração errada não puxar a temporada toda a cada execução. */
 export const MAXIMO_DE_DIAS = 60;
@@ -57,6 +68,29 @@ function lerInteiro(env: NodeJS.ProcessEnv, nome: string, padrao: number, minimo
 }
 
 /**
+ * Lê `PARTIDAS_SYNC_COMPETICOES` (códigos da Football-Data separados por
+ * vírgula, ex.: `BSA,PL,SA,PD`). Os códigos são normalizados para maiúsculas; a
+ * ordem é mantida. Lista vazia, código fora do formato, repetido ou mais de
+ * [MAXIMO_DE_COMPETICOES] lança `RangeError`: o deploy falha em vez de gastar a
+ * cota do provedor ou consultar uma competição inexistente.
+ */
+function lerCompeticoes(env: NodeJS.ProcessEnv): readonly string[] {
+  const bruto = env.PARTIDAS_SYNC_COMPETICOES?.trim();
+  if (bruto === undefined || bruto === "") return CONFIG_PADRAO.competicoes;
+  const codigos = bruto.split(",").map((codigo) => codigo.trim().toUpperCase());
+  const valido =
+    codigos.length <= MAXIMO_DE_COMPETICOES &&
+    new Set(codigos).size === codigos.length &&
+    codigos.every((codigo) => CODIGO_DE_COMPETICAO.test(codigo));
+  if (!valido) {
+    throw new RangeError(
+      `PARTIDAS_SYNC_COMPETICOES precisa ser uma lista sem repetição de 1 a ${MAXIMO_DE_COMPETICOES} códigos de 2 a 10 letras ou dígitos (ex.: BSA,PL,SA,PD).`,
+    );
+  }
+  return codigos;
+}
+
+/**
  * Lê a configuração do ambiente, com [CONFIG_PADRAO] para o que não estiver
  * definido. Valor inválido lança `RangeError`: o deploy falha em vez de
  * publicar uma agenda errada.
@@ -64,6 +98,7 @@ function lerInteiro(env: NodeJS.ProcessEnv, nome: string, padrao: number, minimo
 export function lerConfigDaSincronizacao(env: NodeJS.ProcessEnv = process.env): ConfigDaSincronizacao {
   return {
     agenda: env.PARTIDAS_SYNC_AGENDA?.trim() || CONFIG_PADRAO.agenda,
+    competicoes: lerCompeticoes(env),
     diasAntes: lerInteiro(env, "PARTIDAS_SYNC_DIAS_ANTES", CONFIG_PADRAO.diasAntes, 0, MAXIMO_DE_DIAS),
     diasDepois: lerInteiro(env, "PARTIDAS_SYNC_DIAS_DEPOIS", CONFIG_PADRAO.diasDepois, 0, MAXIMO_DE_DIAS),
     horasEntreTemporadas: lerInteiro(

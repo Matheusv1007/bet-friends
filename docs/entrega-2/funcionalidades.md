@@ -31,6 +31,7 @@ Evidência de testes: ver a linha de base em [`docs/auditoria/quarta-auditoria.m
 | Funcionalidade | Situação | Observação |
 |---|---|---|
 | Lista e detalhes de partidas, lidos do Firestore | ✅ | Sincronização pelo backend a cada 5 minutos; o app não chama o provedor |
+| Quatro campeonatos: Brasileirão, Premier League, Serie A e La Liga | 🧪 | Sincronização em série com estado por competição, nome da liga nos cards e filtro em Criar Desafio; depende do deploy do `syncMatches`. Ver [`campeonatos.md`](../campeonatos.md) |
 | Escudos dos times (PNG e SVG) | ✅ | URL do provedor; ícone padrão sem imagem; partidas já finalizadas não ganham escudo na sincronização |
 | Créditos "Dados fornecidos por football-data.org" | ✅ | Tela de créditos |
 

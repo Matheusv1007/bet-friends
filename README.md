@@ -1,6 +1,6 @@
 # BetFriends
 
-Aplicativo Android, feito em Flutter, para desafios 1x1 entre amigos sobre partidas reais do Campeonato Brasileiro Série A. Dois amigos escolhem uma partida, registram palpites diferentes e apostam **BetCoins**, uma moeda fictícia que não pode ser comprada, vendida, sacada nem convertida em dinheiro. Quando a partida termina, o resultado oficial define quem ganha.
+Aplicativo Android, feito em Flutter, para desafios 1x1 entre amigos sobre partidas reais do Campeonato Brasileiro Série A, da Premier League, da Serie A italiana e da La Liga. Dois amigos escolhem uma partida, registram palpites diferentes e apostam **BetCoins**, uma moeda fictícia que não pode ser comprada, vendida, sacada nem convertida em dinheiro. Quando a partida termina, o resultado oficial define quem ganha.
 
 Projeto Final da disciplina de Desenvolvimento Mobile.
 
@@ -56,7 +56,7 @@ flowchart LR
 Princípios do projeto:
 
 - **O backend é a única autoridade sobre dinheiro e estado.** O app não escreve saldo, extrato, amizades, partidas nem desafios; só altera o próprio nome de exibição. As Security Rules bloqueiam todo o resto.
-- **O app nunca chama a API de futebol.** A função agendada `syncMatches` consulta o provedor (a cada 5 minutos para a janela próxima e a temporada inteira a cada 6 horas, por padrão), grava as partidas no Firestore e processa os desafios: inicia, expira, cancela e liquida. O app só lê `matches`.
+- **O app nunca chama a API de futebol.** A função agendada `syncMatches` consulta o provedor, uma chamada por campeonato configurado e em série (a cada 5 minutos para a janela próxima e a temporada inteira de cada campeonato a cada 6 horas, por padrão), grava as partidas no Firestore e processa os desafios: inicia, expira, cancela e liquida. O app só lê `matches`. Os campeonatos sincronizados vêm de `PARTIDAS_SYNC_COMPETICOES` (ver [`docs/campeonatos.md`](docs/campeonatos.md)).
 - **Identidade vem do token.** Toda função tira o UID do usuário autenticado, nunca do payload.
 - **Segredos ficam fora do repositório.** O token da football-data.org está no Secret Manager do Google Cloud.
 
@@ -71,7 +71,7 @@ São 17 funções exportadas em `functions/src/index.ts`: 16 callables e a agend
 | Autenticação | Firebase Authentication (e-mail e senha) |
 | Banco de dados | Cloud Firestore, com Security Rules e índices versionados (`firestore.rules`, `firestore.indexes.json`) |
 | Backend | Cloud Functions 2ª geração em TypeScript, Node 22, região `southamerica-east1` |
-| Dados de futebol | [football-data.org](https://www.football-data.org) API v4, campeonato `BSA` |
+| Dados de futebol | [football-data.org](https://www.football-data.org) API v4, campeonatos `BSA` (Brasileirão Série A), `PL` (Premier League), `SA` (Serie A) e `PD` (La Liga) |
 | Testes | `flutter test`, `node --test` e Firebase Emulator Suite |
 | CI | GitHub Actions |
 

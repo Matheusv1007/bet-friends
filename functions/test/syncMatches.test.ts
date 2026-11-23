@@ -12,5 +12,5 @@ test("a definição agendada declara a agenda, o fuso, o segredo e os limites (B
   assert.equal(gatilho.retryConfig?.retryCount, 0);
   assert.deepEqual(endpoint.secretEnvironmentVariables, [{ key: "FOOTBALL_DATA_TOKEN" }]);
   assert.equal(endpoint.maxInstances, 1);
-  assert.equal(endpoint.timeoutSeconds, 240, "cabe a temporada inteira e termina antes da próxima execução");
+  assert.equal(endpoint.timeoutSeconds, 280, "cabe quatro varreduras de temporada e termina antes da próxima execução");
 });

@@ -462,7 +462,7 @@ class _FakePartidasControlado extends PartidasService {
   _FakePartidasControlado(this.partidasElegiveis);
 
   @override
-  Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
+  Future<List<PartidaModel>> getPartidas() async {
     return List.from(partidasElegiveis);
   }
 }
@@ -618,6 +618,13 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Bia Rocha'),
         200,
+        // A faixa de filtros por campeonato também rola (na horizontal).
+        scrollable: find
+            .descendant(
+              of: find.byType(CriarDesafioScreen),
+              matching: find.byType(Scrollable),
+            )
+            .first,
       );
       // Valida que Bia Rocha foi pré-selecionada automaticamente
       expect(find.text('Bia Rocha'), findsWidgets);

@@ -13,6 +13,7 @@ class PartidasProvider extends ChangeNotifier {
   final PartidasService _partidasService;
 
   List<PartidaModel> _partidas = [];
+  List<PartidaModel> _partidasDaHome = [];
   Future<void>? _carregamento;
   bool _isLoading = false;
   bool _isAutoRefreshing = false;
@@ -34,7 +35,17 @@ class PartidasProvider extends ChangeNotifier {
   PartidasProvider({PartidasService? partidasService})
       : _partidasService = partidasService ?? PartidasService();
 
+  /// Número máximo de partidas na Home, somando todos os campeonatos.
+  static const int limiteDaHome = 15;
+
+  /// Todas as partidas carregadas, de todos os campeonatos, ordenadas por
+  /// horário. É o conjunto usado pela escolha de partida do Criar Desafio.
   List<PartidaModel> get partidas => _partidas;
+
+  /// Seleção da Home: até [limiteDaHome] partidas, na ordem ao vivo, agendadas
+  /// e finalizadas recentes, com os campeonatos intercalados (nenhum ocupa a
+  /// lista sozinho quando há partidas de outros).
+  List<PartidaModel> get partidasDaHome => _partidasDaHome;
   bool get isLoading => _isLoading;
   bool get isAutoRefreshing => _isAutoRefreshing;
   String? get errorMessage => _errorMessage;
@@ -66,21 +77,19 @@ class PartidasProvider extends ChangeNotifier {
     }
   }
 
-  /// Busca as partidas através do repositório/Firestore ou serviço.
+  /// Busca as partidas de todos os campeonatos através do repositório/Firestore ou serviço.
   /// - [silencioso]: se true, atualiza em segundo plano sem disparar loading em tela cheia.
   /// - [forcar]: se true, ignora o cacheTtl e o cooldown de rate limit (ex: pull-to-refresh ou retry).
   Future<void> carregarPartidas({
-    int limit = 15,
     bool silencioso = false,
     bool forcar = false,
   }) {
     return _carregamento ??= _carregarPartidas(
-      limit: limit, silencioso: silencioso, forcar: forcar,
+      silencioso: silencioso, forcar: forcar,
     ).whenComplete(() => _carregamento = null);
   }
 
   Future<void> _carregarPartidas({
-    required int limit,
     required bool silencioso,
     required bool forcar,
   }) async {
@@ -111,8 +120,9 @@ class PartidasProvider extends ChangeNotifier {
     }
 
     try {
-      final novasPartidas = await _partidasService.getPartidas(limit: limit);
+      final novasPartidas = await _partidasService.getPartidas();
       _partidas = novasPartidas;
+      _partidasDaHome = selecionarParaHome(novasPartidas);
 
       // Recupera o timestamp de sincronização mais recente ou o instante da consulta
       DateTime? latestSynced;
@@ -151,4 +161,61 @@ class PartidasProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  /// Escolhe até [limite] partidas para a Home sem deixar um campeonato ocupar tudo.
+  ///
+  /// A cota é repartida em rodadas: cada campeonato cede sua melhor partida
+  /// restante (ao vivo, depois agendadas, depois finalizadas recentes) até
+  /// completar o [limite]. A lista final segue a ordem de prioridade: ao vivo,
+  /// agendadas (mais próximas primeiro), finalizadas (mais recentes primeiro)
+  /// e demais, intercalando os campeonatos por horário.
+  @visibleForTesting
+  static List<PartidaModel> selecionarParaHome(
+    List<PartidaModel> partidas, {
+    int limite = limiteDaHome,
+  }) {
+    final prioridade = <PartidaModel, int>{};
+    for (var i = 0; i < partidas.length; i++) {
+      prioridade[partidas[i]] = i;
+    }
+    int comparar(PartidaModel a, PartidaModel b) {
+      final porGrupo = _grupoDaHome(a).compareTo(_grupoDaHome(b));
+      if (porGrupo != 0) return porGrupo;
+      final tempo = _instante(a).compareTo(_instante(b));
+      // Finalizadas: a mais recente primeiro.
+      final ordenado = _grupoDaHome(a) == 2 ? -tempo : tempo;
+      return ordenado != 0 ? ordenado : prioridade[a]!.compareTo(prioridade[b]!);
+    }
+
+    final filas = <String, List<PartidaModel>>{};
+    for (final p in partidas) {
+      (filas[p.competitionCode ?? 'BSA'] ??= []).add(p);
+    }
+    for (final fila in filas.values) {
+      fila.sort(comparar);
+    }
+
+    final escolhidas = <PartidaModel>[];
+    for (var rodada = 0; escolhidas.length < limite; rodada++) {
+      final cabecas = [
+        for (final fila in filas.values)
+          if (rodada < fila.length) fila[rodada],
+      ];
+      if (cabecas.isEmpty) break;
+      cabecas.sort(comparar);
+      escolhidas.addAll(cabecas.take(limite - escolhidas.length));
+    }
+    return escolhidas..sort(comparar);
+  }
+
+  /// 0 = ao vivo, 1 = agendada, 2 = finalizada, 3 = demais (mesma ordem de prioridade da Home).
+  static int _grupoDaHome(PartidaModel p) {
+    if (p.isAoVivo) return 0;
+    if (p.isAgendado) return 1;
+    if (p.isFinalizado) return 2;
+    return 3;
+  }
+
+  static DateTime _instante(PartidaModel p) =>
+      p.startsAtUtc ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 }
