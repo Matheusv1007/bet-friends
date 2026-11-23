@@ -38,9 +38,17 @@ class DetalhesDoDesafioDialog extends StatelessWidget {
               const SizedBox(height: 6),
               Text("Desafiado: ${dados?.nome(c.challengedId) ?? 'Amigo'} (${c.challengedPrediction!.label})", style: const TextStyle(color: Colors.white70)),
             ],
-            if (c.winnerId != null) ...[
+            if (c.settledResult != null) ...[
               const SizedBox(height: 8),
+              Text("Resultado oficial: ${c.settledResult!.label}", style: const TextStyle(color: Colors.white70)),
+            ],
+            if (c.winnerId != null) ...[
+              const SizedBox(height: 6),
               Text("Vencedor: ${dados?.nome(c.winnerId!) ?? 'Amigo'}", style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold)),
+            ],
+            if (dados?.currentUserId != null && c.efeitoNosBetCoins(dados!.currentUserId!) != null) ...[
+              const SizedBox(height: 6),
+              Text("BetCoins: ${c.efeitoNosBetCoins(dados.currentUserId!)}", style: const TextStyle(color: Color(0xFF00D084), fontWeight: FontWeight.bold)),
             ],
           ],
         ),

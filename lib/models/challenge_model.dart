@@ -112,6 +112,15 @@ class ChallengeModel {
         _ => status == StatusDesafio.cancelled ? 'Cancelado' : null,
       };
 
+  /// Efeito do desfecho nos BetCoins de [uid] (RN-RES-004 a 007): `+valor` para
+  /// quem acertou, `-valor` para quem errou e, sem vencedor, as apostas voltam
+  /// e o saldo fica igual. Nulo se o desafio não foi liquidado ou [uid] não participa.
+  String? efeitoNosBetCoins(String uid) {
+    if (status != StatusDesafio.finished || !temParticipante(uid)) return null;
+    if (winnerId == null) return 'Apostas devolvidas, saldo inalterado';
+    return winnerId == uid ? '+$amount BetCoins' : '-$amount BetCoins';
+  }
+
   bool temParticipante(String uid) => uid == challengerId || uid == challengedId;
 
   factory ChallengeModel.fromMap(String id, Map<String, dynamic> map) {

@@ -334,7 +334,7 @@ void main() {
       expect(find.byKey(const Key('home_desafios_finalizados')), findsOneWidget);
       expect(find.byKey(const Key('badge_desafios_finalizados')), findsOneWidget);
       expect(find.byKey(const Key('card_desafio_finalizado_chl_finalizado_3')), findsOneWidget);
-      expect(find.text('Você venceu!'), findsOneWidget);
+      expect(find.text('Você venceu! +80 BetCoins'), findsOneWidget);
 
       await encerrar(tester);
     });
@@ -530,6 +530,39 @@ void main() {
 
       await tester.scrollUntilVisible(find.byKey(const Key('card_desafio_finalizado_chl_cancelado_5')), 200);
       expect(find.text('Partida cancelada'), findsOneWidget);
+
+      await encerrar(tester);
+    });
+
+    testWidgets('Desafio finalizado sem vencedor informa que as apostas foram devolvidas e o resultado oficial', (tester) async {
+      await renderizarHome(tester, partidas: partidasExemplo);
+
+      challengeService.emitirDesafios([
+        ChallengeModel(
+          id: 'chl_empate_6',
+          challengerId: 'w1R2a',
+          challengedId: currentUserId,
+          participants: ['w1R2a', currentUserId],
+          matchId: 'partida_103',
+          challengerPrediction: Palpite.homeWin,
+          challengedPrediction: Palpite.awayWin,
+          settledResult: Palpite.draw,
+          amount: 50,
+          status: StatusDesafio.finished,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      ]);
+      await tester.pump();
+      await tester.pump();
+
+      await tester.scrollUntilVisible(find.byKey(const Key('card_desafio_finalizado_chl_empate_6')), 200);
+      expect(find.text('Ninguém acertou • apostas devolvidas'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('btn_detalhes_desafio_finalizado_chl_empate_6')));
+      await tester.pumpAndSettle();
+      expect(find.text('Resultado oficial: Empate'), findsOneWidget);
+      expect(find.text('BetCoins: Apostas devolvidas, saldo inalterado'), findsOneWidget);
 
       await encerrar(tester);
     });
