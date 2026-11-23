@@ -7,6 +7,7 @@ import 'services/api/partidas_service.dart';
 import 'services/auth_service.dart';
 import 'services/challenge_service.dart';
 import 'services/friendship_service.dart';
+import 'services/historico_de_desafios_service.dart';
 import 'services/user_profile_service.dart';
 import 'services/user_search_service.dart';
 import 'telas_autenticacao/auth_gate.dart';
@@ -19,6 +20,7 @@ class App extends StatelessWidget {
   final ChallengeService? challengeService;
   final FriendshipService? friendshipService;
   final UserSearchService? userSearchService;
+  final HistoricoDeDesafiosService? historicoService;
 
   const App({
     super.key,
@@ -28,6 +30,7 @@ class App extends StatelessWidget {
     this.challengeService,
     this.friendshipService,
     this.userSearchService,
+    this.historicoService,
   });
 
   @override
@@ -56,6 +59,10 @@ class App extends StatelessWidget {
         Provider<UserSearchService?>(
           create: (_) =>
               userSearchService ?? UserSearchService(authService: authService),
+        ),
+        Provider<HistoricoDeDesafiosService?>(
+          create: (_) =>
+              historicoService ?? HistoricoDeDesafiosService(authService: authService),
         ),
       ],
       child: const MaterialApp(
