@@ -14,9 +14,6 @@
  * `PARTIDAS_SYNC_TEMPORADA_HORAS` (docs/callable-functions.md §10).
  */
 
-/** Competição sincronizada no MVP: Campeonato Brasileiro Série A. */
-export const COMPETICAO_SINCRONIZADA = "BSA";
-
 export interface ConfigDaSincronizacao {
   /** Agenda do Cloud Scheduler, em sintaxe cron ou App Engine (`every 5 minutes`). */
   readonly agenda: string;
