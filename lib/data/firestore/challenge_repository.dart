@@ -1,0 +1,356 @@
+import '../../services/combinar_desafios.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../../models/challenge_model.dart';
+import '../../models/carteira.dart';
+import 'friendship_repository.dart';
+import '../../services/functions/functions_service.dart';
+import '../../services/registro_de_erros.dart';
+import 'firestore_collections.dart';
+
+enum ChallengeErrorCode {
+  unauthenticated,
+  selfChallenge,
+  friendshipRequired,
+  matchCutoff,
+  invalidMatch,
+  activeChallengeExists,
+  notPending,
+  notChallengedUser,
+  notChallengerUser,
+  duplicatePrediction,
+  invalidPrediction,
+  insufficientBalance,
+  invalidAmount,
+  challengeNotFound,
+  permissionDenied,
+  unavailable,
+  unknown,
+}
+
+/// Exceção de domínio para operações de desafio (RF-009, RF-010, RF-011).
+class ChallengeException implements Exception {
+  final ChallengeErrorCode code;
+  final String message;
+
+  const ChallengeException(this.code, this.message);
+
+  factory ChallengeException.fromFunctionsException(FunctionsException e) {
+    final motivo = e.motivo;
+
+    if (motivo == 'auto-desafio') {
+      return const ChallengeException(
+        ChallengeErrorCode.selfChallenge,
+        'Não é permitido criar um desafio para si mesmo.',
+      );
+    }
+    if (motivo == 'amizade-necessaria') {
+      return const ChallengeException(
+        ChallengeErrorCode.friendshipRequired,
+        'É necessário ter amizade aceita com o amigo para criar um desafio.',
+      );
+    }
+    if (motivo == 'partida-no-corte') {
+      return const ChallengeException(
+        ChallengeErrorCode.matchCutoff,
+        'A partida já atingiu o corte de 5 minutos antes do início.',
+      );
+    }
+    if (motivo == 'partida-invalida') {
+      return const ChallengeException(
+        ChallengeErrorCode.invalidMatch,
+        'A partida não está disponível para apostas.',
+      );
+    }
+    if (motivo == 'desafio-ativo-existente') {
+      return const ChallengeException(
+        ChallengeErrorCode.activeChallengeExists,
+        'Você já possui um desafio ativo para esta partida.',
+      );
+    }
+    if (motivo == 'desafio-nao-pendente') {
+      return const ChallengeException(
+        ChallengeErrorCode.notPending,
+        'Este desafio não está mais pendente.',
+      );
+    }
+    if (motivo == 'nao-desafiado') {
+      return const ChallengeException(
+        ChallengeErrorCode.notChallengedUser,
+        'Somente o usuário desafiado pode responder ao desafio.',
+      );
+    }
+    if (motivo == 'nao-criador') {
+      return const ChallengeException(
+        ChallengeErrorCode.notChallengerUser,
+        'Somente o criador pode cancelar o desafio.',
+      );
+    }
+    if (motivo == 'palpite-duplicado') {
+      return const ChallengeException(
+        ChallengeErrorCode.duplicatePrediction,
+        'O palpite do desafiado deve ser diferente do palpite do criador.',
+      );
+    }
+    if (motivo == 'palpite-invalido') {
+      return const ChallengeException(
+        ChallengeErrorCode.invalidPrediction,
+        'Palpite inválido. Escolha Mandante, Empate ou Visitante.',
+      );
+    }
+    if (motivo == 'saldo-insuficiente') {
+      return const ChallengeException(
+        ChallengeErrorCode.insufficientBalance,
+        'Saldo disponível de BetCoins insuficiente para esta aposta.',
+      );
+    }
+    if (motivo == 'valor-invalido') {
+      return const ChallengeException(
+        ChallengeErrorCode.invalidAmount,
+        'O valor da aposta deve ser entre 10 e 500 BetCoins.',
+      );
+    }
+    if (motivo == 'desafio-inexistente') {
+      return const ChallengeException(
+        ChallengeErrorCode.challengeNotFound,
+        'Desafio não encontrado.',
+      );
+    }
+
+    switch (e.code) {
+      case 'unauthenticated':
+        return const ChallengeException(
+          ChallengeErrorCode.unauthenticated,
+          'É necessário estar autenticado para realizar esta ação.',
+        );
+      case 'not-found':
+        return const ChallengeException(
+          ChallengeErrorCode.challengeNotFound,
+          'Desafio ou partida não encontrado.',
+        );
+      case 'permission-denied':
+        return const ChallengeException(
+          ChallengeErrorCode.permissionDenied,
+          'Sem permissão para alterar este desafio.',
+        );
+      case 'already-exists':
+        return const ChallengeException(
+          ChallengeErrorCode.activeChallengeExists,
+          'Já existe um desafio ativo para esta partida.',
+        );
+      case 'failed-precondition':
+        return ChallengeException(
+          ChallengeErrorCode.notPending,
+          e.message.isNotEmpty ? e.message : 'Ação não permitida no estado atual do desafio.',
+        );
+      case 'invalid-argument':
+        return ChallengeException(
+          ChallengeErrorCode.invalidAmount,
+          e.message.isNotEmpty ? e.message : 'Dados informados para o desafio são inválidos.',
+        );
+      case 'unavailable':
+      case 'deadline-exceeded':
+        return const ChallengeException(
+          ChallengeErrorCode.unavailable,
+          'Serviço indisponível no momento. Verifique sua conexão.',
+        );
+      default:
+        return ChallengeException(
+          ChallengeErrorCode.unknown,
+          e.message.isNotEmpty
+              ? e.message
+              : 'Não foi possível processar a operação de desafio.',
+        );
+    }
+  }
+
+  @override
+  String toString() => 'ChallengeException(${code.name}): $message';
+}
+
+/// Contrato para operações de desafios no aplicativo.
+abstract interface class ChallengeRepository {
+  Future<CriarDesafioResponse> criarDesafio(CriarDesafioRequest request);
+  Future<AceitarDesafioResponse> aceitarDesafio(AceitarDesafioRequest request);
+  Future<EncerrarDesafioResponse> recusarDesafio(String challengeId);
+  Future<EncerrarDesafioResponse> cancelarDesafio(String challengeId);
+  Future<List<ChallengeModel>> listarDesafiosDoUsuario(String uid);
+  Stream<List<ChallengeModel>> observarDesafiosDoUsuario(String uid);
+  Future<int?> buscarSaldoDisponivel(String uid);
+  Future<List<AmigoItem>> listarAmigosAceitos(String uid);
+}
+
+/// Implementação padrão que utiliza Callable Functions para mutações e Firestore para leituras.
+class FunctionsChallengeRepository implements ChallengeRepository {
+  final FunctionsService? _functionsSobDemanda;
+  final FirebaseFirestore _firestore;
+
+  FunctionsChallengeRepository({
+    FunctionsService? functions,
+    FirebaseFirestore? firestore,
+  })  : _functionsSobDemanda = functions,
+        _firestore = firestore ?? FirebaseFirestore.instance;
+
+  FunctionsService get _functions => _functionsSobDemanda ?? FunctionsService();
+
+  @override
+  Future<CriarDesafioResponse> criarDesafio(CriarDesafioRequest request) async {
+    try {
+      final response = await _functions.call(
+        CallableNames.createChallenge,
+        request.toMap(),
+      );
+      return CriarDesafioResponse.fromMap(response);
+    } on FunctionsException catch (e) {
+      throw ChallengeException.fromFunctionsException(e);
+    } catch (e, s) {
+      registrarErro('criar desafio', e, s);
+      throw const ChallengeException(
+        ChallengeErrorCode.unknown,
+        'Não foi possível criar o desafio. Tente novamente.',
+      );
+    }
+  }
+
+  @override
+  Future<AceitarDesafioResponse> aceitarDesafio(AceitarDesafioRequest request) async {
+    try {
+      final response = await _functions.call(
+        CallableNames.acceptChallenge,
+        request.toMap(),
+      );
+      return AceitarDesafioResponse.fromMap(response);
+    } on FunctionsException catch (e) {
+      throw ChallengeException.fromFunctionsException(e);
+    } catch (e, s) {
+      registrarErro('aceitar desafio', e, s);
+      throw const ChallengeException(
+        ChallengeErrorCode.unknown,
+        'Não foi possível aceitar o desafio. Tente novamente.',
+      );
+    }
+  }
+
+  @override
+  Future<EncerrarDesafioResponse> recusarDesafio(String challengeId) async {
+    try {
+      final response = await _functions.call(
+        CallableNames.rejectChallenge,
+        {'challengeId': challengeId},
+      );
+      return EncerrarDesafioResponse.fromMap(response);
+    } on FunctionsException catch (e) {
+      throw ChallengeException.fromFunctionsException(e);
+    }
+  }
+
+  @override
+  Future<EncerrarDesafioResponse> cancelarDesafio(String challengeId) async {
+    try {
+      final response = await _functions.call(
+        CallableNames.cancelChallenge,
+        {'challengeId': challengeId},
+      );
+      return EncerrarDesafioResponse.fromMap(response);
+    } on FunctionsException catch (e) {
+      throw ChallengeException.fromFunctionsException(e);
+    }
+  }
+
+  @override
+  Future<List<ChallengeModel>> listarDesafiosDoUsuario(String uid) async {
+    final snapshot = await _firestore
+        .collection(FirestoreCollections.challenges)
+        .where('participants', arrayContains: uid)
+        .get();
+
+    return snapshot.docs
+        .map((doc) => ChallengeModel.fromMap(doc.id, doc.data()))
+        .toList();
+  }
+
+  @override
+  Stream<List<ChallengeModel>> observarDesafiosDoUsuario(String uid) {
+    final base = _firestore.collection(FirestoreCollections.challenges)
+        .where('participants', arrayContains: uid);
+    final consultas = [
+      base.where('status', whereIn: [
+        for (final s in StatusDesafio.values) if (!s.isTerminal) s.valor,
+      ]),
+      base.where('status', whereIn: [
+        for (final s in StatusDesafio.values) if (s.isTerminal) s.valor,
+      ]).orderBy('updatedAt', descending: true).limit(20),
+    ];
+    Stream<List<ChallengeModel>> observar(Query<Map<String, dynamic>> consulta) =>
+        consulta.snapshots().map((snapshot) => snapshot.docs.map((doc) =>
+            ChallengeModel.fromMap(doc.id, doc.data())).toList());
+    return combinarDesafios(observar(consultas[0]), observar(consultas[1]));
+  }
+
+  @override
+  Future<int?> buscarSaldoDisponivel(String uid) async {
+    try {
+      final doc = await _firestore.collection(FirestoreCollections.users).doc(uid).get();
+      if (!doc.exists) return null;
+      return Carteira.fromMap(doc.data()!).saldoDisponivel;
+    } on FirebaseException catch (e, s) {
+      registrarErro('buscar saldo disponível', e, s);
+      throw _erroDeLeitura(e);
+    } catch (e, s) {
+      registrarErro('buscar saldo disponível', e, s);
+      throw const ChallengeException(
+        ChallengeErrorCode.unknown,
+        'Não foi possível carregar o saldo disponível. Tente novamente.',
+      );
+    }
+  }
+
+  @override
+  Future<List<AmigoItem>> listarAmigosAceitos(String uid) async {
+    try {
+      final amigos = await FunctionsFriendshipRepository(functions: _functions)
+          .listarAmigosAceitos();
+      return [
+        for (final amigo in amigos)
+          AmigoItem(uid: amigo.userId, displayName: amigo.displayName,
+            username: amigo.username),
+      ];
+    } on FriendshipException catch (e) {
+      throw ChallengeException(ChallengeErrorCode.unknown, e.message);
+    } catch (e, s) {
+      registrarErro('carregar amigos elegíveis para desafio', e, s);
+      throw const ChallengeException(
+        ChallengeErrorCode.unknown,
+        'Não foi possível carregar a lista de amigos. Tente novamente.',
+      );
+    }
+  }
+
+  ChallengeException _erroDeLeitura(FirebaseException erro) {
+    switch (erro.code) {
+      case 'permission-denied':
+        return const ChallengeException(
+          ChallengeErrorCode.permissionDenied,
+          'Sem permissão para consultar estes dados.',
+        );
+      case 'unauthenticated':
+        return const ChallengeException(
+          ChallengeErrorCode.unauthenticated,
+          'É necessário estar autenticado para realizar esta ação.',
+        );
+      case 'unavailable':
+      case 'deadline-exceeded':
+        return const ChallengeException(
+          ChallengeErrorCode.unavailable,
+          'Serviço indisponível no momento. Verifique sua conexão.',
+        );
+      default:
+        return const ChallengeException(
+          ChallengeErrorCode.unknown,
+          'Não foi possível carregar os dados para o desafio. Tente novamente.',
+        );
+    }
+  }
+}
+

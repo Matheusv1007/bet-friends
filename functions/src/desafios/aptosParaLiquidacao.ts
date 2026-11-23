@@ -1,0 +1,116 @@
+import { Firestore } from "firebase-admin/firestore";
+import { logger } from "firebase-functions";
+
+import { ErroDePartida, LIQUIDA_AUTOMATICAMENTE, Match, ResultadoDaPartida } from "../partidas/match";
+import { Challenge, ErroDeDesafio } from "./challenge";
+import { carregarContextoDoProcessamento, ContextoDoProcessamento } from "./contextoDoProcessamento";
+
+/**
+ * Desafios aptos para liquidação (KAN-82; RN-MAT-012, RN-MAT-013,
+ * RN-MAT-015, RN-MAT-016, RN-RES-001, RNF-008). Só segue para liquidação o
+ * desafio em `WAITING_RESULT` cuja partida está `FINALIZADA` e com resultado
+ * normalizado. Partida suspensa, em revisão ou ainda sem resultado mantém o
+ * desafio aguardando; desafio já `FINISHED` nunca é candidato.
+ */
+
+/**
+ * Resultado com que o desafio pode ser liquidado, ou `null` se ele ainda não
+ * está apto. A liquidação (KAN-85) chama de novo dentro da própria transação,
+ * com os dados relidos, antes de mover qualquer BetCoin.
+ */
+export function resultadoParaLiquidar(desafio: Challenge, partida: Match | null): ResultadoDaPartida | null {
+  if (partida !== null && partida.id !== desafio.matchId) {
+    throw new ErroDeDesafio(`A partida ${partida.id} não é a do desafio ${desafio.id}.`);
+  }
+  if (desafio.status !== "WAITING_RESULT" || partida === null || !LIQUIDA_AUTOMATICAMENTE[partida.status]) return null;
+  return partida.result;
+}
+
+export interface DesafioApto {
+  readonly desafio: Challenge;
+  /** Resultado oficial normalizado da partida, que será gravado como `settledResult`. */
+  readonly resultado: ResultadoDaPartida;
+}
+
+/**
+ * Por que um desafio em `WAITING_RESULT` não foi liquidado:
+ * - `partida-suspensa` e `partida-em-revisao` são os casos excepcionais
+ *   (RN-MAT-015, RN-MAT-016, KAN-87): sem regra de liquidação automática,
+ *   ficam aguardando e aparecem no log a cada execução;
+ * - `sem-resultado`: partida finalizada, mas o provedor ainda não confirmou o vencedor;
+ * - `partida-nao-finalizada`: a partida voltou a outro status (ex.: correção do provedor);
+ * - `partida-inexistente`: o documento em `matches` não existe.
+ */
+export type MotivoDeEspera =
+  | "partida-suspensa"
+  | "partida-em-revisao"
+  | "sem-resultado"
+  | "partida-nao-finalizada"
+  | "partida-inexistente";
+
+export interface DesafioAguardando {
+  readonly id: string;
+  readonly matchId: string;
+  readonly motivo: MotivoDeEspera;
+}
+
+function motivoDeEspera(partida: Match | null): MotivoDeEspera {
+  if (partida === null) return "partida-inexistente";
+  switch (partida.status) {
+    case "SUSPENSA":
+      return "partida-suspensa";
+    case "REVISAO_NECESSARIA":
+      return "partida-em-revisao";
+    case "FINALIZADA":
+      return "sem-resultado";
+    default:
+      return "partida-nao-finalizada";
+  }
+}
+
+export interface ResultadoDaIdentificacao {
+  readonly aptos: readonly DesafioApto[];
+  /** Desafios em `WAITING_RESULT` que continuam aguardando, com o motivo. */
+  readonly aguardando: readonly DesafioAguardando[];
+  /** Desafios ou partidas fora do schema; ficam como estão, registrados em log. */
+  readonly ignorados: readonly { readonly id: string; readonly motivo: string }[];
+}
+
+/**
+ * Lista os desafios em `WAITING_RESULT` aptos para liquidação. Só lê: não
+ * muda nenhum desafio. Cada partida é lida uma vez, mesmo com vários
+ * desafios nela.
+ */
+export async function identificarDesafiosAptos(db: Firestore, contexto?: ContextoDoProcessamento): Promise<ResultadoDaIdentificacao> {
+  const inicio = Date.now();
+  contexto ??= await carregarContextoDoProcessamento(db, ["WAITING_RESULT"]);
+  const ignorados: { id: string; motivo: string }[] = contexto.invalidos.filter((d) => d.status === "WAITING_RESULT");
+  const desafios = [...contexto.desafios.values()].filter((d) => d.status === "WAITING_RESULT");
+
+  const aptos: DesafioApto[] = [];
+  const aguardando: DesafioAguardando[] = [];
+  for (const desafio of desafios) {
+    const partida = contexto.partidas.get(desafio.matchId) ?? null;
+    if (partida instanceof ErroDePartida) {
+      ignorados.push({ id: desafio.id, motivo: partida.message });
+      continue;
+    }
+    const resultado = resultadoParaLiquidar(desafio, partida);
+    if (resultado === null) aguardando.push({ id: desafio.id, matchId: desafio.matchId, motivo: motivoDeEspera(partida) });
+    else aptos.push({ desafio, resultado });
+  }
+
+  const excepcionais = aguardando.filter((a) => a.motivo === "partida-suspensa" || a.motivo === "partida-em-revisao");
+  if (excepcionais.length > 0) {
+    // Acompanhamento técnico (KAN-87): nada é pago, perdido ou reembolsado até existir regra para o caso.
+    logger.warn("Desafios em caso excepcional, sem liquidação automática", { excepcionais });
+  }
+  if (ignorados.length > 0) {
+    logger.warn("Desafios aguardando resultado não avaliados: desafio ou partida fora do schema", { ignorados });
+  }
+  logger.info("Identificação de desafios aptos para liquidação", {
+    avaliados: desafios.length, aptos: aptos.length, aguardando: aguardando.length,
+    ignorados: ignorados.length, duracaoMs: Date.now() - inicio,
+  });
+  return { aptos, aguardando, ignorados };
+}

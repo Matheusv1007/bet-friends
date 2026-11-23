@@ -1,30 +1,35 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:betfriends/app.dart';
+import 'package:betfriends/services/challenge_service.dart';
+import 'package:provider/provider.dart';
 
-import 'package:betfriends/main.dart';
+import 'support/fake_auth.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Verifica se a aplicação inicializa com o título BetFriends', (WidgetTester tester) async {
+    // O AuthGate consulta a sessão ao iniciar; sem usuário, exibe o Login
+    await tester.pumpWidget(App(authService: FakeAuthService()));
+    await tester.pump();
+    expect(find.text('BetFriends'), findsOneWidget);
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('desafios usam a sessão injetada sem inicializar o Firebase', (tester) async {
+    await tester.pumpWidget(App(authService: FakeAuthService()));
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    final contexto = tester.element(find.text('BetFriends'));
+    final desafios = contexto.read<ChallengeService?>();
+    expect(desafios, isNotNull);
+    expect(await desafios!.listarDesafios(), isEmpty);
+  });
+
+  testWidgets('preserva o serviço de desafios injetado', (tester) async {
+    final auth = FakeAuthService();
+    final desafios = ChallengeService(authService: auth);
+    await tester.pumpWidget(App(authService: auth, challengeService: desafios));
+    await tester.pump();
+
+    final contexto = tester.element(find.text('BetFriends'));
+    expect(contexto.read<ChallengeService?>(), same(desafios));
   });
 }

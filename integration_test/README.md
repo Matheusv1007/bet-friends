@@ -1,0 +1,112 @@
+# Testes de integração com os emuladores Firebase
+
+## `user_profile_emulator_test.dart` (KAN-32)
+
+Valida `FirestoreUserProfileRepository` e `UserProfileService` num dispositivo Android contra o **Auth Emulator**, o **Firestore Emulator** e as Security Rules reais (`firestore.rules`). Usa um `FirebaseApp` separado, configurado para o projeto fictício `demo-betfriends`. O app padrão, ligado ao projeto real, não é usado pelo teste.
+
+Os dados são criados antes por `support/seed_emulators.mjs` com o Admin SDK, porque o app não pode criar `users/{uid}`:
+
+| Conta (só no emulador) | Documento `users/{uid}` |
+|---|---|
+| `uidAna` / `ana@example.com` | Perfil completo do schema v2.0 (com carteira) |
+| `uidBia` / `bia@example.com` | Perfil completo (usado como "outro usuário") |
+| `uidCaio` / `caio@example.com` | Perfil completo, alterado só pelos testes de edição do nome |
+| `uidDani` / `dani@example.com` | Perfil completo, usado só pelos testes de modo offline |
+| `uidEva` / `eva@example.com` | Perfil completo com 5 BetCoins e nada reservado, usado só pela recuperação (KAN-80) |
+| `uidSemPerfil` / `semperfil@example.com` | Nenhum |
+| `uidInvalido` / `invalido@example.com` | Documento fora do schema (sem `username`) |
+
+## `perfil_screen_emulator_test.dart` (KAN-28)
+
+Abre a `PerfilScreen` com o `UserProfileService` real, no mesmo ambiente, e verifica o que a tela exibe: nome e username de `uidBia`, perfil inexistente (`uidSemPerfil`), documento fora do schema (`uidInvalido`), sem sessão e Firestore inacessível.
+
+## `editar_nome_emulator_test.dart` (KAN-29)
+
+Edita o nome de `uidCaio` pela tela e confere no Firestore que só `displayName` e `updatedAt` mudaram. Também verifica que, sem conexão, a gravação falha em tempo finito com `unavailable` e não grava, e que o perfil de outro UID não pode ser alterado.
+
+## `modo_offline_emulator_test.dart` (KAN-24)
+
+Derruba e restabelece a conexão entre o app e o Firestore Emulator com `support/proxy_conexao.mjs`, um proxy TCP local (porta 8180, controle HTTP em 8181) que só encaminha para o emulador. O cache persistente fica ligado, como no app. Verifica que:
+
+- sem conexão e sem cache, a leitura informa `unavailable`;
+- sem conexão, com cache, o último perfil conhecido é exibido como "do cache";
+- alterar o perfil offline falha, não toca o cache, não deixa escrita pendente e nada é gravado quando a conexão volta;
+- depois do retorno da conexão, uma nova ação do usuário grava normalmente;
+- a tela de Perfil avisa a falta de conexão, bloqueia a edição e volta ao normal ao reconectar.
+
+Um teste de controle mostra o motivo da política: um `update` direto offline seria enviado sozinho ao reconectar.
+
+`disableNetwork()` não é usado para simular a queda: ele não impede transações de chegarem ao servidor.
+
+## `criar_perfil_emulator_test.dart` (KAN-32)
+
+Cria o perfil pela Callable `createUserProfile` (KAN-31) com o `UserProfileService` real, contra o **Functions Emulator**, além de Auth e Firestore. As contas são criadas pelo próprio teste no Auth Emulator, como a tela de cadastro fará (KAN-25); não dependem do seed. Verifica que:
+
+- o perfil criado é `users/{uid}` do UID autenticado, com nome, username, e-mail, carteira de 1.000 e um único `INITIAL_BALANCE`, e que o app lê o mesmo documento;
+- repetir a chamada, inclusive em paralelo, não duplica perfil nem carteira (`criado == false`);
+- username de outro usuário → `usernameUnavailable`; perfil com outro username → `alreadyExists`; formato inválido → `invalidData`; sem sessão → `unauthenticated` no serviço e no backend;
+- uma conta do Auth sem perfil (primeira tentativa recusada) é recuperada ao repetir;
+- o cliente continua sem conseguir gravar `users`, `usernames` e `betCoinTransactions` diretamente;
+- Functions inacessível → `unavailable`; função inexistente → `not-found`;
+- leitura, observação e edição do nome continuam funcionando no perfil criado.
+
+Os testes do arquivo rodam em ordem: os grupos B a D usam a conta criada no grupo A.
+
+O `FirebaseApp` deste arquivo usa uma API key fictícia no formato do Firebase, porque o SDK de Functions no Android recusa chaves como `demo-api-key`. Não é uma credencial.
+
+## `cadastro_emulator_test.dart` (KAN-25)
+
+Usa o app inteiro (`App` com AuthGate, Login, Cadastro, Home e Perfil) contra Auth, Firestore e Functions Emulator, com partidas locais em vez da Football-Data. Preenche a tela de cadastro e verifica:
+
+- cadastro válido → Home com o nome, `users/{uid}` com username, e-mail e carteira de 1.000 e um único `INITIAL_BALANCE`;
+- logout, login com a conta criada e reabertura do app com a sessão restaurada;
+- e-mail já cadastrado → mensagem, sem conta nova;
+- username de outro usuário → a conta fica criada, a tela repete só o perfil com outro username, sem criar outra conta nem duplicar a carteira;
+- Functions fora do ar depois de criar a conta → mensagem; com o app reaberto, a aba Perfil oferece "CONCLUIR CADASTRO", que cria o perfil.
+
+Usa e-mails e usernames com o prefixo `cad`, para não colidir com `criar_perfil_emulator_test.dart` na mesma sessão dos emuladores. Os testes rodam em ordem (B usa a conta de A).
+
+## `historico_desafios_emulator_test.dart` (KAN-89)
+
+Consulta o histórico com o serviço real e as Security Rules: criador ou desafiado, só estados encerrados, ordem do mais recente ao mais antigo, paginação com empate de `finishedAt`, documento inválido ignorado e contado, terceiros negados, histórico vazio, consultas simultâneas e desafio encerrado durante a paginação. Usa `uidHana`, `uidIvo`, `uidJoao` e `uidVazio`. O emulador não exige índices compostos; `firestore.indexes.json` é conferido em `tests/firestore-rules/`.
+
+## `recuperacao_emulator_test.dart` (KAN-80)
+
+Chama a Callable `claimRecoveryBonus` pelo `FunctionsService` (HTTP do Functions Emulator), sem tela (a interface é da KAN-71). Verifica: sem sessão → `unauthenticated`; `uidEva` (5 BetCoins) recebe +100 com a transação `RECOVERY_BONUS` e `lastRecoveryBonusAt`, ignorando `userId`/`amount` do payload; o cliente não altera saldo, `lastRecoveryBonusAt` nem o ledger; repetir é negado (`saldo-suficiente`); conta com 1.000 e conta sem perfil são negadas com o motivo.
+
+## `jornada_mvp_emulator_test.dart` (KAN-107, N-02/N-15)
+
+Usa contas exclusivas `uidAnaJornada` / `ana.jornada@example.com` e `uidBiaJornada` / `bia.jornada@example.com`, com os nomes Ana Lima e Bia Rocha. Verifica autenticação, perfil/carteira próprios, negação de leitura privada de terceiros e amigos públicos via `FunctionsChallengeRepository.listarAmigosAceitos`/`getFriends`. Não cria, aceita ou liquida desafios. Requer também Functions compiladas; não compartilha os perfis alterados pelos testes de edição de nome.
+
+## `partidas_emulator_test.dart` (N-01)
+
+Consulta o `FirestorePartidasRepository` real com mais de 30 partidas passadas e cinco futuras no seed. Verifica que partidas futuras aparecem primeiro e continuam disponíveis offline. Usa Auth e Firestore; não chama a Football-Data.org.
+
+## Pré-requisitos
+
+- Emulador Android em execução (`flutter emulators --launch Pixel_10_Pro`). O teste acessa os emuladores do host por `10.0.2.2`.
+- JDK 21+, Firebase CLI e Firestore Emulator, como em `tests/firestore-rules/README.md`.
+- `cd functions && npm ci`, para o `firebase-admin` usado pelo seed.
+- Para `criar_perfil_emulator_test.dart`, `cadastro_emulator_test.dart`, `jornada_mvp_emulator_test.dart` e `recuperacao_emulator_test.dart`: `cd functions && npm run build`, para o Functions Emulator carregar `functions/lib/`.
+- Node 22 no PATH e Firebase CLI 15.32.1 pelo npm (`npx firebase-tools@15.32.1`), conforme [`docs/callable-functions.md`](../docs/callable-functions.md) §9. O binário standalone (`/usr/local/bin/firebase`) usa um Node 20 embutido, que não carrega o `firebase-admin` 14 (`ERR_REQUIRE_ESM` em `jose`) e deixa o Functions Emulator sem funções (`not-found`).
+
+## Executar
+
+Na raiz do repositório, com o Node 22 no PATH (`docs/callable-functions.md` §9.2):
+
+```bash
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk PATH="$JAVA_HOME/bin:$PATH" \
+  flock /tmp/betfriends-emulator.lock npx firebase-tools@15.32.1 \
+  emulators:exec --only auth,firestore,functions --project demo-betfriends \
+  "$(command -v node) integration_test/support/seed_emulators.mjs && \
+   { $(command -v node) integration_test/support/proxy_conexao.mjs & P=\$!; \
+     $(command -v flutter) test integration_test/ -d emulator-5554; R=\$?; kill \$P; exit \$R; }"
+```
+
+O proxy só é necessário para `modo_offline_emulator_test.dart`; os demais arquivos funcionam com o comando sem ele. O Functions Emulator também é necessário para `jornada_mvp_emulator_test.dart`, além de `criar_perfil_emulator_test.dart`, `cadastro_emulator_test.dart` e `recuperacao_emulator_test.dart`.
+
+Os arquivos rodam em sequência na mesma sessão dos emuladores. Cada um altera só a própria conta (`uidAna` na KAN-32, `uidCaio` na KAN-29, `uidDani` na KAN-24); a tela da KAN-28 usa `uidBia`, que ninguém altera.
+
+O seed aborta se `FIRESTORE_EMULATOR_HOST`/`FIREBASE_AUTH_EMULATOR_HOST` não estiverem definidos ou se o projeto não começar com `demo-`. O teste Dart verifica que o app usado é `demo-*`.
+
+Estes testes **não** rodam com `flutter test` comum: precisam de um dispositivo e dos emuladores. Toda execução dos emuladores deve usar `flock /tmp/betfriends-emulator.lock` para não disputar as portas fixas com outros worktrees. As novas integrações N-01/N-02 ficaram não executadas nesta correção por falta de Android; análise estática não substitui a execução nativa.

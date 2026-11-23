@@ -43,6 +43,24 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/build/
 
 # Widget Preview related
 .widget_preview/
+
+AnaliseTemporaria.md
+
+# Firebase
+firebase-debug.log
+firebase-debug.*.log
+ui-debug.log
+
+# Environment and Secrets (KAN-21: RN-SEC-003, RN-SEC-005, RNF-004)
+.env
+.env.*
+*.env
+*.local
+**/.secret.local
+.secret.local
+# Configuração pública de produção; segredos continuam no Secret Manager.
+!/functions/.env.betfriends-unirv-2026

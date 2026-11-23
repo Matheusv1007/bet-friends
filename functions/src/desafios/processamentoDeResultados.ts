@@ -1,0 +1,111 @@
+import { Firestore } from "firebase-admin/firestore";
+import { logger } from "firebase-functions";
+
+import { moverDesafiosParaAguardandoResultado } from "./aguardarResultado";
+import { identificarDesafiosAptos } from "./aptosParaLiquidacao";
+import { cancelarDesafiosPelaPartida } from "./cancelamento";
+import { expirarDesafiosPendentes } from "./expirarDesafios";
+import { finalizarDesafio } from "./finalizacao";
+import { iniciarDesafiosAceitos } from "./iniciarDesafios";
+import { carregarContextoDoProcessamento } from "./contextoDoProcessamento";
+import { CONCORRENCIA_COM_CARTEIRA, processarComConcorrencia } from "./concorrenciaLimitada";
+
+/**
+ * Processamento automático de resultados e liquidação (KAN-86;
+ * RN-CACHE-004, RN-RES-001, RN-RES-009, D-008, D-015). Roda centralizado no
+ * backend, logo depois de cada sincronização (`syncMatches`), e só usa o
+ * que já está em `matches`: nenhuma chamada ao provedor, nenhum
+ * processamento por usuário ou por tela.
+ *
+ * 0. desafios com partida `CANCELADA` ou adiada além do tolerado → `CANCELLED`,
+ *    com as reservas liberadas (A-01, KAN-68);
+ * 1. desafios `PENDING` que atingiram o corte de 5 minutos → `EXPIRED` (KAN-65);
+ * 2. desafios `IN_PROGRESS` com partida fora de campo → `WAITING_RESULT` (KAN-67);
+ * 3. desafios aptos: partida `FINALIZADA` com resultado (KAN-82); casos
+ *    excepcionais ficam aguardando e vão para o log (KAN-87);
+ * 4. cada apto passa pela finalização idempotente (KAN-85), uma transação
+ *    por desafio.
+ *
+ * A falha de um desafio não impede os demais e não deixa efeito parcial
+ * (a transação dele é desfeita); a próxima execução tenta de novo, e o que
+ * já foi finalizado devolve `ja-finalizado` sem pagar outra vez.
+ */
+
+export interface DesafioComFalha {
+  readonly id: string;
+  /** Código do erro de domínio (ex.: `reserva-inexistente`), ou o nome do erro. */
+  readonly codigo: string;
+  readonly motivo: string;
+}
+
+export interface ResumoDoProcessamento {
+  /** IDs dos desafios cancelados porque a partida foi cancelada ou adiada além do tolerado (A-01). */
+  readonly cancelados: readonly string[];
+  readonly iniciados: readonly string[];
+  readonly aguardandoResultado: readonly string[];
+  readonly finalizados: readonly string[];
+  /** Já estavam `FINISHED` quando a transação releu o desafio (outra execução chegou antes). */
+  readonly jaFinalizados: readonly string[];
+  readonly aguardando: number;
+  readonly falhas: readonly DesafioComFalha[];
+}
+
+export async function processarResultados(db: Firestore): Promise<ResumoDoProcessamento> {
+  const inicio = Date.now();
+  const inicioDaLeitura = Date.now();
+  const contexto = await carregarContextoDoProcessamento(db);
+  logger.info("Leitura compartilhada dos desafios e partidas", {
+    desafios: contexto.desafios.size, partidas: contexto.partidas.size,
+    invalidos: contexto.invalidos.length, duracaoMs: Date.now() - inicioDaLeitura,
+  });
+  const agora = new Date();
+  const { cancelados } = await cancelarDesafiosPelaPartida(db, agora, contexto);
+  await expirarDesafiosPendentes(db, agora, contexto);
+  const { iniciados } = await iniciarDesafiosAceitos(db, contexto);
+  const { movidos } = await moverDesafiosParaAguardandoResultado(db, contexto);
+  const { aptos, aguardando } = await identificarDesafiosAptos(db, contexto);
+
+  const finalizados: string[] = [];
+  const jaFinalizados: string[] = [];
+  const falhas: DesafioComFalha[] = [];
+  const inicioDaLiquidacao = Date.now();
+  await processarComConcorrencia(aptos, async ({ desafio }) => {
+    try {
+      const r = await finalizarDesafio(db, desafio.id);
+      (r.resultado === "finalizado" ? finalizados : jaFinalizados).push(desafio.id);
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      const codigo = "code" in e && typeof e.code === "string" ? e.code : e.name;
+      falhas.push({ id: desafio.id, codigo, motivo: e.message });
+    }
+  }, CONCORRENCIA_COM_CARTEIRA);
+  logger.info("Liquidação dos desafios aptos", {
+    aptos: aptos.length, finalizados: finalizados.length, jaFinalizados: jaFinalizados.length,
+    falhas: falhas.length, duracaoMs: Date.now() - inicioDaLiquidacao,
+  });
+
+  if (falhas.length > 0) {
+    // Nada foi gravado para esses desafios; a próxima execução tenta de novo.
+    logger.error("Desafios aptos que não puderam ser liquidados", { falhas });
+  }
+  const resumo = {
+    cancelados: cancelados.map((c) => c.id),
+    iniciados: [...iniciados],
+    aguardandoResultado: movidos,
+    finalizados,
+    jaFinalizados,
+    aguardando: aguardando.length,
+    falhas,
+  };
+  logger.info("Processamento de resultados concluído", {
+    cancelados: cancelados.length,
+    iniciados: iniciados.length,
+    aguardandoResultado: movidos.length,
+    finalizados: finalizados.length,
+    jaFinalizados: jaFinalizados.length,
+    aguardando: aguardando.length,
+    falhas: falhas.length,
+    duracaoMs: Date.now() - inicio,
+  });
+  return resumo;
+}
