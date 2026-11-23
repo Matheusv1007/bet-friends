@@ -278,6 +278,27 @@ describe(
       assert.deepEqual(await carteira(BOB), { total: 1000, reservado: 0 });
     });
 
+    test("T-01: aceito com partida ainda agendada após 7 dias só é cancelado se a temporada foi sincronizada depois do prazo", async () => {
+      const id = await criarEAceitar(100);
+      await semearPartida();
+      const agora = new Date(INICIO.getTime() + 8 * UM_DIA);
+      const varredura = (d: Date) => db.doc("system/matchSync").set({ lastSeasonSuccessAt: Timestamp.fromDate(d) });
+
+      // Sem nenhuma varredura registrada e com a última antes do fim do prazo: a partida pode ter acontecido sem sabermos.
+      assert.deepEqual((await cancelarDesafiosPelaPartida(db, agora)).cancelados, []);
+      await varredura(new Date(INICIO.getTime() + 6 * UM_DIA));
+      assert.deepEqual((await cancelarDesafiosPelaPartida(db, agora)).cancelados, []);
+      assert.equal((await lerDesafio(db, id))?.status, "ACCEPTED");
+      assert.deepEqual(await carteira(ALICE), { total: 1000, reservado: 100 });
+      assert.deepEqual(await carteira(BOB), { total: 1000, reservado: 100 });
+
+      // O provedor ainda a mostrava como agendada depois do prazo: remarcação indefinida de verdade.
+      await varredura(new Date(INICIO.getTime() + 7 * UM_DIA + 60 * 60 * 1000));
+      assert.deepEqual((await cancelarDesafiosPelaPartida(db, agora)).cancelados, [{ id, motivo: "MATCH_POSTPONED" }]);
+      assert.deepEqual(await carteira(ALICE), { total: 1000, reservado: 0 });
+      assert.deepEqual(await carteira(BOB), { total: 1000, reservado: 0 });
+    });
+
     test("partida remarcada em até 7 dias mantém o desafio; além disso, cancela", async () => {
       const id = await criarEAceitar(100);
 
