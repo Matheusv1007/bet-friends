@@ -93,9 +93,10 @@ void main() {
       repositorio.atual.add(_ana);
       await tester.pump();
 
-      for (final texto in ['ana@example.com', 'uid-ana', 'anal', 'saldo', 'Saldo', 'fichas', 'BetCoins', '1000', '1.000']) {
+      for (final texto in ['ana@example.com', 'uid-ana', 'anal', 'saldo', 'Saldo', 'fichas', '1000', '1.000']) {
         expect(find.textContaining(texto), findsNothing, reason: texto);
       }
+      expect(find.text('Extrato de BetCoins'), findsOneWidget);
     });
 
     testWidgets('acompanha alterações do perfil em tempo real', (tester) async {
