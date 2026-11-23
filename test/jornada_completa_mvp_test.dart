@@ -155,6 +155,10 @@ class _ControladorDePerfis implements UserProfileRepository {
 }
 
 class _ControladorDeAmizades implements FriendshipRepository {
+  @override
+  Future<void> removerAmizade(String friendshipId) async =>
+      throw UnimplementedError();
+
   final Map<String, List<UsuarioPublico>> _amigosPorUsuario = {};
   final Map<String, List<SolicitacaoAmizade>> _solicitacoesPorUsuario = {};
   bool simularErro = false;

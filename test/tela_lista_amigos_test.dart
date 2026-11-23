@@ -39,6 +39,19 @@ class _FakeFriendshipRepository implements FriendshipRepository {
   List<SolicitacaoAmizade> pendentes = [];
   bool simularErro = false;
   String mensagemErro = 'Erro de conexão simulado';
+  int remocoes = 0;
+  String? ultimoFriendshipId;
+  FriendshipException? erroRemocao;
+  Completer<void>? conclusaoRemocao;
+
+  @override
+  Future<void> removerAmizade(String friendshipId) async {
+    remocoes++;
+    ultimoFriendshipId = friendshipId;
+    if (conclusaoRemocao != null) await conclusaoRemocao!.future;
+    if (erroRemocao != null) throw erroRemocao!;
+  }
+
 
   @override
   Future<List<UsuarioPublico>> listarAmigosAceitos() async {
@@ -124,6 +137,86 @@ void main() {
   ];
 
   group('TelaListaAmigos - Visualizar lista de amigos (RF-006, RN-FRD-001, RN-PROF-002)', () {
+    testWidgets('cancelar preserva amizade e não chama serviço', (tester) async {
+      repo.amigosAceitos = List.from(amigosExemplo);
+      await tester.pumpWidget(criarApp(
+        TelaListaAmigos(friendshipService: friendshipService),
+      ));
+      await tester.pumpAndSettle();
+      final remover = find.byKey(const Key('btn_remover_amigo_uid_amigo_1'));
+      expect(tester.getSize(remover).width, greaterThanOrEqualTo(48));
+      expect(tester.getSize(remover).height, greaterThanOrEqualTo(48));
+      await tester.tap(remover);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('não poderão se desafiar'), findsOneWidget);
+      expect(find.textContaining('histórico de desafios será mantido'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('cancelar_remocao_amizade')));
+      await tester.pumpAndSettle();
+      expect(repo.remocoes, 0);
+      expect(find.byKey(const Key('card_amigo_uid_amigo_1')), findsOneWidget);
+    });
+
+    testWidgets('confirma uma vez e atualiza lista somente após sucesso', (tester) async {
+      repo.amigosAceitos = List.from(amigosExemplo);
+      repo.conclusaoRemocao = Completer<void>();
+      await tester.pumpWidget(criarApp(
+        TelaListaAmigos(friendshipService: friendshipService),
+      ));
+      await tester.pumpAndSettle();
+      final remover = find.byKey(const Key('btn_remover_amigo_uid_amigo_1'));
+      await tester.tap(remover);
+      await tester.tap(remover);
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await tester.tap(find.byKey(const Key('confirmar_remocao_amizade')));
+      await tester.pumpAndSettle();
+      expect(repo.remocoes, 1);
+      expect(repo.ultimoFriendshipId, 'uid-usuario-logado_uid_amigo_1');
+      expect(find.byKey(const Key('card_amigo_uid_amigo_1')), findsOneWidget);
+      final botao = tester.widget<IconButton>(remover);
+      expect(botao.onPressed, isNull);
+      repo.conclusaoRemocao!.complete();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('card_amigo_uid_amigo_1')), findsNothing);
+      expect(find.byKey(const Key('card_amigo_uid_amigo_2')), findsOneWidget);
+      expect(find.text('1 amigo(s)'), findsOneWidget);
+      expect(find.text('Amizade removida com sucesso.'), findsOneWidget);
+    });
+
+    for (final erro in [
+      const FriendshipException(
+        FriendshipErrorCode.activeChallenge,
+        'Você tem um desafio em andamento com este amigo. Conclua ou cancele o desafio antes de remover a amizade.',
+      ),
+      const FriendshipException(
+        FriendshipErrorCode.unavailable,
+        'Serviço temporariamente indisponível. Verifique sua conexão.',
+      ),
+      const FriendshipException(
+        FriendshipErrorCode.requestNotFound,
+        'Solicitação de amizade não encontrada.',
+      ),
+    ]) {
+      testWidgets('erro ${erro.code.name} preserva lista e não reenvia', (tester) async {
+        repo.amigosAceitos = List.from(amigosExemplo);
+        repo.erroRemocao = erro;
+        await tester.pumpWidget(criarApp(
+          TelaListaAmigos(friendshipService: friendshipService),
+        ));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('btn_remover_amigo_uid_amigo_1')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('confirmar_remocao_amizade')));
+        await tester.pumpAndSettle();
+        expect(find.text(erro.message), findsOneWidget);
+        expect(find.byKey(const Key('card_amigo_uid_amigo_1')), findsOneWidget);
+        expect(find.text('Amizade removida com sucesso.'), findsNothing);
+        repo.erroRemocao = null;
+        await tester.pump(const Duration(seconds: 5));
+        expect(repo.remocoes, 1);
+      });
+    }
+
     testWidgets('listar amigos aceitos com exibição de nome e username e botão desafiar', (tester) async {
       repo.amigosAceitos = List.from(amigosExemplo);
 

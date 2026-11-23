@@ -10,6 +10,10 @@ import 'package:betfriends/tela_amigos/tela_comunicacoes_amizade.dart';
 import 'support/fake_auth.dart';
 
 class _FakeFriendshipRepoForComunicacoes implements FriendshipRepository {
+  @override
+  Future<void> removerAmizade(String friendshipId) async =>
+      throw UnimplementedError();
+
   List<SolicitacaoAmizade> solicitacoes = [];
   bool throwError = false;
   String? errorMessage;
