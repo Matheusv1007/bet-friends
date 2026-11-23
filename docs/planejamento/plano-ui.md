@@ -28,7 +28,7 @@ Iguais às das rodadas anteriores: commits em português, sem co-autor, sem push
 
 | # | Pergunta | Sugestão | Resposta |
 |---|---|---|---|
-| 1 | Direção visual e fonte de marca | Direção 1 (Refinada) com Inter embutida; Barlow Condensed opcional só para placar e saldo | Pendente |
+| 1 | Direção visual e fonte | Primeira rodada (neon) descartada. Segunda rodada em [`direcoes-v2.md`](direcoes-v2.md): escolher entre Gramado, Jornal, Carvão e Marinho e a fonte; sugestão na própria página | Pendente |
 | 2 | Pode reorganizar a ordem da Home e reduzir a carteira? É a mudança que mais altera o que a equipe já conhece | Sim | Pendente |
 | 3 | Aba "Desafios": renomear ou criar uma tela de desafios de verdade (a segunda opção é maior) | Renomear primeiro | Pendente |
 | 4 | Existe arte de marca (logo e ícone)? Sem ela, uma versão simples feita com formas, só para trocar o ícone padrão | Versão simples | Pendente |

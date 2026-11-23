@@ -1,6 +1,8 @@
 # Direção visual e fonte de marca
 
-**Data:** 23/11/2026 · **Situação:** aguardando decisão do responsável · **Contexto:** pergunta 1 do plano ([`plano-ui.md`](plano-ui.md)): manter o tema escuro com verde-neon ou mudar de linguagem, e se uma fonte de marca é aceitável.
+> **Rodada descartada em 23/11/2026.** O responsável não quer neon nem "cara de IA" e pediu tipografia moderna. Esta página fica como registro; a rodada atual está em [`direcoes-v2.md`](direcoes-v2.md).
+
+**Data:** 23/11/2026 · **Situação:** descartada · **Contexto:** pergunta 1 do plano ([`plano-ui.md`](plano-ui.md)): manter o tema escuro com verde-neon ou mudar de linguagem, e se uma fonte de marca é aceitável.
 
 Os mockups abaixo reconstroem os mesmos quatro quadros em cada direção (Login, topo da Home, Criar Desafio e Desafios) com o mesmo conteúdo, para a comparação ser justa. **São desenhos, não implementação.** Itens como "Esqueci minha senha", o sino de notificação e "Trocar" amigo não existem no app.
 
@@ -64,4 +66,4 @@ Tamanho dos arquivos testados: Inter variável 877 KB; Manrope 165 KB; Poppins c
 
 ## Decisão
 
-Pendente. Registrar aqui a escolha da direção e da fonte quando houver.
+Descartada pelo responsável em 23/11/2026 (neon e "cara de IA"). A escolha agora é feita em [`direcoes-v2.md`](direcoes-v2.md).
