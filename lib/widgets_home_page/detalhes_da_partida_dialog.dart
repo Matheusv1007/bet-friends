@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/partida_model.dart';
 import '../tela_criar_desafio/tela_criar_desafio.dart';
+import 'escudo_do_time.dart';
 
 /// Modal para exibição detalhada de uma partida com dados normalizados do domínio (KAN-43; RF-008, RN-MAT-005, RNF-005, RNF-013).
 ///
@@ -122,7 +123,12 @@ class DetalhesDaPartidaDialog extends StatelessWidget {
                   Expanded(
                     child: Column(
                       children: [
-                        const Icon(Icons.shield, color: Color(0xFF00D084), size: 32),
+                        EscudoDoTime(
+                          key: const Key('detalhes_partida_escudo_mandante'),
+                          url: partida.logoMandante,
+                          nome: partida.timeMandante,
+                          tamanho: 48,
+                        ),
                         const SizedBox(height: 6),
                         Text(
                           partida.timeMandante,
@@ -180,7 +186,12 @@ class DetalhesDaPartidaDialog extends StatelessWidget {
                   Expanded(
                     child: Column(
                       children: [
-                        const Icon(Icons.shield_outlined, color: Color(0xFF38BDF8), size: 32),
+                        EscudoDoTime(
+                          key: const Key('detalhes_partida_escudo_visitante'),
+                          url: partida.logoVisitante,
+                          nome: partida.timeVisitante,
+                          tamanho: 48,
+                        ),
                         const SizedBox(height: 6),
                         Text(
                           partida.timeVisitante,
