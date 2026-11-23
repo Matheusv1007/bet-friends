@@ -27,14 +27,6 @@ class Carteira {
 
   int get saldoDisponivel => saldoTotal - saldoReservado;
 
-  DateTime? get proximaRecuperacaoEm =>
-      lastRecoveryBonusAt?.add(const Duration(hours: 24));
-
-  bool podeResgatarBonus(DateTime agora) =>
-      saldoReservado == 0 &&
-      saldoDisponivel < 10 &&
-      !(proximaRecuperacaoEm?.isAfter(agora) ?? false);
-
   /// Converte os campos de `users/{uid}`. Campos ausentes, de outro tipo ou
   /// inconsistentes resultam em [FormatException]: o valor nunca é corrigido.
   factory Carteira.fromMap(Map<String, dynamic> data) {

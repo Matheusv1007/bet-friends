@@ -1,6 +1,17 @@
 import '../models/carteira.dart';
 import 'functions/functions_service.dart';
 
+/// Regras locais de RF-020; o backend revalida antes de conceder o bônus.
+extension ElegibilidadeDeRecuperacao on Carteira {
+  DateTime? get proximaRecuperacaoEm =>
+      lastRecoveryBonusAt?.add(const Duration(hours: 24));
+
+  bool podeResgatarBonus(DateTime agora) =>
+      saldoReservado == 0 &&
+      saldoDisponivel < 10 &&
+      !(proximaRecuperacaoEm?.isAfter(agora) ?? false);
+}
+
 /// Recuperação confirmada exclusivamente pela callable (RN-OFF-002/003).
 class BonusRecuperacaoService {
   FunctionsService? _functions;
