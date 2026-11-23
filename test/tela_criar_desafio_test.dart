@@ -23,6 +23,9 @@ class FakePartidasProvider extends ChangeNotifier implements PartidasProvider {
   List<PartidaModel> get partidas => _partidas;
 
   @override
+  List<PartidaModel> get partidasDaHome => _partidas;
+
+  @override
   bool get isLoading => false;
 
   @override
@@ -54,7 +57,6 @@ class FakePartidasProvider extends ChangeNotifier implements PartidasProvider {
 
   @override
   Future<void> carregarPartidas({
-    int limit = 15,
     bool silencioso = false,
     bool forcar = false,
   }) async {}

@@ -145,7 +145,7 @@ class _FakePartidasServiceConfiguravel extends PartidasService {
   _FakePartidasServiceConfiguravel(this.partidasRetorno);
 
   @override
-  Future<List<PartidaModel>> getPartidas({int limit = 15}) async => partidasRetorno;
+  Future<List<PartidaModel>> getPartidas() async => partidasRetorno;
 }
 
 class _FakeHistoricoService extends Fake implements HistoricoDeDesafiosService {

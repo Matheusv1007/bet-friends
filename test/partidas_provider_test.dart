@@ -11,7 +11,7 @@ class FakeSuccessPartidasService extends PartidasService {
   FakeSuccessPartidasService(this.fakeList);
 
   @override
-  Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
+  Future<List<PartidaModel>> getPartidas() async {
     return fakeList;
   }
 }
@@ -21,7 +21,7 @@ class FakeErrorPartidasService extends PartidasService {
   FakeErrorPartidasService(this.errorToThrow);
 
   @override
-  Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
+  Future<List<PartidaModel>> getPartidas() async {
     throw errorToThrow;
   }
 }
@@ -32,7 +32,7 @@ class MutablePartidasService extends PartidasService {
   MutablePartidasService({this.matches = const [], this.error});
 
   @override
-  Future<List<PartidaModel>> getPartidas({int limit = 15}) async {
+  Future<List<PartidaModel>> getPartidas() async {
     if (error != null) {
       throw error!;
     }

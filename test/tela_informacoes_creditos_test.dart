@@ -99,7 +99,7 @@ class _FakePartidasService extends PartidasService {
   _FakePartidasService() : super(firestore: null);
 
   @override
-  Future<List<PartidaModel>> getPartidas({int limit = 15}) async => [];
+  Future<List<PartidaModel>> getPartidas() async => [];
 }
 
 class _FakeFriendshipRepository implements FriendshipRepository {

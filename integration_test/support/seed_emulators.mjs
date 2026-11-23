@@ -140,4 +140,17 @@ await Promise.all(Array.from({ length: 65 }, (_, i) => {
   });
 }));
 
+// Demais campeonatos (PL, SA, PD): uma partida finalizada ontem e três agendadas nos próximos dias.
+const DIA = 86400000;
+await Promise.all(["PL", "SA", "PD"].flatMap((liga) =>
+  [-1, 1, 2, 3].map((dias, i) =>
+    db.doc(`matches/${liga.toLowerCase()}_${i}`).set({
+      competitionCode: liga,
+      season: 2026,
+      status: dias < 0 ? "FINALIZADA" : "AGENDADA",
+      startsAtUtc: Timestamp.fromMillis(agoraPartidas + dias * DIA + i * 60000),
+      homeTeam: { name: `${liga} Mandante ${i}` },
+      awayTeam: { name: `${liga} Visitante ${i}` },
+    }))));
+
 console.log(`[seed] ${contas.length} contas no Auth Emulator e ${contas.filter((c) => c.doc).length} perfis no Firestore Emulator (${PROJECT}).`);

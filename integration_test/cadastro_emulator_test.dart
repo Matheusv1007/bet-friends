@@ -50,7 +50,7 @@ const _opcoesDemo = FirebaseOptions(
 /// Partidas locais: a Home não chama a API real durante o teste.
 class _PartidasLocais extends PartidasService {
   @override
-  Future<List<PartidaModel>> getPartidas({int limit = 15}) async => [
+  Future<List<PartidaModel>> getPartidas() async => [
         PartidaModel(
           id: '1',
           timeMandante: 'Time A',
