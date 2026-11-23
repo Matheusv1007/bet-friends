@@ -1,5 +1,7 @@
 # Roteiro da demonstração (≈ 3 minutos dentro do Status Report)
 
+> **Histórico (01/11/2026):** o roteiro cobre só o que existia na Segunda Entrega. Para a demonstração atual, parta de [funcionalidades.md](funcionalidades.md).
+
 > **Situação (01/11):** login, Home, Perfil, edição de nome, logout e os bloqueios de cadastro foram exercitados no app atual contra o Firebase real. O roteiro inteiro, em sequência, **ainda não foi reensaiado**, e o ensaio falado e cronometrado não foi feito. Os passos marcados "28/10" precisam ser conferidos no reensaio.
 
 ## Antes da apresentação

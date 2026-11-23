@@ -1,5 +1,7 @@
 # Validação técnica — Segunda Entrega
 
+> **Histórico (01/11/2026):** validação técnica da Segunda Entrega; os números de testes e de funções publicadas abaixo estão desatualizados. Ver a [quarta auditoria](../auditoria/quarta-auditoria.md).
+
 ## Testes automatizados (01/11/2026)
 
 **Código:** `805eea8` · **Ambiente:** Arch Linux, Node 22.23.4, JDK 21, `emulator-5554`, emuladores no projeto `demo-betfriends`. Nenhum teste automatizado usou o Firebase de produção.

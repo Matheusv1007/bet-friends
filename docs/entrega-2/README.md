@@ -1,5 +1,7 @@
 # Segunda Entrega — Protótipo funcional, integração de API e Status Report
 
+> **Histórico (Segunda Entrega, 01/11/2026).** Este conjunto descreve o estado de então; amizades, desafios, extrato e histórico ainda não existiam no app. O estado atual está em [funcionalidades.md](funcionalidades.md) e na [quarta auditoria](../auditoria/quarta-auditoria.md).
+
 **Prazo:** 05/11/2026, 21h · **Task:** KAN-104 · **Responsável:** Pedro Simon · **Atualizado em:** 01/11/2026 (base: `qas` em `805eea8`)
 
 > **Situação em 01/11/2026:** o projeto real está no plano Blaze, com as Security Rules e quatro Cloud Functions publicadas. Cadastro, perfil, carteira inicial e comportamento offline foram validados no app Android contra o Firebase real. Amizades e desafios reais continuam fora do app. Detalhes em [validacao-tecnica.md](validacao-tecnica.md).

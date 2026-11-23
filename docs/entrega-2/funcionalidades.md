@@ -1,72 +1,59 @@
-# Funcionalidades — situação real na Segunda Entrega
+# Funcionalidades — situação atual
 
-Atualizado em 01/11/2026 (base: `qas` em `805eea8`).
+Atualizado em 23/11/2026 (base: `qas` em `90207cb` mais as branches da rodada final do MVP, ver [`CHANGELOG.md`](../../CHANGELOG.md)). O texto da Segunda Entrega (01/11/2026) foi substituído: naquela data amizades, desafios, extrato e histórico ainda não existiam no app.
 
-Legenda: ✅ validado no app com o Firebase real · ☁️ publicado no projeto real, sem uso pelo app · 🧪 implementado e testado só em emulador · 🟡 parcial · 🎭 demonstrativo (interface sem efeito real) · ⏳ pendente
+Legenda: ✅ validado no app com o Firebase real (observado pela equipe) · 🧪 implementado e testado com fakes e emulador, **sem validação no app real ainda** · 🟡 parcial · ⏳ pendente · ➖ fora do MVP
+
+Evidência de testes: ver a linha de base em [`docs/auditoria/quarta-auditoria.md`](../auditoria/quarta-auditoria.md). Nenhum `integration_test/` foi executado em dispositivo para estas entregas.
 
 ## Conta e sessão
 
 | Funcionalidade | Situação | Observação |
 |---|---|---|
-| Login com e-mail e senha | ✅ | Firebase Authentication; mensagens de erro traduzidas (KAN-26) |
-| Restauração de sessão | ✅ | `AuthGate` abre direto na Home se já houver sessão (KAN-27); último ensaio específico em 28/10 |
-| Logout | ✅ | Menu do avatar, com confirmação; volta ao Login (KAN-27) |
-| Cadastro pela tela | ✅ | Cria conta, perfil, username único e carteira (KAN-25). Bloqueia senha curta, senhas diferentes, e-mail e username repetidos |
-| Cadastro sem rede | ✅ | Mensagem de conexão, nada gravado; concluir com rede cria uma carteira só |
-| Retomar cadastro pelo Perfil, depois de reabrir o app | 🧪 | Testado com emuladores; não exercitado no Firebase real |
-| Perfil vinculado ao UID | ✅ | Leitura pelo dono; leitura de terceiros e listagem negadas no real (KAN-32) |
-| Tela de Perfil | ✅ | Nome e username, sem e-mail nem saldos (KAN-28) |
-| Editar nome de exibição | ✅ | Persiste depois de novo login; só `displayName` e `updatedAt` mudam (KAN-29) |
-| Comportamento sem conexão | ✅ | Dados salvos com aviso; edição e cadastro bloqueados, sem escrita pendente (KAN-24). Perda de conexão com o diálogo aberto só foi testada com emuladores |
+| Cadastro, perfil, carteira inicial de 1.000 BetCoins | ✅ | KAN-25/31/32/72 |
+| Login por e-mail ou username | ✅ | Callable `resolveLoginEmail`; expõe o e-mail a quem souber o username (ver política de privacidade) |
+| Sessão restaurada e logout | ✅ | `AuthGate`; logout limpa o cache do Firestore |
+| Editar nome de exibição | ✅ | O username é imutável |
+| Comportamento sem conexão | ✅ | Dados salvos com aviso; sem escrita pendente |
+| Excluir conta | 🧪 | Callable `deleteAccount` e diálogo no Perfil; o apagamento no Authentication real só será comprovado com uma conta descartável |
 
-## Home
+## Amizades
 
 | Funcionalidade | Situação | Observação |
 |---|---|---|
-| Barra inferior Home / Desafios / Perfil | ✅ | Ranking removido por ser pós-MVP (D-002, RN-RNK-001) |
-| Saudação | ✅ | "Olá, {nome}" a partir do perfil real |
-| Saldo no cabeçalho | 🟡 | Mostra "Saldo indisponível", mesmo com carteira no Firestore, até a KAN-69 |
-| Desafios Ativos | 🎭 | Exemplos fixos com o selo "DEMONSTRATIVO"; "Detalhes do Desafio" sem ação |
+| Buscar usuários, enviar, aceitar e recusar solicitação | ✅ | Telas no Perfil; limites de uso no backend |
+| Lista de amigos | ✅ | Nome e `@username` apenas |
+| Paginação das solicitações recebidas (T-02) | 🧪 | "Carregar mais" quando há cursor |
+| Remover amizade (RF-006) | 🧪 | Bloqueada com desafio `PENDING`, `ACCEPTED`, `IN_PROGRESS` ou `WAITING_RESULT` entre os dois |
 
-## Partidas (API football-data.org)
+## Partidas
 
 | Funcionalidade | Situação | Observação |
 |---|---|---|
-| Listar partidas do Brasileirão | ✅ | Consumo do Firestore `matches` via backend (KAN-42; sem chamada direta do app ao provedor) |
-| Estados de carregamento, erro e vazio | ✅ | Com "Tentar novamente" e mensagens amigáveis; 429 real não provocado |
-| Puxar para atualizar e atualização a cada 30 s | ✅ | Mantém os dados anteriores com aviso se a atualização falhar |
-| Sincronização pelo backend (`syncMatches`) | ☁️ | A cada 5 min, com o token como segredo; 380 documentos em `matches` em 01/11 |
-| App lendo `matches` | ✅ | KAN-42; app consome a coleção `matches` do Firestore |
-| Token fora do app e troca do token | ✅ | KAN-21 / KAN-102; token purgado do Flutter/APK e rotação formalizada |
-| Detalhes da partida | ⏳ | KAN-43 |
-| Créditos "Data provided by football-data.org" | ⏳ | Só no README por enquanto (KAN-54) |
+| Lista e detalhes de partidas, lidos do Firestore | ✅ | Sincronização pelo backend a cada 5 minutos; o app não chama o provedor |
+| Escudos dos times (PNG e SVG) | ✅ | URL do provedor; ícone padrão sem imagem; partidas já finalizadas não ganham escudo na sincronização |
+| Créditos "Dados fornecidos por football-data.org" | ✅ | Tela de créditos |
 
 ## Desafios e BetCoins
 
 | Funcionalidade | Situação | Observação |
 |---|---|---|
-| Carteira inicial | ✅ | 1.000 BetCoins e um `INITIAL_BALANCE` por perfil, em uma única transação (KAN-72) |
-| Idempotência da criação | ✅ / 🧪 | 5 chamadas simultâneas com carteira existente, sem alteração, no real; disputa na primeira criação só em emulador |
-| Negação de escrita pelo cliente (saldo, `usernames`, lançamentos) | 🧪 | Com as mesmas regras publicadas; **não comprovada em produção** |
-| Invariantes de saldo e transações auditáveis | 🧪 | KAN-73, KAN-79; a carteira inicial as usa no real, mas não há débito real |
-| Reserva, liberação, premiação, perda e reembolso | 🧪 | KAN-74 a KAN-78; sem Callable nem tela |
-| Liquidação pelo resultado oficial | ☁️ / 🧪 | Roda dentro da `syncMatches`; sem desafios reais, nunca liquidou em produção |
-| Recuperação de BetCoins (`claimRecoveryBonus`) | ☁️ | KAN-80; testada em emulador, sem tela (KAN-71) e sem execução em produção |
-| Tela Criar Desafio | 🟡 / 🎭 | Partidas reais; amigos fixos; envio sem gravação, com aviso "Modo demonstrativo" |
-| Saldo na Criar Desafio ("1.500 fichas") | 🎭 | Valor fixo; a regra oficial é 1.000 BetCoins. Não apresentar como saldo real |
-| Saldo e extrato na interface | ⏳ | KAN-69, KAN-70 |
-| Amizades | ⏳ | KAN-33 a KAN-41 |
-| Criar, aceitar e recusar desafio | ⏳ | Modelo e estados existem no backend; faltam Callables e telas |
-| Histórico | ⏳ | KAN-89 |
-| Ranking | — | Fora do MVP; removido da navegação |
+| Criar desafio (5 primeiras partidas, "Mostrar mais") | ✅ | Reserva de BetCoins do criador |
+| Aceitar com palpite diferente, recusar, cancelar, expirar | ✅ | Backend transacional e idempotente |
+| Estado dos desafios na Home | ✅ | Enviados, recebidos, em aberto e finalizados |
+| Liquidação pelo resultado oficial | ✅ | Saldos 1.100 e 900 observados nas contas de teste; sem registro formal da jornada |
+| Resultado oficial e efeito nos BetCoins nos finalizados | ✅ | |
+| Cancelamento por tempo só com sincronização viva (T-01) | 🧪 | Testado em emulador; publicado no `syncMatches` |
+| Bônus de recuperação (RF-020) | 🧪 | Ação na Home com horário do próximo resgate |
+| Extrato de BetCoins (RF-019) | 🧪 | Exige o índice de `betCoinTransactions` publicado |
+| Histórico completo paginado (RF-021) | 🧪 | "Ver todos" na seção de finalizados; usa índice existente |
+| Ranking | ➖ | Fora do MVP |
 
 ## Infraestrutura
 
 | Item | Situação |
 |---|---|
-| Firebase (Auth, Firestore, configuração Android) | ✅ configurado; plano Blaze ativo |
-| Security Rules por coleção | ✅ publicadas em 29/10/2026; idênticas às do repositório em 01/11 |
-| Cloud Functions | ✅ `systemPing`, `createUserProfile`, `claimRecoveryBonus` e `syncMatches` ativas em `southamerica-east1` |
-| Schema do Firestore v2.0 | 🟡 documentado (`docs/firestore-schema.md`); parte das decisões ainda marcada como proposta |
-| Backup e recuperação do Firestore | ⏳ PITR desligado, sem backups e sem proteção contra exclusão em 01/11 |
-| Testes automatizados | ✅ Ver [validacao-tecnica.md](validacao-tecnica.md) |
+| Firebase (Auth, Firestore, Functions) | ✅ Security Rules, índices e Functions publicados em `southamerica-east1`; as funções novas dependem de deploy |
+| Testes automatizados | ✅ ver a quarta auditoria |
+| Backup e recuperação do Firestore | ⏳ backup pontual desligado em 01/11 (não reverificado) |
+| Assinatura de release, `LICENSE`, App Check, Crashlytics | ⏳ ver a quarta auditoria |
