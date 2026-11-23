@@ -439,5 +439,73 @@ void main() {
       expect(find.byType(TelaListaAmigos), findsOneWidget);
       expect(find.text('Meus Amigos'), findsOneWidget);
     });
+
+    testWidgets('remover amizade: cancelar fecha o diálogo sem remover', (tester) async {
+      repo.amigosAceitos = List.from(amigosExemplo);
+
+      await tester.pumpWidget(criarApp(
+        TelaListaAmigos(friendshipService: friendshipService),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('btn_remover_amigo_uid_amigo_1')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('btn_remover_amigo_uid_amigo_1')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Remover amizade?'), findsOneWidget);
+      expect(find.byKey(const Key('cancelar_remocao_amizade')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('cancelar_remocao_amizade')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Remover amizade?'), findsNothing);
+      expect(repo.remocoes, 0);
+      expect(find.text('Carlos Silva'), findsOneWidget);
+    });
+
+    testWidgets('remover amizade: confirmar chama o repositório e remove o amigo da lista', (tester) async {
+      repo.amigosAceitos = List.from(amigosExemplo);
+
+      await tester.pumpWidget(criarApp(
+        TelaListaAmigos(friendshipService: friendshipService),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('btn_remover_amigo_uid_amigo_1')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('confirmar_remocao_amizade')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('confirmar_remocao_amizade')));
+      await tester.pumpAndSettle();
+
+      expect(repo.remocoes, 1);
+      expect(find.text('Amizade removida com sucesso.'), findsOneWidget);
+      expect(find.text('Carlos Silva'), findsNothing);
+      expect(find.text('Beatriz Costa'), findsOneWidget);
+    });
+
+    testWidgets('remover amizade: erro de domínio exibe mensagem amigável no snackbar', (tester) async {
+      repo.amigosAceitos = List.from(amigosExemplo);
+      repo.erroRemocao = const FriendshipException(
+        FriendshipErrorCode.activeChallenge,
+        'Você tem um desafio em andamento com este amigo.',
+      );
+
+      await tester.pumpWidget(criarApp(
+        TelaListaAmigos(friendshipService: friendshipService),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('btn_remover_amigo_uid_amigo_1')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('confirmar_remocao_amizade')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Você tem um desafio em andamento com este amigo.'), findsOneWidget);
+      expect(find.text('Carlos Silva'), findsOneWidget);
+    });
   });
 }
