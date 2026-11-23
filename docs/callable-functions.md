@@ -251,6 +251,7 @@ Logo depois, na mesma execução, `processarResultados` (KAN-86, `functions/src/
 | Variável | Padrão | Uso |
 |---|---|---|
 | `PARTIDAS_SYNC_AGENDA` | `every 5 minutes` | Frequência, em sintaxe cron ou App Engine. Fuso: `America/Sao_Paulo` |
+| `PARTIDAS_SYNC_COMPETICOES` | `BSA,PL,SA,PD` | Competições sincronizadas (códigos da Football-Data separados por vírgula, na ordem de preferência). De 1 a 8 códigos de 2 a 10 letras ou dígitos, sem repetição; minúsculas viram maiúsculas. Cada competição custa uma chamada por execução. Para sincronizar só uma parte (por exemplo, sem o Brasileirão depois do fim da temporada), liste só as desejadas |
 | `PARTIDAS_SYNC_DIAS_ANTES` | `3` | Dias antes de agora (placar e resultado das partidas recentes). Inteiro de 0 a 60 |
 | `PARTIDAS_SYNC_DIAS_DEPOIS` | `14` | Dias depois de agora (partidas futuras). Inteiro de 0 a 60 |
 | `PARTIDAS_SYNC_TEMPORADA_HORAS` | `6` | Intervalo mínimo entre as consultas à temporada inteira. Inteiro de 1 a 168 |
