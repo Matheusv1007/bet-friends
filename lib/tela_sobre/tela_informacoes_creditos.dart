@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 /// A atribuição e os dados são estáticos e locais, permanecendo disponíveis
 /// independentemente do estado do provedor ou de conexão com a internet.
 ///
-/// Conforme [RNF-012] e [D-015], a tela não depende de escudos, logotipos ou imagens
-/// licenciadas de terceiros e não amplia o escopo funcional do MVP.
+/// Conforme [RNF-012], os escudos são exibidos pela URL do provedor, sem cópia nem
+/// armazenamento; o app não distribui imagens de terceiros.
 class TelaInformacoesCreditos extends StatelessWidget {
   const TelaInformacoesCreditos({super.key});
 
@@ -241,9 +241,10 @@ class TelaInformacoesCreditos extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     const Text(
-                      'O MVP do BetFriends não depende de escudos, logotipos de clubes '
-                      'ou outras imagens cujo licenciamento de propriedade intelectual '
-                      'não esteja confirmado.',
+                      'Os escudos dos clubes são marcas de seus respectivos titulares e '
+                      'são exibidos a partir do provedor de dados (football-data.org), '
+                      'sem cópia nem armazenamento pelo app. O BetFriends é um projeto '
+                      'acadêmico, sem fins comerciais.',
                       key: Key('texto_licenciamento_escudos'),
                       style: TextStyle(
                         color: textMuted,
@@ -253,9 +254,9 @@ class TelaInformacoesCreditos extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Os times e confrontos são identificados primordialmente por nomes, '
-                      'siglas e ícones vetoriais padronizados, garantindo funcionamento '
-                      'robusto sem dependência de mídias externas.',
+                      'Quando o provedor não informa o escudo ou ele não pode ser '
+                      'carregado, o time é identificado pelo nome e por um ícone de '
+                      'escudo padronizado.',
                       style: TextStyle(
                         color: Color(0xFF94A3B8),
                         fontSize: 12,

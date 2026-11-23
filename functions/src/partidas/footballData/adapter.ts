@@ -1,5 +1,5 @@
 import { lerTokenFootballData } from "../../core/segredos";
-import { ErroDePartida, PartidaAdaptada, Time, validarPartida } from "../match";
+import { ErroDePartida, PartidaAdaptada, Time, URL_DE_ESCUDO, validarPartida } from "../match";
 import { mapearResultadoFootballData } from "./resultado";
 import { mapearStatusFootballData } from "./status";
 
@@ -7,7 +7,7 @@ import { mapearStatusFootballData } from "./status";
  * Adapter da Football-Data.org v4 (KAN-44; RN-MAT-002, RN-SEC-003, RNF-004,
  * RNF-013, D-015). É o único ponto do sistema que conhece endpoints,
  * autenticação e payload do provedor: devolve só [PartidaAdaptada], já com
- * status e resultado do domínio. Nenhum escudo é copiado (RNF-012).
+ * status e resultado do domínio. Do escudo copia só a URL (RNF-012).
  *
  * O token vem do segredo FOOTBALL_DATA_TOKEN (KAN-21) no momento da
  * chamada; a função que usar o Adapter precisa declarar
@@ -81,10 +81,13 @@ function texto(valor: unknown): string | null {
 
 function timeDoProvedor(valor: unknown): Time {
   const t = objeto(valor);
+  const crest = texto(t?.crest)?.trim();
   return {
     externalId: typeof t?.id === "number" ? String(t.id) : "",
     name: texto(t?.name) ?? "",
     shortName: texto(t?.shortName),
+    // Escudo fora do formato (ex.: http) é descartado: a partida não deve falhar por causa dele.
+    ...(crest !== undefined && URL_DE_ESCUDO.test(crest) ? { crest } : {}),
   };
 }
 

@@ -81,6 +81,9 @@ test("datas inválidas, IDs com / e placares negativos são recusados", () => {
     { matchday: 0 },
     { season: 1999 },
     { homeTeam: { externalId: "1", name: "  ", shortName: null } },
+    { homeTeam: { externalId: "1", name: "Time", shortName: null, crest: "http://inseguro/1.png" } },
+    { homeTeam: { externalId: "1", name: "Time", shortName: null, crest: "https://com espaco/1.png" } },
+    { awayTeam: { externalId: "2", name: "Time", shortName: null, crest: "" } },
   ];
   for (const ruim of ruins) {
     assert.throws(() => validarPartida({ ...partidaFicticia, ...ruim }), invalida, JSON.stringify(ruim));

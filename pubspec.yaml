@@ -40,6 +40,7 @@ dependencies:
   provider: ^6.1.5+1
   cloud_functions: ^6.5.0
   firebase_app_check: ^0.4.9
+  flutter_svg: ^2.5.0
 
 dev_dependencies:
   flutter_test:

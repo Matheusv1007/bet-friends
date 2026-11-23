@@ -68,7 +68,7 @@ describe("modelo Match (Firestore Emulator)", { skip: !noEmulador && "requer Fir
     assert.deepEqual(lido, { ...partida, id: ID, originalStartsAtUtc: partida.startsAtUtc });
   });
 
-  test("2. o documento segue o schema: datas em Timestamp UTC, sem providerKey e sem escudo", async () => {
+  test("2. o documento segue o schema: datas em Timestamp UTC, sem providerKey e sem escudo quando o provedor não informa", async () => {
     await gravarMatch(db, partida);
     const doc = (await db.doc(`matches/${ID}`).get()).data()!;
     assert.ok(doc.startsAtUtc instanceof Timestamp);
@@ -77,6 +77,18 @@ describe("modelo Match (Firestore Emulator)", { skip: !noEmulador && "requer Fir
     assert.ok(doc.createdAt instanceof Timestamp);
     assert.equal(doc.providerKey, undefined);
     assert.deepEqual(Object.keys(doc.homeTeam).sort(), ["externalId", "name", "shortName"]);
+  });
+
+  test("2b. o escudo é gravado como URL quando o provedor informa e lido de volta", async () => {
+    const comEscudo = {
+      ...partida,
+      homeTeam: { ...partida.homeTeam, crest: "https://crests.football-data.org/1765.svg" },
+    };
+    await gravarMatch(db, comEscudo);
+    const doc = (await db.doc(`matches/${ID}`).get()).data()!;
+    assert.deepEqual(Object.keys(doc.homeTeam).sort(), ["crest", "externalId", "name", "shortName"]);
+    assert.equal(doc.awayTeam.crest, undefined);
+    assert.equal((await lerMatch(db, ID))!.homeTeam.crest, "https://crests.football-data.org/1765.svg");
   });
 
   test("3. atualizar horário e status reaproveita o documento e preserva o original", async () => {
@@ -215,6 +227,7 @@ describe("modelo Match (Firestore Emulator)", { skip: !noEmulador && "requer Fir
       { matchday: 7 },
       { homeTeam: { ...partida.homeTeam, name: "Outro Nome" } },
       { awayTeam: { ...partida.awayTeam, shortName: null } },
+      { homeTeam: { ...partida.homeTeam, crest: "https://crests.football-data.org/1765.svg" } },
       { homeScore: 1 },
       { providerLastUpdated: new Date("2026-10-28T12:30:00Z") },
     ];

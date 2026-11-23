@@ -10,6 +10,7 @@ import 'package:betfriends/provider/partidas_provider.dart';
 import 'package:betfriends/services/challenge_service.dart';
 import 'package:betfriends/tela_criar_desafio/modal_aceitar_desafio.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
+import 'package:betfriends/widgets_home_page/escudo_do_time.dart';
 import 'package:betfriends/services/user_profile_service.dart';
 import 'package:betfriends/models/carteira.dart';
 
@@ -331,6 +332,82 @@ void main() {
       expect(fakeService.lastMatchId, 'match_flamengo_palmeiras');
       expect(fakeService.lastChallengerPrediction, Palpite.draw);
       expect(fakeService.lastAmount, 100);
+    });
+
+    List<PartidaModel> oitoPartidas() => [
+          for (var i = 1; i <= 8; i++)
+            PartidaModel(
+              id: 'jogo_$i',
+              timeMandante: 'Casa $i',
+              timeVisitante: 'Fora $i',
+              status: 'AGENDADA',
+              horario: '20:00',
+              startsAtUtc: DateTime.now().add(Duration(hours: 3 + i)),
+              logoMandante: 'https://crests.football-data.org/$i.png',
+            ),
+        ];
+
+    testWidgets('lista só as 5 primeiras partidas com escudos, e "Mostrar mais" revela as demais', (tester) async {
+      // Tela alta o bastante para todas as partidas ficarem na área visível.
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(montarAppComNavegacao(
+        provider: FakePartidasProvider(oitoPartidas()),
+        child: CriarDesafioScreen(
+          challengeService: FakeChallengeService(), saldoInicial: 500, amigosIniciais: const [],
+        ),
+      ));
+      await tester.tap(find.byKey(const Key('btn_abrir_tela')));
+      await tester.pumpAndSettle();
+
+      for (var i = 1; i <= 5; i++) {
+        expect(find.byKey(Key('partida_desafio_jogo_$i')), findsOneWidget, reason: 'jogo $i');
+      }
+      for (var i = 6; i <= 8; i++) {
+        expect(find.byKey(Key('partida_desafio_jogo_$i')), findsNothing, reason: 'jogo $i');
+      }
+      // Um escudo por time: 5 partidas x 2 times.
+      expect(find.byType(EscudoDoTime), findsNWidgets(10));
+
+      // "Mostrar mais" revela as demais; "Mostrar menos" volta às 5 primeiras.
+      final botao = find.byKey(const Key('btn_mostrar_mais_partidas'));
+      expect(find.text('Mostrar mais (3)'), findsOneWidget);
+      await tester.ensureVisible(botao);
+      await tester.tap(botao);
+      await tester.pumpAndSettle();
+      for (var i = 1; i <= 8; i++) {
+        expect(find.byKey(Key('partida_desafio_jogo_$i')), findsOneWidget, reason: 'jogo $i');
+      }
+      expect(find.text('Mostrar menos'), findsOneWidget);
+
+      await tester.ensureVisible(botao);
+      await tester.tap(botao);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('partida_desafio_jogo_6')), findsNothing);
+      expect(find.text('Mostrar mais (3)'), findsOneWidget);
+    });
+
+    testWidgets('partida pré-selecionada fora das 5 primeiras continua visível e selecionável', (tester) async {
+      final service = FakeChallengeService();
+      await tester.pumpWidget(montarAppComNavegacao(
+        provider: FakePartidasProvider(oitoPartidas()),
+        child: CriarDesafioScreen(
+          preSelectedMatchId: 'jogo_7',
+          preSelectedFriendId: 'p8r6', preSelectedFriendName: 'Bia Rocha',
+          challengeService: service, saldoInicial: 500, amigosIniciais: const [],
+        ),
+      ));
+      await tester.tap(find.byKey(const Key('btn_abrir_tela')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('partida_desafio_jogo_7')), findsOneWidget);
+      expect(find.byKey(const Key('partida_desafio_jogo_6')), findsNothing);
+      expect(find.text('A partida selecionada não está mais disponível. Escolha outra partida.'), findsNothing);
+
+      await tester.tap(find.byKey(const Key('btn_enviar_desafio')));
+      await tester.pumpAndSettle();
+      expect(service.lastMatchId, 'jogo_7');
     });
   });
 

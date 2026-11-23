@@ -57,7 +57,7 @@ afterEach(() => {
   delete process.env[FOOTBALL_DATA_TOKEN.name];
 });
 
-test("converte a resposta válida para o modelo interno, sem escudo nem enum do provedor", async () => {
+test("converte a resposta válida para o modelo interno, com a URL do escudo e sem enum do provedor", async () => {
   const { fn, chamadas } = fetchFalso(200, { matches: [partidaBruta()] });
   const r = await adapter(fn).listarPartidas({ competitionCode: "BSA", season: 2026 });
 
@@ -72,8 +72,8 @@ test("converte a resposta válida para o modelo interno, sem escudo nem enum do 
       matchday: 32,
       startsAtUtc: new Date("2026-10-29T22:30:00Z"),
       status: "FINALIZADA",
-      homeTeam: { externalId: "1766", name: "CA Mineiro", shortName: "Mineiro" },
-      awayTeam: { externalId: "1769", name: "SE Palmeiras", shortName: "Palmeiras" },
+      homeTeam: { externalId: "1766", name: "CA Mineiro", shortName: "Mineiro", crest: "https://exemplo/1766.png" },
+      awayTeam: { externalId: "1769", name: "SE Palmeiras", shortName: "Palmeiras", crest: "https://exemplo/1769.png" },
       homeScore: 2,
       awayScore: 2,
       result: "DRAW",
@@ -82,6 +82,23 @@ test("converte a resposta válida para o modelo interno, sem escudo nem enum do 
   ]);
   assert.equal(chamadas[0].url, "https://api.football-data.org/v4/competitions/BSA/matches?season=2026");
   assert.equal(chamadas[0].headers["X-Auth-Token"], TOKEN);
+});
+
+test("do escudo só a URL https é copiada (PNG ou SVG); URL inválida ou ausente é descartada sem derrubar a partida", () => {
+  const p = converterPartidaFootballData(
+    partidaBruta({
+      homeTeam: { id: 1766, name: "CA Mineiro", shortName: "Mineiro", crest: "https://crests.football-data.org/1766.svg" },
+      awayTeam: { id: 1769, name: "SE Palmeiras", shortName: "Palmeiras", crest: "http://inseguro/1769.png" },
+    }),
+  );
+  assert.equal(p.homeTeam.crest, "https://crests.football-data.org/1766.svg");
+  assert.equal("crest" in p.awayTeam, false);
+
+  const semEscudo = converterPartidaFootballData(
+    partidaBruta({ homeTeam: { id: 1766, name: "CA Mineiro", shortName: "Mineiro" }, awayTeam: { id: 1769, name: "SE Palmeiras", crest: null } }),
+  );
+  assert.equal("crest" in semEscudo.homeTeam, false);
+  assert.equal("crest" in semEscudo.awayTeam, false);
 });
 
 test("partida agendada vem sem placar e sem resultado", () => {

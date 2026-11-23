@@ -1,79 +1,13 @@
 import 'package:flutter/material.dart';
 import '../models/partida_model.dart';
 import 'detalhes_da_partida_dialog.dart';
+import 'escudo_do_time.dart';
 
 class Carddepartidas extends StatelessWidget {
   final PartidaModel? partida;
   final VoidCallback? onTap;
 
   const Carddepartidas({super.key, this.partida, this.onTap});
-
-  Widget _buildTeamLogo(String? url, {required String fallbackName}) {
-    if (url != null && url.toLowerCase().endsWith('.png')) {
-      return Image.network(
-        url,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) =>
-            _buildShieldIcon(fallbackName),
-      );
-    }
-    return _buildShieldIcon(fallbackName);
-  }
-
-  Widget _buildShieldIcon(String name) {
-    // Escudo estilizado para os times
-    Color shieldColor = Colors.black87;
-    final lower = name.toLowerCase();
-    if (lower.contains('fla')) {
-      shieldColor = const Color(0xFFC00000);
-    } else if (lower.contains('flu')) {
-      shieldColor = const Color(0xFF800020);
-    } else if (lower.contains('pal')) {
-      shieldColor = const Color(0xFF006437);
-    } else if (lower.contains('cor') || lower.contains('sccp')) {
-      shieldColor = const Color(0xFF111111);
-    } else if (lower.contains('sao') || lower.contains('são')) {
-      shieldColor = const Color(0xFFC00000);
-    } else if (lower.contains('san')) {
-      shieldColor = const Color(0xFF222222);
-    } else if (lower.contains('vas')) {
-      shieldColor = const Color(0xFF1E293B);
-    } else if (lower.contains('bot')) {
-      shieldColor = const Color(0xFF0F172A);
-    } else if (lower.contains('gre')) {
-      shieldColor = const Color(0xFF0D6EFD);
-    } else if (lower.contains('int')) {
-      shieldColor = const Color(0xFFDC2626);
-    } else if (lower.contains('cru')) {
-      shieldColor = const Color(0xFF1D4ED8);
-    } else if (lower.contains('cam') || lower.contains('atletico') || lower.contains('atlético')) {
-      shieldColor = const Color(0xFF1E293B);
-    } else if (lower.contains('bah')) {
-      shieldColor = const Color(0xFF0284C7);
-    } else if (lower.contains('for')) {
-      shieldColor = const Color(0xFF1E40AF);
-    } else if (lower.contains('ath') || lower.contains('furacao') || lower.contains('furacão')) {
-      shieldColor = const Color(0xFFB91C1C);
-    } else if (lower.contains('cui')) {
-      shieldColor = const Color(0xFF15803D);
-    } else if (lower.contains('cri')) {
-      shieldColor = const Color(0xFFCA8A04);
-    } else if (lower.contains('j鐘') || lower.contains('juv')) {
-      shieldColor = const Color(0xFF16A34A);
-    } else if (lower.contains('goi') || lower.contains('goiás')) {
-      shieldColor = const Color(0xFF15803D);
-    } else if (lower.contains('vil')) {
-      shieldColor = const Color(0xFFDC2626);
-    } else if (lower.contains('volta')) {
-      shieldColor = const Color(0xFFE5A800);
-    }
-
-    return Icon(
-      Icons.shield,
-      color: shieldColor,
-      size: 30,
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,21 +39,7 @@ class Carddepartidas extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: Center(
-                    child: _buildTeamLogo(
-                      partida?.logoMandante,
-                      fallbackName: mandante,
-                    ),
-                  ),
-                ),
+                EscudoDoTime(url: partida?.logoMandante, nome: mandante),
                 const SizedBox(height: 8),
                 Text(
                   mandante,
@@ -360,21 +280,7 @@ class Carddepartidas extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: Center(
-                    child: _buildTeamLogo(
-                      partida?.logoVisitante,
-                      fallbackName: visitante,
-                    ),
-                  ),
-                ),
+                EscudoDoTime(url: partida?.logoVisitante, nome: visitante),
                 const SizedBox(height: 8),
                 Text(
                   visitante,
