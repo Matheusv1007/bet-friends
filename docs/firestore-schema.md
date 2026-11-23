@@ -223,7 +223,7 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 | *(ID)* | string | sim | **[PROPOSTA]** `{providerKey}_{externalMatchId}`, ex.: `footballdata_537123`. Ver nota abaixo |
 | `provider` | string | sim | [PLANO] Ex.: `football-data.org` |
 | `externalMatchId` | string | sim | [PLANO] ID da partida no provedor, guardado como texto |
-| `competitionCode` | string | sim | [PLANO] `BSA` |
+| `competitionCode` | string | sim | [PLANO] `BSA`; com a expansão de campeonatos, também `PL`, `SA` e `PD` (código da Football-Data, ver `docs/campeonatos.md`). Nenhuma outra regra do documento muda: o ID continua `{providerKey}_{externalMatchId}`, único entre competições |
 | `season` | int | sim | [PLANO] `2026` |
 | `matchday` | int \| null | não | [PLANO] Rodada |
 | `startsAtUtc` | Timestamp | sim | [PLANO] Início oficial **mais recente** (RN-MAT-006). Base do corte de 5 min (RN-MAT-004) |
@@ -543,8 +543,8 @@ Em 23/11/2026, `firestore.indexes.json` declara **treze índices compostos**, to
 | `challenges` | `matchId ASC`, `status ASC` | Expiração, início e liquidação |
 | `friendships` | `participants CONTAINS`, `status ASC` | Amigos e solicitações |
 | `friendships` | `participants CONTAINS`, `status ASC`, `requesterId ASC` (`__name__ ASC` implícito) | Solicitações recebidas paginadas, excluindo as enviadas (N-11) |
-| `matches` | `competitionCode ASC`, `startsAtUtc ASC` | Partidas da competição |
-| `matches` | `competitionCode ASC`, `startsAtUtc DESC` | Partidas encerradas recentes, com limite (N-01) |
+| `matches` | `competitionCode ASC`, `startsAtUtc ASC` | Partidas de uma competição; o app consulta cada competição suportada separadamente (sem índice novo) |
+| `matches` | `competitionCode ASC`, `startsAtUtc DESC` | Partidas encerradas recentes de uma competição, com limite (N-01) |
 | `betCoinTransactions` | `userId ASC`, `createdAt DESC` (`__name__ DESC` implícito) | Extrato do próprio usuário, paginado (RF-019) |
 
 Publicar o índice do extrato com `firebase deploy --only firestore:indexes --project betfriends-unirv-2026`. O app lê apenas os lançamentos da sessão autenticada, sem Callable e sem escritas. Reservas, liberações e reembolsos são neutros no saldo total. Referências como “Desafio 1” são locais à tela, sem expor IDs internos.

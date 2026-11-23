@@ -6,6 +6,7 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 
 ### Adicionado
 
+- **Quatro campeonatos (`BSA`, `PL`, `SA`, `PD`):** `syncMatches` sincroniza, em série e com estado próprio por competição (`system/matchSync_{código}`), o Brasileirão, a Premier League, a Serie A e La Liga; o app lista as quatro com o nome do campeonato nos cards e nos detalhes e tem filtro por liga em Criar Desafio. Lista configurável por `PARTIDAS_SYNC_COMPETICOES`; ver [`docs/campeonatos.md`](docs/campeonatos.md).
 - **Login por e-mail ou username.** Nova callable pública `resolveLoginEmail` (limite de 10 consultas por minuto por IP); username inexistente falha como credencial inválida.
 - **Escudos dos times** na Home, nos detalhes da partida e na escolha de partida do desafio, a partir da URL do provedor (PNG ou SVG, `flutter_svg`), com ícone padrão quando não há imagem. A tela de créditos informa a origem.
 - **Criar desafio:** lista as 5 primeiras partidas elegíveis, com "Mostrar mais".
