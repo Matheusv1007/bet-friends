@@ -5,6 +5,15 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "challengerId", "order": "ASCENDING" },
+        { "fieldPath": "challengedId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "challenges",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "challengerId", "order": "ASCENDING" },
         { "fieldPath": "matchId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]

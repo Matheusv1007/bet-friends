@@ -4,7 +4,7 @@
  * Sem dependência do Firestore.
  */
 
-export type FriendshipStatus = "PENDING" | "ACCEPTED" | "REJECTED";
+export type FriendshipStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "REMOVED";
 
 export type CodigoErroDeAmizade =
   | "auto-solicitacao"
@@ -148,9 +148,8 @@ export function avaliarSolicitacaoAmizade(
     }
   }
 
-  // docs/firestore-schema.md §3.3: REJECTED não é solicitação ativa.
-  // Uma nova solicitação reutiliza o mesmo documento, voltando para PENDING.
-  if (amizadeExistente.status === "REJECTED") {
+  // Recusa e remoção preservam o par para reabertura com as mesmas cotas (N-11).
+  if (amizadeExistente.status === "REJECTED" || amizadeExistente.status === "REMOVED") {
     return {
       tipo: "REABRIR_PENDENTE",
       friendshipId,
@@ -165,7 +164,7 @@ export function avaliarSolicitacaoAmizade(
  *
  * Critérios:
  * - Somente solicitação pendente pode ser aceita.
- * - Tentativa de aceitar solicitação já resolvida (ACCEPTED ou REJECTED) é rejeitada.
+ * - Tentativa de aceitar solicitação já resolvida é rejeitada.
  * - Somente o destinatário pode aceitar (o requester original não pode aceitar a própria solicitação).
  * - Usuário deve ser participante da relação.
  */
@@ -195,7 +194,7 @@ export function avaliarAceiteAmizade(
     );
   }
 
-  if (amizade.status === "REJECTED") {
+  if (amizade.status === "REJECTED" || amizade.status === "REMOVED") {
     throw new ErroDeAmizade(
       "solicitacao-ja-resolvida",
       "Esta solicitação de amizade já foi resolvida.",
@@ -241,7 +240,7 @@ export interface RecusaAmizadeValida {
  *
  * Critérios:
  * - Somente solicitação pendente pode ser recusada.
- * - Tentativa de recusar solicitação já resolvida (ACCEPTED ou REJECTED) é rejeitada.
+ * - Tentativa de recusar solicitação já resolvida é rejeitada.
  * - Somente o destinatário pode recusar (o requester original não pode recusar a própria solicitação).
  * - Usuário deve ser participante da relação.
  */
@@ -263,7 +262,7 @@ export function avaliarRecusaAmizade(
     );
   }
 
-  if (amizade.status === "ACCEPTED" || amizade.status === "REJECTED") {
+  if (amizade.status === "ACCEPTED" || amizade.status === "REJECTED" || amizade.status === "REMOVED") {
     throw new ErroDeAmizade(
       "solicitacao-ja-resolvida",
       "Esta solicitação de amizade já foi resolvida.",

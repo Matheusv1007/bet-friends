@@ -12,7 +12,8 @@ import {
   validarNovoDesafio,
 } from "./challenge";
 import { reservarBetCoinsNaTransacao, validarValorDaAposta } from "../betcoins/reserva";
-import { verificarAmizadeAceitaNaTransacao } from "../amigos/friendshipFirestore";
+import { COLECAO_DE_AMIZADES, verificarAmizadeAceitaNaTransacao } from "../amigos/friendshipFirestore";
+import { gerarFriendshipId } from "../amigos/friendship";
 import { lerMatchNaTransacao } from "../partidas/matchFirestore";
 import { RESULTADOS_DA_PARTIDA } from "../partidas/match";
 import { EventoDoDesafio, aplicarEvento } from "./maquinaDeEstados";
@@ -316,6 +317,11 @@ export async function criarDesafioParaAmigoNaTransacao(
     valor: amount,
     matchId,
   });
+  // Escrita no mesmo documento da remoção: serializa as duas operações mesmo
+  // quando a consulta de desafios da remoção ainda não encontrou este convite.
+  transacao.update(db.collection(COLECAO_DE_AMIZADES).doc(
+    gerarFriendshipId(challengerId, challengedId).friendshipId,
+  ), { updatedAt: FieldValue.serverTimestamp() });
   gravarLimite();
 
   criarDesafioNaTransacao(
