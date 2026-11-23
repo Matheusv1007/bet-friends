@@ -91,7 +91,7 @@ class DetalhesDaPartidaDialog extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${partida.campeonato ?? 'Brasileirão Série A'}${partida.matchday != null ? ' • Rodada ${partida.matchday}' : ''}',
+                  '${partida.nomeDoCampeonato}${partida.matchday != null ? ' • Rodada ${partida.matchday}' : ''}',
                   style: const TextStyle(
                     color: Color(0xFF8A9BB5),
                     fontSize: 12,

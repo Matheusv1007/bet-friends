@@ -306,4 +306,109 @@ void main() {
       expect(json['resultado'], 'AWAY_WIN');
     });
   });
+
+  group('Identificação do campeonato nos cards e nos detalhes', () {
+    PartidaModel partida(String id, String? codigo, {String? campeonato}) =>
+        PartidaModel(
+          id: id,
+          timeMandante: 'Casa $id',
+          timeVisitante: 'Fora $id',
+          startsAtUtc: DateTime.now().toUtc().add(const Duration(days: 3)),
+          statusDominio: StatusPartida.agendada,
+          competitionCode: codigo,
+          campeonato: campeonato,
+        );
+
+    testWidgets('card da Home mostra o nome da liga das 4 ligas', (tester) async {
+      final esperado = {
+        'BSA': 'Brasileirão Série A',
+        'PL': 'Premier League',
+        'SA': 'Serie A',
+        'PD': 'La Liga',
+      };
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Column(children: [
+            for (final e in esperado.entries)
+              Carddepartidas(partida: partida(e.key, e.key)),
+          ]),
+        ),
+      ));
+      for (final e in esperado.entries) {
+        final rotulo = find.byKey(Key('partida_campeonato_${e.key}'));
+        expect(rotulo, findsOneWidget, reason: e.key);
+        expect((tester.widget<Text>(rotulo)).data, e.value, reason: e.key);
+      }
+      // O código cru não aparece como texto de liga conhecida.
+      expect(find.text('PL'), findsNothing);
+      expect(find.text('PD'), findsNothing);
+    });
+
+    testWidgets('card com código desconhecido mostra o código e não quebra', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(body: Carddepartidas(partida: partida('x1', 'XYZ'))),
+      ));
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('partida_campeonato_x1'))).data,
+        'XYZ',
+      );
+    });
+
+    testWidgets('card de partida antiga (sem código) mostra Brasileirão Série A', (tester) async {
+      final antiga = PartidaModel.fromFirestoreMap({
+        'homeTeam': 'Santos',
+        'awayTeam': 'Bahia',
+        'status': 'SCHEDULED',
+      }, 'antiga_1');
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(body: Carddepartidas(partida: antiga)),
+      ));
+      expect(
+        tester.widget<Text>(find.byKey(const Key('partida_campeonato_antiga_1'))).data,
+        'Brasileirão Série A',
+      );
+    });
+
+    testWidgets('nome longo da liga não estoura o card em tela estreita', (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Carddepartidas(
+            partida: partida('longo', 'ZZZ', campeonato: 'Campeonato Muito Longo da Liga Internacional de Futebol'),
+          ),
+        ),
+      ));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('detalhes mostram o nome da liga, não o código', (tester) async {
+      final pl = PartidaModel(
+        id: 'pl_1',
+        timeMandante: 'Arsenal',
+        timeVisitante: 'Chelsea',
+        startsAtUtc: DateTime.now().toUtc().add(const Duration(days: 3)),
+        statusDominio: StatusPartida.agendada,
+        campeonato: 'PL',
+        competitionCode: 'PL',
+        matchday: 12,
+      );
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => DetalhesDaPartidaDialog.exibir(context, pl),
+              child: const Text('ABRIR'),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('ABRIR'));
+      await tester.pumpAndSettle();
+      expect(find.text('Premier League • Rodada 12'), findsOneWidget);
+      expect(find.text('PL • Rodada 12'), findsNothing);
+    });
+  });
 }
