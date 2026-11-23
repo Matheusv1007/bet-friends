@@ -102,7 +102,7 @@ class _Doc extends Fake implements QueryDocumentSnapshot<Map<String, dynamic>> {
 }
 
 Map<String, dynamic> _partida(String? liga, DateTime inicio, {String status = 'SCHEDULED'}) => {
-      if (liga != null) 'competitionCode': liga,
+      'competitionCode': ?liga,
       'status': status,
       'homeTeam': {'name': 'Casa'},
       'awayTeam': {'name': 'Fora'},

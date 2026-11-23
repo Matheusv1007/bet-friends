@@ -8,7 +8,7 @@ import 'package:integration_test/integration_test.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  test('N-01: temporada passada não oculta partidas futuras', () async {
+  test('N-01: temporada passada não oculta partidas futuras de nenhuma liga', () async {
     final app = await Firebase.initializeApp(
       name: 'partidas-emulador',
       options: const FirebaseOptions(
@@ -29,10 +29,17 @@ void main() {
     try {
       final repo = FirestorePartidasRepository(firestore: db);
       final partidas = await repo.getPartidas();
-      expect(partidas.where((p) => p.podeCriarDesafio).length, 5);
-      expect(partidas.first.id, 'temporada_60');
-      expect(partidas.length, lessThanOrEqualTo(15));
-      // O mesmo conjunto limitado deve continuar disponível sem rede.
+      // BSA: 5 futuras; PL, SA e PD: 3 futuras cada.
+      expect(partidas.where((p) => p.podeCriarDesafio).length, 14);
+      expect(
+        partidas.map((p) => p.competitionCode).toSet(),
+        {'BSA', 'PL', 'SA', 'PD'},
+      );
+      // Ordenadas por horário: a mais antiga é a mais distante das 3 recentes do BSA.
+      expect(partidas.first.id, 'temporada_57');
+      final horarios = [for (final p in partidas) p.startsAtUtc!];
+      expect([...horarios]..sort(), horarios);
+      // O mesmo conjunto deve continuar disponível sem rede.
       await db.disableNetwork();
       final cache = await repo.getPartidas();
       expect(cache.map((p) => p.id), partidas.map((p) => p.id));
