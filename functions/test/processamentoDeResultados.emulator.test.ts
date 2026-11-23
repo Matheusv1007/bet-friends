@@ -172,7 +172,7 @@ describe("processamento automático de resultados (Firestore Emulator)", { skip:
     ]);
   });
 
-  test("5. doze desafios sem mudança usam uma leitura em lote (partida e estado da sincronização) e nenhuma transação", async (t) => {
+  test("5. doze desafios sem mudança usam uma leitura em lote (partida e estados da sincronização por liga) e nenhuma transação", async (t) => {
     await gravarMatch(db, { ...partida("1", "AGENDADA"), startsAtUtc: new Date(Date.now() + 60 * 60 * 1000) });
     const ids: string[] = [];
     const statuses: string[] = [];
@@ -193,14 +193,21 @@ describe("processamento automático de resultados (Firestore Emulator)", { skip:
 
     assert.equal(transacoes.mock.callCount(), 0);
     assert.equal(leituras.mock.callCount(), 1);
-    // Um único getAll: a partida e o estado da sincronização (base das saídas por tempo, T-01).
-    assert.deepEqual(leituras.mock.calls[0].arguments.map((ref) => "path" in ref ? ref.path : null), ["matches/footballdata_1", "system/matchSync"]);
+    // Um único getAll: a partida e o estado da sincronização de cada liga configurada (padrão), base das saídas por tempo (T-01).
+    // O legado system/matchSync não é mais lido.
+    assert.deepEqual(leituras.mock.calls[0].arguments.map((ref) => "path" in ref ? ref.path : null), [
+      "matches/footballdata_1",
+      "system/matchSync_BSA",
+      "system/matchSync_PL",
+      "system/matchSync_SA",
+      "system/matchSync_PD",
+    ]);
     assert.deepEqual([resumo.cancelados, resumo.iniciados, resumo.aguardandoResultado, resumo.finalizados, resumo.falhas], [[], [], [], [], []]);
     assert.equal(resumo.aguardando, 3);
     // Restaura antes das leituras usadas só para conferir o estado persistido.
     t.mock.restoreAll();
     assert.deepEqual(await Promise.all(ids.map(statusDe)), statuses);
-    t.diagnostic("N=12, uma partida: 0 transações, 1 leitura de partida (1 getAll).");
+    t.diagnostic("N=12, uma partida: 0 transações, 1 getAll (1 partida + 4 estados de liga).");
   });
 
   test("6. instantâneo candidato não inicia nem move se a partida mudou antes da transação", async () => {
