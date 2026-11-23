@@ -11,6 +11,8 @@ class SeletorPartidaDesafio extends StatelessWidget {
   final String? partidaId;
   final VoidCallback onRecarregar;
   final ValueChanged<String> onChanged;
+  final bool mostrarTodas;
+  final VoidCallback onAlternarMostrarTodas;
 
   const SeletorPartidaDesafio({
     super.key,
@@ -21,20 +23,24 @@ class SeletorPartidaDesafio extends StatelessWidget {
     required this.partidaId,
     required this.onRecarregar,
     required this.onChanged,
+    required this.mostrarTodas,
+    required this.onAlternarMostrarTodas,
   });
 
-  /// Quantas partidas o seletor lista.
+  /// Quantas partidas o seletor lista antes de "Mostrar mais".
   static const int maxPartidas = 5;
 
-  /// As [maxPartidas] primeiras partidas elegíveis. A partida já selecionada
-  /// continua visível mesmo fora delas (ex.: o desafio aberto pelos detalhes
-  /// de uma partida mais adiante), para a escolha não sumir da tela.
+  /// As [maxPartidas] primeiras partidas elegíveis, ou todas com
+  /// [mostrarTodas]. A partida já selecionada continua visível mesmo fora
+  /// delas (ex.: o desafio aberto pelos detalhes de uma partida mais adiante),
+  /// para a escolha não sumir da tela.
   static List<PartidaModel> exibidas(
     List<PartidaModel> elegiveis,
     String? selecionadaId,
+    bool mostrarTodas,
   ) => [
     for (final (i, p) in elegiveis.indexed)
-      if (i < maxPartidas || p.id == selecionadaId) p,
+      if (mostrarTodas || i < maxPartidas || p.id == selecionadaId) p,
   ];
 
   @override
@@ -153,88 +159,113 @@ class SeletorPartidaDesafio extends StatelessWidget {
 
     final partidaAtivaId = partidaId;
 
-    return Column(
-      children: exibidas(elegiveis, partidaAtivaId).map((PartidaModel p) {
-        final sel = partidaAtivaId == p.id;
-        final horarioOuStatus = p.horario ?? p.status;
+    final visiveis = exibidas(elegiveis, partidaAtivaId, mostrarTodas);
+    final ocultas = elegiveis.length - visiveis.length;
 
-        return InkWell(
-          key: Key('partida_desafio_${p.id}'),
-          onTap: () => onChanged(p.id),
-          child: Container(
-            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(
-              color: sel ? const Color(0xFF0E2924) : cardBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: sel
-                    ? primaryGreen
-                    : Colors.white.withValues(alpha: 0.05),
-                width: sel ? 1.5 : 1,
+    return Column(
+      children: [
+        ...visiveis.map((PartidaModel p) {
+          final sel = partidaAtivaId == p.id;
+          final horarioOuStatus = p.horario ?? p.status;
+
+          return InkWell(
+            key: Key('partida_desafio_${p.id}'),
+            onTap: () => onChanged(p.id),
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              decoration: BoxDecoration(
+                color: sel ? const Color(0xFF0E2924) : cardBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: sel
+                      ? primaryGreen
+                      : Colors.white.withValues(alpha: 0.05),
+                  width: sel ? 1.5 : 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  EscudoDoTime(
+                    url: p.logoMandante,
+                    nome: p.timeMandante,
+                    tamanho: 32,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      p.timeMandante,
+                      style: TextStyle(
+                        color: sel ? primaryGreen : Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  ),
+                  Column(
+                    children: [
+                      Text(
+                        'x',
+                        style: TextStyle(
+                          color: sel ? primaryGreen : textMuted,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        horarioOuStatus,
+                        style: const TextStyle(
+                          color: textMuted,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Expanded(
+                    child: Text(
+                      p.timeVisitante,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                        color: sel ? primaryGreen : Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  EscudoDoTime(
+                    url: p.logoVisitante,
+                    nome: p.timeVisitante,
+                    tamanho: 32,
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                EscudoDoTime(
-                  url: p.logoMandante,
-                  nome: p.timeMandante,
-                  tamanho: 32,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    p.timeMandante,
-                    style: TextStyle(
-                      color: sel ? primaryGreen : Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13.5,
-                    ),
-                  ),
-                ),
-                Column(
-                  children: [
-                    Text(
-                      'x',
-                      style: TextStyle(
-                        color: sel ? primaryGreen : textMuted,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                    Text(
-                      horarioOuStatus,
-                      style: const TextStyle(
-                        color: textMuted,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                Expanded(
-                  child: Text(
-                    p.timeVisitante,
-                    textAlign: TextAlign.end,
-                    style: TextStyle(
-                      color: sel ? primaryGreen : Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                EscudoDoTime(
-                  url: p.logoVisitante,
-                  nome: p.timeVisitante,
-                  tamanho: 32,
-                ),
-              ],
+          );
+        }),
+        if (ocultas > 0 || (mostrarTodas && elegiveis.length > maxPartidas))
+          Align(
+            alignment: Alignment.center,
+            child: TextButton.icon(
+              key: const Key('btn_mostrar_mais_partidas'),
+              style: TextButton.styleFrom(
+                foregroundColor: primaryGreen,
+                minimumSize: const Size(48, 48),
+              ),
+              onPressed: onAlternarMostrarTodas,
+              icon: Icon(
+                mostrarTodas ? Icons.expand_less : Icons.expand_more,
+                size: 20,
+              ),
+              label: Text(
+                mostrarTodas ? 'Mostrar menos' : 'Mostrar mais ($ocultas)',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
           ),
-        );
-      }).toList(),
+      ],
     );
   }
 }

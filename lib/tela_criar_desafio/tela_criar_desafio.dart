@@ -48,6 +48,7 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
 
   int valor = 50;
   String? partidaId;
+  bool _mostrarTodasPartidas = false;
   Palpite palpiteSelecionado = Palpite.homeWin;
   String? amigoId;
   String? amigoNome;
@@ -388,6 +389,10 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                     onRecarregar: () =>
                         partidasProvider.carregarPartidas(forcar: true),
                     onChanged: (id) => setState(() => partidaId = id),
+                    mostrarTodas: _mostrarTodasPartidas,
+                    onAlternarMostrarTodas: () => setState(
+                      () => _mostrarTodasPartidas = !_mostrarTodasPartidas,
+                    ),
                   );
                 },
               ),

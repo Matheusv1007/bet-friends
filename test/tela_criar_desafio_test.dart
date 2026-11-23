@@ -347,7 +347,11 @@ void main() {
             ),
         ];
 
-    testWidgets('lista só as 5 primeiras partidas e mostra o escudo de cada time', (tester) async {
+    testWidgets('lista só as 5 primeiras partidas com escudos, e "Mostrar mais" revela as demais', (tester) async {
+      // Tela alta o bastante para todas as partidas ficarem na área visível.
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(montarAppComNavegacao(
         provider: FakePartidasProvider(oitoPartidas()),
         child: CriarDesafioScreen(
@@ -365,6 +369,23 @@ void main() {
       }
       // Um escudo por time: 5 partidas x 2 times.
       expect(find.byType(EscudoDoTime), findsNWidgets(10));
+
+      // "Mostrar mais" revela as demais; "Mostrar menos" volta às 5 primeiras.
+      final botao = find.byKey(const Key('btn_mostrar_mais_partidas'));
+      expect(find.text('Mostrar mais (3)'), findsOneWidget);
+      await tester.ensureVisible(botao);
+      await tester.tap(botao);
+      await tester.pumpAndSettle();
+      for (var i = 1; i <= 8; i++) {
+        expect(find.byKey(Key('partida_desafio_jogo_$i')), findsOneWidget, reason: 'jogo $i');
+      }
+      expect(find.text('Mostrar menos'), findsOneWidget);
+
+      await tester.ensureVisible(botao);
+      await tester.tap(botao);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('partida_desafio_jogo_6')), findsNothing);
+      expect(find.text('Mostrar mais (3)'), findsOneWidget);
     });
 
     testWidgets('partida pré-selecionada fora das 5 primeiras continua visível e selecionável', (tester) async {
