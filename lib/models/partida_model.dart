@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'campeonato.dart';
+
 /// Status de domínio interno de partida (RF-008, RN-MAT-002, RNF-013; docs/firestore-schema.md §3.4).
 enum StatusPartida {
   agendada('AGENDADA', 'Agendada'),
@@ -168,6 +170,25 @@ class PartidaModel {
       status.toUpperCase().contains('SCHEDULED') ||
       status.toUpperCase().contains('TIMED') ||
       (!isFinalizado && !isAoVivo && !isCancelado && !isAdiado);
+
+  /// Nome legível do campeonato a partir de [competitionCode] (ex.: `PL` → "Premier League").
+  ///
+  /// O campo legado [campeonato] só é usado quando traz um nome de verdade;
+  /// se for o código cru, ou se não houver código, vale o código (desconhecido
+  /// nunca quebra) e, sem nenhum dos dois, o Brasileirão, como nos documentos antigos.
+  String get nomeDoCampeonato {
+    final codigo = competitionCode?.trim();
+    if (codigo != null && codigo.isNotEmpty) {
+      final conhecido = Campeonato.deCodigo(codigo);
+      if (conhecido != null) return conhecido.nome;
+      final legado = campeonato?.trim();
+      if (legado != null && legado.isNotEmpty && legado != codigo) return legado;
+      return codigo;
+    }
+    final legado = campeonato?.trim();
+    if (legado != null && legado.isNotEmpty) return Campeonato.nomeDoCodigo(legado);
+    return Campeonato.brasileirao.nome;
+  }
 
   /// Partidas elegíveis para novo desafio (RN-MAT-003, RN-MAT-004):
   /// - Exclui partidas finalizadas, canceladas e adiadas.
@@ -339,6 +360,8 @@ class PartidaModel {
       startsAtUtc: startsAtUtc,
       syncedAt: syncedAt,
       matchday: (data['matchday'] as num?)?.toInt(),
+      // Padrões 'BSA'/2026 existem só para documentos antigos, anteriores aos
+      // campos `competitionCode`/`season` e às demais ligas.
       competitionCode: data['competitionCode']?.toString() ?? 'BSA',
       season: (data['season'] as num?)?.toInt() ?? 2026,
       minuto: data['minuto']?.toString(),
