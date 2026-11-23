@@ -19,6 +19,9 @@ abstract final class CallableNames {
   /// `AuthService.signIn`.
   static const String resolveLoginEmail = 'resolveLoginEmail';
 
+  /// Exclui a própria conta após reautenticação. Payload estritamente `{}`.
+  static const String deleteAccount = 'deleteAccount';
+
   /// Bônus de recuperação de +100 BetCoins do usuário logado (KAN-80), sem
   /// parâmetros. Não elegível: `FunctionsException(code: 'failed-precondition')`
   /// com `motivo` `saldo-reservado`, `saldo-suficiente`,
