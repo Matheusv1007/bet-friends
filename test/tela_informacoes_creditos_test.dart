@@ -217,7 +217,7 @@ void main() {
     );
 
     testWidgets(
-      'MVP não depende de escudos ou imagens com licenciamento não confirmado (RNF-012)',
+      'a tela de créditos não carrega imagens e informa que os escudos vêm do provedor (RNF-012)',
       (tester) async {
         await tester.pumpWidget(
           const MaterialApp(
