@@ -6,7 +6,8 @@ import 'usuario_publico.dart';
 enum FriendshipStatus {
   pending('PENDING'),
   accepted('ACCEPTED'),
-  rejected('REJECTED');
+  rejected('REJECTED'),
+  removed('REMOVED');
 
   final String valor;
   const FriendshipStatus(this.valor);
@@ -17,6 +18,8 @@ enum FriendshipStatus {
         return FriendshipStatus.accepted;
       case 'REJECTED':
         return FriendshipStatus.rejected;
+      case 'REMOVED':
+        return FriendshipStatus.removed;
       case 'PENDING':
       default:
         return FriendshipStatus.pending;

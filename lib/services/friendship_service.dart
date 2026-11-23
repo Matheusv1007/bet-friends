@@ -29,6 +29,26 @@ class FriendshipService {
       _repositorySobDemanda ??
       FunctionsFriendshipRepository(functions: _functions);
 
+
+  /// Recebe exclusivamente o UID público do amigo; não interpreta underscores.
+  Future<void> removerAmizade(String friendUserId) async {
+    final usuario = _authService.currentUser;
+    if (usuario == null) {
+      throw const FriendshipException(
+        FriendshipErrorCode.unauthenticated,
+        'É necessário estar autenticado para remover uma amizade.',
+      );
+    }
+    final uid = friendUserId.trim();
+    if (uid.isEmpty || uid == usuario.uid) {
+      throw const FriendshipException(
+        FriendshipErrorCode.invalidData,
+        'Identificador de amigo inválido.',
+      );
+    }
+    final uids = [usuario.uid, uid]..sort();
+    await _repository.removerAmizade('${uids[0]}_${uids[1]}');
+  }
   /// Envia uma solicitação de amizade para o usuário indicado por [toUserId].
   Future<ResultadoEnvioAmizade> enviarSolicitacaoAmizade(String toUserId) async {
     final usuarioLogado = _authService.currentUser;

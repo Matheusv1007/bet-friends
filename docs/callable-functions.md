@@ -324,3 +324,14 @@ O login aceita e-mail **ou** username (imutável). O Firebase Authentication só
 - **Limite de uso:** 10 consultas por minuto por IP (`rateLimits/resolveLoginEmail_{hash do IP}`), com o contrato `resource-exhausted` da seção 12. Formato inválido não consulta nada nem consome cota.
 - **No app:** `AuthService.signIn(identifier:, password:)` usa o texto como e-mail se tiver `@` (que não seja o inicial) e como username nos demais casos. Username inexistente falha com `invalid-credential`, igual a senha errada; a tela não revela quais usernames existem.
 - **Deploy:** `firebase deploy --only functions:resolveLoginEmail`. Como as demais, a callable nova precisa de permissão pública de invocação (ver seção 7).
+
+## 14 - Remover amizade (RF-006)
+
+`removeFriend` usa `authedCallable` (2ª geração, Node 22, `southamerica-east1`). Recebe `{ friendshipId }`, ID determinístico dos UIDs ordenados, e devolve somente `{ friendshipId, status: "REMOVED" }`. O autor vem exclusivamente do token; campos extras não substituem sua identidade.
+
+- Somente participante de uma amizade `ACCEPTED` remove. Inexistente, relação de terceiros, `PENDING` e `REJECTED` têm a mesma resposta: `not-found`, mensagem `"Solicitação de amizade não encontrada."`, `details.motivo = "solicitacao-inexistente"` (N-09).
+- O documento fica em `REMOVED`: repetir por qualquer participante tem a mesma resposta de sucesso sem alterar a amizade. Reenviar solicitação reutiliza o documento e as cotas N-11 de reabertura; somente novo aceite permite desafios.
+- Bloqueia com `failed-precondition`, `details.motivo = "desafio-ativo"`, se houver desafio do par em qualquer direção em `PENDING`, `ACCEPTED`, `IN_PROGRESS` ou `WAITING_RESULT`. A consulta ocorre na transação da remoção. Criação de desafio também escreve a amizade, impedindo corrida; aceite parte de `PENDING`, que já bloqueia remoção.
+- Desafios `FINISHED`, `REJECTED`, `EXPIRED` e `CANCELLED` não bloqueiam e permanecem no histórico dos dois. Nenhum desafio, saldo ou ledger é alterado pela remoção.
+- `unauthenticated` sem token; payload inválido retorna `invalid-argument` (identificador inválido: `uid-invalido`). Limite de 30 sucessos/hora por usuário em `rateLimits/removeFriend_{uid}`, incluindo replays, com `resource-exhausted`, `limite-de-uso` e `tentarNovamenteEm` conforme seção 12. Falhas não consomem cota.
+- No app: confirmação explícita, sem repetição automática; erros e falta de conexão mantêm o amigo na lista. O novo índice composto de `challenges` está em `firestore.indexes.json` e precisa ser publicado pelo responsável antes de usar a callable em produção.

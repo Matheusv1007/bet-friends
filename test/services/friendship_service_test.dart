@@ -9,6 +9,20 @@ import 'package:betfriends/services/functions/functions_service.dart';
 import '../support/fake_auth.dart';
 
 class _FakeFriendshipRepository implements FriendshipRepository {
+  String? amizadeRemovida;
+
+  @override
+  Future<void> removerAmizade(String friendshipId) async {
+    if (simularErroConexao) {
+      throw const FriendshipException(
+        FriendshipErrorCode.unavailable,
+        'Serviço temporariamente indisponível. Verifique sua conexão.',
+      );
+    }
+    amizadeRemovida = friendshipId;
+    statusAmizades[friendshipId] = 'REMOVED';
+  }
+
   final Map<String, String> statusAmizades = {}; // friendshipId -> status
   final Map<String, String> requesterIds = {}; // friendshipId -> requesterId
   bool simularErroConexao = false;
@@ -214,6 +228,36 @@ void main() {
         authService: authService,
         repository: repository,
       );
+    });
+
+    test('remove pelo ID ordenado mesmo quando os UIDs contêm underscores', () async {
+      await service.removerAmizade('a_uid_com_underscore');
+      expect(repository.amizadeRemovida, 'a_uid_com_underscore_$meuUid');
+    });
+
+    test('remoção exige autenticação e não chama o repositório', () async {
+      final service = FriendshipService(
+        authService: FakeAuthService(usuarioInicial: null),
+        repository: repository,
+      );
+      await expectLater(
+        service.removerAmizade(outroUid),
+        throwsA(isA<FriendshipException>().having(
+          (e) => e.code, 'code', FriendshipErrorCode.unauthenticated,
+        )),
+      );
+      expect(repository.amizadeRemovida, isNull);
+    });
+
+    test('remoção offline não altera relação nem reenvia', () async {
+      repository.simularErroConexao = true;
+      await expectLater(
+        service.removerAmizade(outroUid),
+        throwsA(isA<FriendshipException>()),
+      );
+      repository.simularErroConexao = false;
+      await Future<void>.delayed(Duration.zero);
+      expect(repository.amizadeRemovida, isNull);
     });
 
     test('exige usuário autenticado para envio', () async {
@@ -511,6 +555,18 @@ void main() {
   });
 
   group('FriendshipException.fromFunctionsException', () {
+    test('traduz desafio ativo com mensagem exata', () {
+      final ex = FriendshipException.fromFunctionsException(
+        FunctionsException(
+          code: 'failed-precondition',
+          message: 'Backend',
+          motivo: 'desafio-ativo',
+        ),
+      );
+      expect(ex.code, FriendshipErrorCode.activeChallenge);
+      expect(ex.message,
+          'Você tem um desafio em andamento com este amigo. Conclua ou cancele o desafio antes de remover a amizade.');
+    });
     test('mapeia motivo auto-solicitacao para selfRequest', () {
       final fe = FunctionsException(
         code: 'invalid-argument',

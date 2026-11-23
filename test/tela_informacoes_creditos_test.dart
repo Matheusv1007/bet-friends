@@ -104,6 +104,10 @@ class _FakePartidasService extends PartidasService {
 
 class _FakeFriendshipRepository implements FriendshipRepository {
   @override
+  Future<void> removerAmizade(String friendshipId) async =>
+      throw UnimplementedError();
+
+  @override
   Future<List<UsuarioPublico>> listarAmigosAceitos() async => [];
 
   @override

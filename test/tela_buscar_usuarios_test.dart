@@ -43,6 +43,10 @@ class _FakeSearchRepository implements UserSearchRepository {
 }
 
 class _FakeFriendshipRepoForWidget implements FriendshipRepository {
+  @override
+  Future<void> removerAmizade(String friendshipId) async =>
+      throw UnimplementedError();
+
   bool crossRequest = false;
   bool throwError = false;
   String? errorMessage;
