@@ -1,10 +1,23 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { CONFIG_PADRAO, escopoDaExecucao, janelaDaSincronizacao, lerConfigDaSincronizacao } from "../src/partidas/agendaDaSincronizacao";
+import {
+  CONFIG_PADRAO,
+  MAXIMO_DE_COMPETICOES,
+  escopoDaExecucao,
+  janelaDaSincronizacao,
+  lerConfigDaSincronizacao,
+} from "../src/partidas/agendaDaSincronizacao";
+import { documentoDeEstado } from "../src/partidas/estadoDaSincronizacao";
 
 test("sem variáveis de ambiente, usa a agenda e a janela padrão", () => {
-  assert.deepEqual(lerConfigDaSincronizacao({}), { agenda: "every 5 minutes", diasAntes: 3, diasDepois: 14, horasEntreTemporadas: 6 });
+  assert.deepEqual(lerConfigDaSincronizacao({}), {
+    agenda: "every 5 minutes",
+    competicoes: ["BSA", "PL", "SA", "PD"],
+    diasAntes: 3,
+    diasDepois: 14,
+    horasEntreTemporadas: 6,
+  });
   assert.deepEqual(lerConfigDaSincronizacao({ PARTIDAS_SYNC_AGENDA: "  ", PARTIDAS_SYNC_DIAS_ANTES: "" }), CONFIG_PADRAO);
 });
 
@@ -15,7 +28,32 @@ test("frequência e janela são ajustáveis pelo ambiente, inclusive nos limites
     PARTIDAS_SYNC_DIAS_DEPOIS: "60",
     PARTIDAS_SYNC_TEMPORADA_HORAS: "168",
   });
-  assert.deepEqual(config, { agenda: "every 15 minutes", diasAntes: 0, diasDepois: 60, horasEntreTemporadas: 168 });
+  assert.deepEqual(config, {
+    agenda: "every 15 minutes",
+    competicoes: ["BSA", "PL", "SA", "PD"],
+    diasAntes: 0,
+    diasDepois: 60,
+    horasEntreTemporadas: 168,
+  });
+});
+
+test("competições: lista do ambiente é normalizada para maiúsculas, mantém a ordem e aceita uma só", () => {
+  assert.deepEqual(lerConfigDaSincronizacao({ PARTIDAS_SYNC_COMPETICOES: " pl , SA,pd " }).competicoes, ["PL", "SA", "PD"]);
+  assert.deepEqual(lerConfigDaSincronizacao({ PARTIDAS_SYNC_COMPETICOES: "BSA" }).competicoes, ["BSA"]);
+});
+
+test("competições inválidas, repetidas ou acima do máximo fazem o deploy falhar", () => {
+  const nove = Array.from({ length: MAXIMO_DE_COMPETICOES + 1 }, (_, i) => `C${i}X`).join(",");
+  for (const valor of ["BSA,,PL", "BSA,BSA", "B", "BSA PL", "BS/A", "ABCDEFGHIJK", ",", nove]) {
+    assert.throws(() => lerConfigDaSincronizacao({ PARTIDAS_SYNC_COMPETICOES: valor }), RangeError, valor);
+  }
+});
+
+test("documento de estado é por competição e o código vira caminho só se for válido", () => {
+  assert.equal(documentoDeEstado("PL"), "system/matchSync_PL");
+  for (const codigo of ["pl", "P/L", "", "ABCDEFGHIJK", "../x"]) {
+    assert.throws(() => documentoDeEstado(codigo), RangeError, codigo);
+  }
 });
 
 test("dias fora de 0 a 60 ou que não são inteiros fazem o deploy falhar", () => {

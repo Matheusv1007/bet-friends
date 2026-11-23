@@ -1,7 +1,22 @@
 import { DocumentData, Timestamp } from "firebase-admin/firestore";
 
+import { CODIGO_DE_COMPETICAO } from "./agendaDaSincronizacao";
+
 /** Estado da última execução da sincronização, só do backend (docs/firestore-schema.md §3.7). */
 export const DOCUMENTO_DE_ESTADO = "system/matchSync";
+
+/**
+ * Documento de estado da sincronização de uma competição: `system/matchSync_{código}`.
+ * Cada competição tem o seu, para falhas, varreduras e a base das saídas por
+ * tempo do cancelamento (T-01) não se misturarem entre ligas. O código vem da
+ * configuração, mas é validado aqui porque vira parte de um caminho.
+ */
+export function documentoDeEstado(competitionCode: string): string {
+  if (!CODIGO_DE_COMPETICAO.test(competitionCode)) {
+    throw new RangeError(`Código de competição inválido: ${JSON.stringify(competitionCode)}.`);
+  }
+  return `${DOCUMENTO_DE_ESTADO}_${competitionCode}`;
+}
 
 /**
  * Instante da última sincronização da **temporada inteira** concluída com
