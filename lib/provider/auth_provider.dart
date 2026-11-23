@@ -45,12 +45,13 @@ class AuthProvider extends ChangeNotifier {
     _cadastroEmAndamento = false;
   }
 
+  /// [identifier] é o e-mail ou o username da conta.
   Future<void> signIn({
-    required String email,
+    required String identifier,
     required String password,
   }) async {
     await _authService.signIn(
-      email: email,
+      identifier: identifier,
       password: password,
     );
   }

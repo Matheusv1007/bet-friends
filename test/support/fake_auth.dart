@@ -29,6 +29,7 @@ class FakeAuthService extends AuthService {
   Completer<void>? signOutEmAndamento;
 
   int signInCalls = 0;
+  String? ultimoIdentificador;
   int signOutCalls = 0;
 
   Object? signUpError;
@@ -60,12 +61,13 @@ class FakeAuthService extends AuthService {
 
   @override
   Future<UserCredential> signIn({
-    required String email,
+    required String identifier,
     required String password,
   }) async {
     signInCalls++;
+    ultimoIdentificador = identifier;
     if (signInError != null) throw signInError!;
-    _usuario = FakeUser('uid-$email');
+    _usuario = FakeUser('uid-$identifier');
     _mudancas.add(_usuario);
     return _FakeUserCredential(_usuario!);
   }
