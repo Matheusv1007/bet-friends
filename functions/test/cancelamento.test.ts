@@ -111,8 +111,12 @@ test("desafio aceito inicia com a partida fora de campo, e não com partida agen
 });
 
 test("aceito com partida agendada há mais de sete dias cancela; no limite espera", () => {
-  assert.equal(motivoDeCancelamentoPelaPartida(ACEITO, partida("AGENDADA"), depoisDe(7)), null);
-  assert.equal(motivoDeCancelamentoPelaPartida(ACEITO, partida("AGENDADA"), new Date(depoisDe(7).getTime() + 1)), "MATCH_POSTPONED");
+  const varredura = depoisDe(8); // temporada confirmada depois do prazo
+  assert.equal(motivoDeCancelamentoPelaPartida(ACEITO, partida("AGENDADA"), depoisDe(7), varredura), null);
+  assert.equal(
+    motivoDeCancelamentoPelaPartida(ACEITO, partida("AGENDADA"), new Date(depoisDe(7).getTime() + 1), varredura),
+    "MATCH_POSTPONED",
+  );
 });
 
 test("em andamento além de 24h gera alerta identificado sem cancelar", (t) => {
@@ -127,11 +131,40 @@ test("em andamento além de 24h gera alerta identificado sem cancelar", (t) => {
 test("suspensa ou em revisão além de sete dias em WAITING_RESULT cancela com reservas liberáveis", () => {
   for (const status of ["SUSPENSA", "REVISAO_NECESSARIA"] as const) {
     const limite = depoisDe(7, AGUARDANDO.updatedAt);
-    assert.equal(motivoDeCancelamentoPelaPartida(AGUARDANDO, partida(status), limite), null);
-    const motivo = motivoDeCancelamentoPelaPartida(AGUARDANDO, partida(status), new Date(limite.getTime() + 1));
+    // Temporada confirmada depois do prazo: o dado velho é do próprio provedor, não da nossa sincronização.
+    const varredura = depoisDe(8, AGUARDANDO.updatedAt);
+    assert.equal(motivoDeCancelamentoPelaPartida(AGUARDANDO, partida(status), limite, varredura), null);
+    const motivo = motivoDeCancelamentoPelaPartida(AGUARDANDO, partida(status), new Date(limite.getTime() + 1), varredura);
     assert.equal(motivo, "MATCH_POSTPONED");
     const encerrado = aplicarEvento(AGUARDANDO, { tipo: "CANCELAR", motivo: motivo! }, depoisDe(8));
     assert.equal(encerrado.status, "CANCELLED");
-    assert.equal(motivoDeCancelamentoPelaPartida(encerrado, partida(status), depoisDe(30)), null);
+    assert.equal(motivoDeCancelamentoPelaPartida(encerrado, partida(status), depoisDe(30), varredura), null);
   }
+});
+
+test("T-01: com a sincronização da temporada parada, as saídas por tempo não cancelam nada", () => {
+  const prazoAceito = depoisDe(7);
+  const prazoEspera = depoisDe(7, AGUARDANDO.updatedAt);
+  // Nunca houve varredura, ou a última foi antes do fim do prazo: a partida pode ter acontecido sem nós sabermos.
+  for (const varredura of [null, depoisDe(6), prazoAceito]) {
+    assert.equal(
+      motivoDeCancelamentoPelaPartida(ACEITO, partida("AGENDADA"), depoisDe(30), varredura),
+      null,
+      `aceito, varredura ${varredura?.toISOString() ?? "nunca"}`,
+    );
+  }
+  for (const varredura of [null, depoisDe(6, AGUARDANDO.updatedAt), prazoEspera]) {
+    for (const status of ["SUSPENSA", "REVISAO_NECESSARIA"] as const) {
+      assert.equal(
+        motivoDeCancelamentoPelaPartida(AGUARDANDO, partida(status), depoisDe(30, AGUARDANDO.updatedAt), varredura),
+        null,
+        `${status}, varredura ${varredura?.toISOString() ?? "nunca"}`,
+      );
+    }
+  }
+});
+
+test("T-01: sem varredura informada, as demais regras de cancelamento continuam valendo", () => {
+  assert.equal(motivoDeCancelamentoPelaPartida(ACEITO, partida("CANCELADA"), INICIO), "MATCH_CANCELLED");
+  assert.equal(motivoDeCancelamentoPelaPartida(PENDENTE, partida("ADIADA", depoisDe(8)), INICIO), "MATCH_POSTPONED");
 });
