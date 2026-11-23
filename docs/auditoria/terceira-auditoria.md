@@ -143,3 +143,12 @@
 - Confirmar a regra "SUSPENSA/REVISAO_NECESSARIA por mais de 7 dias cancela com reembolso" (decisão do responsável pela correção, aplicada na segunda onda).
 - T-05: gravar o nome público no desafio na criação (muda o modelo e o backend) ou consultar nomes por UID (nova callable).
 - Itens manuais já listados nas auditorias anteriores: keystore e `key.properties`, restrição da chave de API, confirmar a revogação do token antigo (N-30), proteção de branch (adiada), App Check em produção, N-14 (Play).
+
+## Status de correção (atualizado em 23/11/2026)
+
+| ID | Status |
+|---|---|
+| T-01 | Corrigido no código (branch `fix/t-01-cancelamento-dados-velhos`), com testes de unidade e de emulador; publicado no `syncMatches`. Ver a [quarta auditoria](quarta-auditoria.md) |
+| T-02 | Corrigido no app (branch `fix/t-05-t-02-app-amigos`): segue `nextCursor`. A ordenação por `createdAt` sugerida na correção não foi feita no backend |
+| T-05 | Parcial (mesma branch): ex-amigo nunca visto continua exigindo consulta por UID no backend |
+| Demais | Abertos |
