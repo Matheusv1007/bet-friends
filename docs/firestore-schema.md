@@ -163,18 +163,18 @@ Leitura: nenhuma pelo app; a verificação de disponibilidade é feita pela Func
 | `userAId` | string (UID) | sim | imutável | Menor UID do par [KAN-17] |
 | `userBId` | string (UID) | sim | imutável | Maior UID do par [KAN-17] |
 | `participants` | array\<string\> `[userAId, userBId]` | sim | imutável | **[PROPOSTA]** permite `array-contains` para listar amizades de um usuário |
-| `requesterId` | string (UID) | sim | atualizável apenas ao reabrir após `REJECTED` | **[PROPOSTA]** quem enviou a solicitação ativa |
-| `status` | enum `PENDING` \| `ACCEPTED` \| `REJECTED` | sim | backend | [PLANO] §11 |
+| `requesterId` | string (UID) | sim | atualizável apenas ao reabrir após `REJECTED` ou `REMOVED` | **[PROPOSTA]** quem enviou a solicitação ativa |
+| `status` | enum `PENDING` \| `ACCEPTED` \| `REJECTED` \| `REMOVED` | sim | backend | [PLANO] §11; remoção RF-006 |
 | `createdAt` | Timestamp | sim | imutável | [PLANO] [KAN-17] |
 | `respondedAt` | Timestamp \| null | não | backend | **[PROPOSTA]** aceite ou recusa |
-| `updatedAt` | Timestamp | sim | backend | [KAN-17] |
+| `updatedAt` | Timestamp | sim | backend | [KAN-17]; também atualizado na criação de desafio para serializar com a remoção |
 
 **Integridade:**
 - **ID determinístico** impede duas relações para o mesmo par (RN-FRD-003, RN-FRD-004, KAN-40). Criar dentro de uma transação que lê o ID antes.
 - `userAId ≠ userBId` (RN-FRD-002).
 - **Solicitação cruzada (RN-FRD-005, KAN-41):** se B solicita A e o documento já está `PENDING` com `requesterId = A`, a mesma transação muda para `ACCEPTED`. O resultado é uma única relação aceita.
 - **Recusa:** `REJECTED` não é "solicitação ativa" (RN-FRD-003). Uma nova solicitação reutiliza o mesmo documento, voltando para `PENDING` com novo `requesterId`. **[PROPOSTA]**
-- **Remoção (RN-FRD-006):** o Plano não prevê estado `REMOVED`. **[PROPOSTA]** a remoção **apaga** o documento, na mesma operação que cancela os desafios `PENDING` entre os dois e libera as reservas (RN-FRD-007). Desafios aceitos continuam (RN-FRD-008), porque `challenges` referencia UIDs, não a amizade.
+- **Remoção (RF-006, decisão de negócio vigente):** `removeFriend` muda `ACCEPTED` para `REMOVED`, preservando participantes e cotas de reabertura. Só participantes podem remover ou repetir a remoção; repetir em `REMOVED` não muda o documento. Qualquer desafio entre o par em `PENDING`, `ACCEPTED`, `IN_PROGRESS` ou `WAITING_RESULT`, em qualquer direção, bloqueia com `desafio-ativo`. Não cancela desafios nem altera saldos ou ledger; terminais e histórico permanecem intactos. A verificação e a mudança são transacionais. `createChallenge` também atualiza `updatedAt` da amizade na transação de criação, serializando as operações sem janela para criar após remover. Aceite só parte de `PENDING`, que já impede remover. Reenviar em `REMOVED` usa a mesma reabertura de `REJECTED`, incluindo cota N-11 de 3/dia por par/remetente, e exige novo aceite.
 - Desafio só pode ser criado se `friendships/{par}` existir com `ACCEPTED` (RN-FRD-001, RN-CHL-002).
 
 Campos opcionais de exibição (se a opção (b) de §3.1.1 for escolhida): `userADisplayName`, `userBDisplayName`, `userAUsername`, `userBUsername`.
@@ -513,7 +513,7 @@ O app nunca grava saldo, transação, estado de desafio, resultado ou vencedor (
 
 ## 6 - Índices declarados
 
-Em 19/11/2026, `firestore.indexes.json` declara **doze índices compostos**, todos com escopo `COLLECTION`. A tabela descreve o arquivo versionado, não confirma o estado de publicação no console.
+Em 23/11/2026, `firestore.indexes.json` declara **treze índices compostos**, todos com escopo `COLLECTION`. A tabela descreve o arquivo versionado, não confirma o estado de publicação no console.
 
 | Coleção | Campos, na ordem declarada | Consulta |
 |---|---|---|
@@ -524,6 +524,7 @@ Em 19/11/2026, `firestore.indexes.json` declara **doze índices compostos**, tod
 | `challenges` | `participants CONTAINS`, `matchId ASC` | Participação por partida |
 | `challenges` | `challengerId ASC`, `matchId ASC`, `status ASC` | Existência de desafio ativo do criador, sem ler histórico terminal (N-10) |
 | `challenges` | `participants CONTAINS`, `matchId ASC`, `status ASC` | Existência de desafio ativo do participante, sem ler histórico terminal (N-10) |
+| `challenges` | `challengerId ASC`, `challengedId ASC`, `status ASC` | Existência de desafio ativo entre amigos, nas duas direções, antes de remover amizade (RF-006) |
 | `challenges` | `matchId ASC`, `status ASC` | Expiração, início e liquidação |
 | `friendships` | `participants CONTAINS`, `status ASC` | Amigos e solicitações |
 | `friendships` | `participants CONTAINS`, `status ASC`, `requesterId ASC` (`__name__ ASC` implícito) | Solicitações recebidas paginadas, excluindo as enviadas (N-11) |
