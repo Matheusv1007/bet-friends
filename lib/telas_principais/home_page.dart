@@ -11,6 +11,7 @@ import 'package:betfriends/widgets_home_page/appbar_das_partidas.dart';
 import 'package:betfriends/widgets_home_page/card_de_desafio.dart';
 import 'package:betfriends/widgets_home_page/card_de_desafios_ativos.dart';
 import 'package:betfriends/widgets_home_page/card_de_carteira.dart';
+import 'package:betfriends/widgets_home_page/bonus_recuperacao.dart';
 import 'package:betfriends/models/challenge_model.dart';
 import 'package:betfriends/services/auth_service.dart';
 import 'package:betfriends/services/challenge_service.dart';
@@ -205,9 +206,15 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
                       if (carteira == null) return const SizedBox.shrink();
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 18.0),
-                        child: Carddecarteira(
-                          carteira: carteira,
-                          semConexao: snapshot.data?.doCache ?? false,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Carddecarteira(
+                              carteira: carteira,
+                              semConexao: snapshot.data?.doCache ?? false,
+                            ),
+                            BonusRecuperacaoCard(carteira: carteira),
+                          ],
                         ),
                       );
                     },

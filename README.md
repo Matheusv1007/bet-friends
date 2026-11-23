@@ -30,7 +30,7 @@ Projeto Final da disciplina de Desenvolvimento Mobile.
    - quem acertou recebe o valor apostado pelo adversário (o total do desafio é 2x o valor, **sem taxa**);
    - se nenhum dos dois acertou, cada um recebe a própria reserva de volta;
    - se a partida for cancelada ou adiada além do tolerado, o desafio é cancelado e as reservas são devolvidas.
-7. **Recuperação.** Quem fica sem saldo para apostar e sem nada reservado pode resgatar um bônus de recuperação, com intervalo mínimo entre resgates.
+7. **Recuperação (RF-020).** A Home oferece **Resgatar bônus de recuperação (+100 BetCoins)** junto à carteira somente com saldo disponível abaixo de 10, nenhuma reserva e pelo menos 24 horas desde o último bônus. Durante o intervalo, informa a data e a hora local do próximo resgate; outras condições ocultam a ação. O servidor valida as regras pela callable `claimRecoveryBonus`; o saldo se atualiza pelo stream do perfil, sem escrita local. Sem confirmação do servidor, a tela informa o erro e não repete automaticamente: confira a carteira antes de tentar novamente.
 
 Estados de um desafio: `PENDING` → `ACCEPTED` → `IN_PROGRESS` → `WAITING_RESULT` → `FINISHED`, com saídas para `REJECTED`, `EXPIRED` e `CANCELLED`. Toda movimentação de saldo é registrada em um extrato imutável (ledger), e as operações financeiras são transações atômicas.
 
