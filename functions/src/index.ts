@@ -5,6 +5,7 @@ import "./core/firebase";
 export { systemPing } from "./system/ping";
 export { createUserProfile } from "./perfil/createUserProfile";
 export { resolveLoginEmail } from "./perfil/resolveLoginEmail";
+export { deleteAccount } from "./perfil/deleteAccount";
 export { claimRecoveryBonus } from "./betcoins/claimRecoveryBonus";
 export { syncMatches } from "./partidas/syncMatches";
 export { searchUsers } from "./perfil/searchUsers";

@@ -1,6 +1,7 @@
 import { FieldPath, FieldValue, Firestore, Transaction } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/https";
 import { planejarConsumoDeLimiteNaTransacao } from "../core/limiteDeUso";
+import { verificarContasDisponiveisNaTransacao } from "../perfil/contaDisponivel";
 
 import {
   ErroDeAmizade,
@@ -77,6 +78,7 @@ export async function enviarSolicitacaoAmizadeNaTransacao(
   agora: Date = new Date(),
 ): Promise<ResultadoEnvioSolicitacao> {
   const { friendshipId, userAId, userBId } = gerarFriendshipId(requesterId, targetUserId);
+  await verificarContasDisponiveisNaTransacao(transacao, db, [requesterId, targetUserId]);
 
   const targetUserRef = db.collection(COLECAO_DE_USUARIOS).doc(targetUserId);
   const friendshipRef = db.collection(COLECAO_DE_AMIZADES).doc(friendshipId);
@@ -199,6 +201,7 @@ export async function aceitarSolicitacaoAmizadeNaTransacao(
 
   const amizade = doc.data() as FriendshipData;
   const validacao = avaliarAceiteAmizade(userId, amizade);
+  await verificarContasDisponiveisNaTransacao(transacao, db, [amizade.userAId, amizade.userBId]);
 
   transacao.update(friendshipRef, {
     status: "ACCEPTED",

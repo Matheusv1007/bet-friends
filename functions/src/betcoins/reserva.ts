@@ -3,6 +3,7 @@ import { Firestore, Transaction } from "firebase-admin/firestore";
 import { Saldos } from "./saldos";
 import { COLECAO_DE_TRANSACOES, ErroDeTransacao, Movimentacao, idDeTransacaoDeDesafio } from "./transacoes";
 import { registrarMovimentacoesNaTransacao } from "./transacoesTransacao";
+import { verificarContasDisponiveisNaTransacao } from "../perfil/contaDisponivel";
 
 /**
  * Ciclo de vida da reserva de BetCoins de um usuário num desafio
@@ -58,6 +59,7 @@ export async function reservarBetCoinsNaTransacao(
   pedido: PedidoDeReserva,
 ): Promise<ResultadoDaReserva> {
   const valor = validarValorDaAposta(pedido.valor);
+  await verificarContasDisponiveisNaTransacao(transacao, db, [pedido.userId]);
   const r = await registrarMovimentacoesNaTransacao(transacao, db, [
     {
       userId: pedido.userId,
