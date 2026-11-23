@@ -11,6 +11,7 @@ import '../models/challenge_model.dart';
 import '../services/challenge_service.dart';
 import '../tela_criar_desafio/modal_aceitar_desafio.dart';
 import '../tela_criar_desafio/tela_criar_desafio.dart';
+import '../tela_historico/tela_historico_desafios.dart';
 import 'desafios_em_aberto_secao.dart';
 import 'desafios_enviados_card.dart';
 import 'desafios_finalizados_secao.dart';
@@ -249,6 +250,16 @@ class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget> {
             desafios: desafiosFinalizados,
             currentUserId: widget.currentUserId,
             onDetalhes: (c) => _exibirDetalhesDesafio(context, c),
+            onVerTodos: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => TelaHistoricoDesafios(
+                  currentUserId: widget.currentUserId,
+                  nomes: _nomes,
+                  partidas: _partidas,
+                ),
+              ),
+            ),
           ),
       ],
     )));
