@@ -77,7 +77,7 @@ class DesafiosFinalizadosSecao extends StatelessWidget {
             final resultadoLabel = c.winnerId != null
                 ? (venceu
                     ? "Você venceu!${efeito == null ? '' : ' $efeito'}"
-                    : "Vencedor: ${dados?.nome(c.winnerId!) ?? 'Amigo'}${efeito == null ? '' : ' • $efeito'}")
+                    : "Vencedor: ${dados?.nome(c.winnerId!) ?? 'Jogador'}${efeito == null ? '' : ' • $efeito'}")
                 : semVencedor
                     ? "Ninguém acertou • apostas devolvidas"
                     : c.motivoDoCancelamento ?? "Status: ${c.status.label}";
@@ -88,8 +88,8 @@ class DesafiosFinalizadosSecao extends StatelessWidget {
             return DesafioResumoItem(
               itemKey: Key('card_desafio_finalizado_${c.id}'),
               botaoKey: Key('btn_detalhes_desafio_finalizado_${c.id}'),
-              jogador1: dados?.nome(c.challengerId) ?? 'Amigo',
-              jogador2: dados?.nome(c.challengedId) ?? 'Amigo',
+              jogador1: dados?.nome(c.challengerId) ?? 'Jogador',
+              jogador2: dados?.nome(c.challengedId) ?? 'Jogador',
               subtitulo: "${dados?.partida(c.matchId) ?? 'Partida indisponível'} • ${c.amount} BetCoins",
               statusLabel: resultadoLabel,
               statusColor: resultadoColor,

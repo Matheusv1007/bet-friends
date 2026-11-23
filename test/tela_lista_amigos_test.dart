@@ -62,11 +62,13 @@ class _FakeFriendshipRepository implements FriendshipRepository {
   }
 
   @override
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  }) async {
     if (simularErro) {
       throw FriendshipException(FriendshipErrorCode.unavailable, mensagemErro);
     }
-    return List.from(pendentes);
+    return PaginaSolicitacoesAmizade(requests: List.from(pendentes));
   }
 
   @override

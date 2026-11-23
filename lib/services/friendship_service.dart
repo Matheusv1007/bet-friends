@@ -134,7 +134,9 @@ class FriendshipService {
   /// Diretrizes de Privacidade:
   /// - Retorna apenas o remetente público (nome e @username).
   /// - Dados privados (e-mail, saldos e transações) nunca são expostos.
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  }) async {
     final usuarioLogado = _authService.currentUser;
     if (usuarioLogado == null) {
       throw const FriendshipException(
@@ -143,7 +145,7 @@ class FriendshipService {
       );
     }
 
-    return _repository.listarSolicitacoesPendentes();
+    return _repository.listarSolicitacoesPendentes(cursor: cursor);
   }
 
   /// Lista os amigos com relação de amizade aceita (RF-006, RN-FRD-001, RN-PROF-002).

@@ -94,7 +94,7 @@ class DesafiosRecebidosCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Desafio de ${dados?.nome(c.challengerId) ?? 'Amigo'}",
+                                "Desafio de ${dados?.nome(c.challengerId) ?? 'Jogador'}",
                                 key: Key('desafio_pendente_challenger_${c.id}'),
                                 style: const TextStyle(
                                   color: Colors.white,
