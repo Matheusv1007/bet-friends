@@ -4,8 +4,8 @@
  * nenhum formato do provedor: o Adapter (KAN-44) converte o payload
  * externo para [PartidaAdaptada] antes de chegar aqui.
  *
- * Datas são instantes UTC (`Date`). Times guardam só identificador externo
- * e nomes: nenhum escudo, para o MVP não depender de licença de imagem.
+ * Datas são instantes UTC (`Date`). Times guardam identificador externo, nomes
+ * e a URL do escudo no provedor (RNF-012): nenhuma imagem é copiada.
  */
 
 /** Status do domínio (Plano §9.3). O mapeamento a partir do provedor fica em `footballData/status.ts` (KAN-47). */
@@ -55,6 +55,8 @@ export interface Time {
   readonly externalId: string;
   readonly name: string;
   readonly shortName: string | null;
+  /** URL `https` do escudo no provedor (PNG ou SVG); ausente quando o provedor não informa. */
+  readonly crest?: string;
 }
 
 /** Partida já convertida pelo Adapter, sem nada do formato do provedor. */
@@ -117,12 +119,22 @@ function inteiroOuNulo(valor: unknown, minimo: number): boolean {
   return valor === null || (Number.isSafeInteger(valor) && (valor as number) >= minimo);
 }
 
+/** Escudo: URL `https` do provedor, sem espaços; o app só a exibe (nunca copiamos o arquivo). */
+export const URL_DE_ESCUDO = /^https:\/\/[^\s]{1,300}$/;
+
 function validarTime(time: Time, campo: string): Time {
   exigir(typeof time === "object" && time !== null, campo);
   exigir(typeof time.externalId === "string" && ID_EXTERNO.test(time.externalId), `${campo}.externalId`);
   exigir(typeof time.name === "string" && time.name.trim().length > 0, `${campo}.name`);
   exigir(time.shortName === null || (typeof time.shortName === "string" && time.shortName.trim().length > 0), `${campo}.shortName`);
-  return { externalId: time.externalId, name: time.name.trim(), shortName: time.shortName?.trim() ?? null };
+  exigir(time.crest === undefined || (typeof time.crest === "string" && URL_DE_ESCUDO.test(time.crest)), `${campo}.crest`);
+  return {
+    externalId: time.externalId,
+    name: time.name.trim(),
+    shortName: time.shortName?.trim() ?? null,
+    // Ausente (e não null) quando o provedor não informa: o Firestore não grava `undefined`.
+    ...(time.crest === undefined ? {} : { crest: time.crest }),
+  };
 }
 
 /**

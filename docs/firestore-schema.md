@@ -214,7 +214,7 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
 | `startsAtUtc` | Timestamp | sim | [PLANO] Início oficial **mais recente** (RN-MAT-006). Base do corte de 5 min (RN-MAT-004) |
 | `originalStartsAtUtc` | Timestamp | sim | **[PROPOSTA]** Primeiro horário sincronizado. Necessário para RN-MAT-007/008 (adiamento ≤ ou > 7 dias "em relação à data original"); não consta do §11 do Plano |
 | `status` | enum (abaixo) | sim | [PLANO] Status **do domínio**, nunca o do provedor |
-| `homeTeam` | map `{ externalId: string, name: string, shortName: string \| null }` | sim | [PLANO] "identificador externo e nome". **Sem escudo** (RNF-012) |
+| `homeTeam` | map `{ externalId: string, name: string, shortName: string \| null, crest?: string }` | sim | [PLANO] "identificador externo e nome". `crest` é só a URL `https` do escudo no provedor (PNG ou SVG), ausente quando o provedor não informa; **nenhuma imagem é copiada** (RNF-012). O app exibe a URL e usa um ícone padrão sem ela |
 | `awayTeam` | map, idem | sim | [PLANO] |
 | `homeScore` | int \| null | não | [PLANO] Placar final, para auditoria |
 | `awayScore` | int \| null | não | [PLANO] |
@@ -250,8 +250,8 @@ Modelo de domínio da partida, alimentado **somente** pela sincronização do ba
   "startsAtUtc": "<Timestamp 2026-10-29T22:30:00Z>",
   "originalStartsAtUtc": "<Timestamp 2026-10-29T22:30:00Z>",
   "status": "AGENDADA",
-  "homeTeam": { "externalId": "1765", "name": "Fluminense FC", "shortName": "Fluminense" },
-  "awayTeam": { "externalId": "6684", "name": "SC Internacional", "shortName": "Internacional" },
+  "homeTeam": { "externalId": "1765", "name": "Fluminense FC", "shortName": "Fluminense", "crest": "https://crests.football-data.org/1765.png" },
+  "awayTeam": { "externalId": "6684", "name": "SC Internacional", "shortName": "Internacional", "crest": "https://crests.football-data.org/6684.svg" },
   "homeScore": null,
   "awayScore": null,
   "result": null,

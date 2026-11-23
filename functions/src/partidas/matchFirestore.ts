@@ -87,7 +87,7 @@ function mesmoInstante(a: Date | null, b: Date | null): boolean {
 }
 
 function mesmoTime(a: Time, b: Time): boolean {
-  return a.externalId === b.externalId && a.name === b.name && a.shortName === b.shortName;
+  return a.externalId === b.externalId && a.name === b.name && a.shortName === b.shortName && a.crest === b.crest;
 }
 
 /** Compara o que vem do provedor; `syncedAt` e `createdAt` são do servidor e não contam como mudança. */
