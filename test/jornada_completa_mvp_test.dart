@@ -176,11 +176,15 @@ class _ControladorDeAmizades implements FriendshipRepository {
   }
 
   @override
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  }) async {
     if (simularErro) {
       throw FriendshipException(FriendshipErrorCode.unavailable, mensagemErro);
     }
-    return List.from(_solicitacoesPorUsuario[_uidAtual] ?? []);
+    return PaginaSolicitacoesAmizade(
+      requests: List.from(_solicitacoesPorUsuario[_uidAtual] ?? []),
+    );
   }
 
   @override

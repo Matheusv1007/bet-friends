@@ -33,6 +33,8 @@ class _TelaComunicacoesAmizadeState extends State<TelaComunicacoesAmizade> {
   String? _errorMessage;
   List<SolicitacaoAmizade> _solicitacoes = [];
   final Set<String> _processandoIds = {};
+  Map<String, dynamic>? _nextCursor;
+  bool _carregandoMais = false;
 
   @override
   void initState() {
@@ -41,32 +43,56 @@ class _TelaComunicacoesAmizadeState extends State<TelaComunicacoesAmizade> {
     _carregarSolicitacoes();
   }
 
-  Future<void> _carregarSolicitacoes() async {
+  Future<void> _carregarSolicitacoes({bool carregarMais = false}) async {
+    if (_carregandoMais || (carregarMais && _nextCursor == null)) return;
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      if (carregarMais) {
+        _carregandoMais = true;
+      } else {
+        _isLoading = true;
+        _errorMessage = null;
+      }
     });
 
     try {
-      final resultado = await _friendshipService.listarSolicitacoesPendentes();
+      final resultado = await _friendshipService.listarSolicitacoesPendentes(
+        cursor: carregarMais ? _nextCursor : null,
+      );
       if (!mounted) return;
       setState(() {
-        _solicitacoes = resultado;
-        _isLoading = false;
-      });
-    } on FriendshipException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e.message;
-        _isLoading = false;
+        if (carregarMais) {
+          final ids = _solicitacoes.map((item) => item.friendshipId).toSet();
+          _solicitacoes.addAll(
+            resultado.requests.where((item) => ids.add(item.friendshipId)),
+          );
+        } else {
+          _solicitacoes = resultado.requests;
+        }
+        _nextCursor = resultado.nextCursor;
       });
     } catch (e, s) {
-      registrarErro('Carregar solicitações de amizade', e, s);
+      final mensagem = e is FriendshipException
+          ? e.message
+          : 'Não foi possível carregar as solicitações. Verifique sua conexão.';
+      if (e is! FriendshipException) {
+        registrarErro('Carregar solicitações de amizade', e, s);
+      }
       if (!mounted) return;
-      setState(() {
-        _errorMessage = 'Não foi possível carregar as solicitações. Verifique sua conexão.';
-        _isLoading = false;
-      });
+      if (carregarMais) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(mensagem),
+          backgroundColor: Colors.redAccent.shade700,
+        ));
+      } else {
+        setState(() => _errorMessage = mensagem);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _carregandoMais = false;
+        });
+      }
     }
   }
 
@@ -225,7 +251,7 @@ class _TelaComunicacoesAmizadeState extends State<TelaComunicacoesAmizade> {
           IconButton(
             key: const Key('btn_recarregar_comunicacoes'),
             icon: const Icon(Icons.refresh, color: primaryGreen, size: 22),
-            onPressed: _carregarSolicitacoes,
+            onPressed: _isLoading || _carregandoMais ? null : _carregarSolicitacoes,
             tooltip: 'Recarregar',
           ),
         ],
@@ -293,7 +319,7 @@ class _TelaComunicacoesAmizadeState extends State<TelaComunicacoesAmizade> {
       );
     }
 
-    if (_solicitacoes.isEmpty) {
+    if (_solicitacoes.isEmpty && _nextCursor == null) {
       return Center(
         key: const Key('comunicacoes_vazio'),
         child: Padding(
@@ -342,9 +368,22 @@ class _TelaComunicacoesAmizadeState extends State<TelaComunicacoesAmizade> {
 
     return ListView.separated(
       key: const Key('lista_comunicacoes_amizade'),
-      itemCount: _solicitacoes.length,
+      itemCount: _solicitacoes.length + (_nextCursor != null ? 1 : 0),
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
+        if (index == _solicitacoes.length) {
+          return TextButton(
+            key: const Key('comunicacoes_carregar_mais'),
+            style: TextButton.styleFrom(
+              foregroundColor: primaryGreen,
+              minimumSize: const Size(48, 48),
+            ),
+            onPressed: _carregandoMais
+                ? null
+                : () => _carregarSolicitacoes(carregarMais: true),
+            child: Text(_carregandoMais ? 'Carregando...' : 'Carregar mais'),
+          );
+        }
         final item = _solicitacoes[index];
         return _buildCardSolicitacao(item);
       },

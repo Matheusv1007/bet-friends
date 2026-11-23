@@ -5,6 +5,7 @@ import 'package:betfriends/data/firestore/friendship_repository.dart';
 import 'package:betfriends/models/friendship_model.dart';
 import 'package:betfriends/models/usuario_publico.dart';
 import 'package:betfriends/services/friendship_service.dart';
+import 'package:betfriends/services/functions/functions_service.dart';
 import 'package:betfriends/tela_amigos/tela_comunicacoes_amizade.dart';
 
 import 'support/fake_auth.dart';
@@ -18,14 +19,16 @@ class _FakeFriendshipRepoForComunicacoes implements FriendshipRepository {
   final List<String> recusadas = [];
 
   @override
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  }) async {
     if (throwError) {
       throw FriendshipException(
         FriendshipErrorCode.unavailable,
         errorMessage ?? 'Serviço temporariamente indisponível. Verifique sua conexão.',
       );
     }
-    return List.from(solicitacoes);
+    return PaginaSolicitacoesAmizade(requests: List.from(solicitacoes));
   }
 
   @override
@@ -69,6 +72,30 @@ class _FakeFriendshipRepoForComunicacoes implements FriendshipRepository {
 
   @override
   Future<List<UsuarioPublico>> listarAmigosAceitos() async => [];
+}
+
+class _FunctionsPaginadas implements FunctionsService {
+  final List<Map<String, dynamic>> respostas;
+  final chamadas = <Map<String, dynamic>?>[];
+  bool falharProximaPagina = false;
+
+  _FunctionsPaginadas(this.respostas);
+
+  @override
+  Future<Map<String, dynamic>> call(
+    String name, [
+    Map<String, dynamic>? data,
+  ]) async {
+    expect(name, CallableNames.getFriendRequests);
+    chamadas.add(data);
+    if (data?['cursor'] != null && falharProximaPagina) {
+      throw FunctionsException(code: 'unavailable', message: 'Sem conexão');
+    }
+    return respostas[data?['cursor'] == null ? 0 : 1];
+  }
+
+  @override
+  Future<PingResult> ping() => throw UnimplementedError();
 }
 
 void main() {
@@ -116,6 +143,56 @@ void main() {
         ),
       );
     }
+
+    testWidgets('T-02: segue nextCursor e mantém a primeira página', (tester) async {
+      const cursor = {'requesterId': 'uid-alice', 'friendshipId': 'amizade_alice_meu'};
+      final functions = _FunctionsPaginadas([
+        {'requests': [solicitacaoAlice.toMap()], 'nextCursor': cursor},
+        // A resposta antiga, sem nextCursor, também representa fim da lista.
+        {'requests': [solicitacaoBob.toMap()]},
+      ]);
+      final service = FriendshipService(
+        authService: authService,
+        repository: FunctionsFriendshipRepository(functions: functions),
+      );
+      await tester.pumpWidget(criarTela(service: service));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Alice Silva'), findsOneWidget);
+      expect(find.text('Roberto Santos'), findsNothing);
+      await tester.tap(find.byKey(const Key('comunicacoes_carregar_mais')));
+      await tester.pumpAndSettle();
+
+      expect(functions.chamadas.last?['cursor'], cursor);
+      expect(find.text('Alice Silva'), findsOneWidget);
+      expect(find.text('Roberto Santos'), findsOneWidget);
+      expect(find.byKey(const Key('comunicacoes_carregar_mais')), findsNothing);
+    });
+
+    testWidgets('T-02: erro na próxima página preserva itens e cursor para repetir', (tester) async {
+      const cursor = {'requesterId': 'uid-alice', 'friendshipId': 'amizade_alice_meu'};
+      final functions = _FunctionsPaginadas([
+        {'requests': [solicitacaoAlice.toMap()], 'nextCursor': cursor},
+        {'requests': [solicitacaoBob.toMap()], 'nextCursor': null},
+      ])..falharProximaPagina = true;
+      final service = FriendshipService(
+        authService: authService,
+        repository: FunctionsFriendshipRepository(functions: functions),
+      );
+      await tester.pumpWidget(criarTela(service: service));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('comunicacoes_carregar_mais')));
+      await tester.pumpAndSettle();
+      expect(find.text('Alice Silva'), findsOneWidget);
+      expect(find.byKey(const Key('comunicacoes_erro')), findsNothing);
+      expect(find.textContaining('indisponível'), findsOneWidget);
+
+      functions.falharProximaPagina = false;
+      await tester.tap(find.byKey(const Key('comunicacoes_carregar_mais')));
+      await tester.pumpAndSettle();
+      expect(functions.chamadas.last?['cursor'], cursor);
+      expect(find.text('Roberto Santos'), findsOneWidget);
+    });
 
     testWidgets('1. Listar pendências: propostas pendentes recebidas são apresentadas com dados públicos', (tester) async {
       repository.solicitacoes = [solicitacaoAlice, solicitacaoBob];

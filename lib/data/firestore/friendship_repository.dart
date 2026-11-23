@@ -142,7 +142,9 @@ abstract interface class FriendshipRepository {
   Future<ResultadoRecusaAmizade> recusarSolicitacaoAmizade(String identificador);
 
   /// Lista solicitações de amizade pendentes recebidas pelo usuário logado (RF-005, RN-PROF-002).
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes();
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  });
 
   /// Lista os amigos com relação aceita do usuário logado (RF-006, RN-FRD-001, RN-PROF-002).
   Future<List<UsuarioPublico>> listarAmigosAceitos();
@@ -239,14 +241,24 @@ class FunctionsFriendshipRepository implements FriendshipRepository {
   }
 
   @override
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  }) async {
     try {
-      final response = await _functions.call(CallableNames.getFriendRequests);
+      final response = await _functions.call(
+        CallableNames.getFriendRequests,
+        {'cursor': ?cursor},
+      );
       final rawRequests = response['requests'] as List? ?? [];
-      return rawRequests
-          .whereType<Map>()
-          .map((item) => SolicitacaoAmizade.fromMap(Map<String, dynamic>.from(item)))
-          .toList();
+      return PaginaSolicitacoesAmizade(
+        requests: rawRequests
+            .whereType<Map>()
+            .map((item) => SolicitacaoAmizade.fromMap(Map<String, dynamic>.from(item)))
+            .toList(),
+        nextCursor: response['nextCursor'] == null
+            ? null
+            : Map<String, dynamic>.from(response['nextCursor'] as Map),
+      );
     } on FunctionsException catch (e) {
       throw FriendshipException.fromFunctionsException(e);
     } catch (e, s) {

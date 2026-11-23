@@ -107,7 +107,9 @@ class _FakeFriendshipRepository implements FriendshipRepository {
   Future<List<UsuarioPublico>> listarAmigosAceitos() async => [];
 
   @override
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async => [];
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  }) async => const PaginaSolicitacoesAmizade();
 
   @override
   Future<ResultadoAceiteAmizade> aceitarSolicitacaoAmizade(String id) async =>

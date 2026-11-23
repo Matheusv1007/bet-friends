@@ -183,6 +183,17 @@ class SolicitacaoAmizade {
   int get hashCode => friendshipId.hashCode;
 }
 
+/// Página de pendências recebidas; o cursor é opaco para a interface.
+class PaginaSolicitacoesAmizade {
+  final List<SolicitacaoAmizade> requests;
+  final Map<String, dynamic>? nextCursor;
+
+  const PaginaSolicitacoesAmizade({
+    this.requests = const [],
+    this.nextCursor,
+  });
+}
+
 /// Modelo da relação de amizade entre dois usuários no Firestore (docs/firestore-schema.md §3.3).
 class FriendshipModel {
   final String id;

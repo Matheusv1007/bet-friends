@@ -102,8 +102,10 @@ class _FakeFriendshipRepoForWidget implements FriendshipRepository {
   }
 
   @override
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
-    return [];
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  }) async {
+    return const PaginaSolicitacoesAmizade();
   }
 
   @override

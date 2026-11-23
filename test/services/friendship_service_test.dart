@@ -170,14 +170,16 @@ class _FakeFriendshipRepository implements FriendshipRepository {
   final List<UsuarioPublico> amigosFake = [];
 
   @override
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  }) async {
     if (simularErroConexao) {
       throw const FriendshipException(
         FriendshipErrorCode.unavailable,
         'Serviço temporariamente indisponível. Verifique sua conexão.',
       );
     }
-    return List.from(solicitacoesFake);
+    return PaginaSolicitacoesAmizade(requests: List.from(solicitacoesFake));
   }
 
   @override
@@ -473,9 +475,9 @@ void main() {
       ]);
 
       final pendencias = await service.listarSolicitacoesPendentes();
-      expect(pendencias.length, 2);
-      expect(pendencias[0].remetente.displayName, 'Lucas');
-      expect(pendencias[1].remetente.displayName, 'Juliana');
+      expect(pendencias.requests.length, 2);
+      expect(pendencias.requests[0].remetente.displayName, 'Lucas');
+      expect(pendencias.requests[1].remetente.displayName, 'Juliana');
     });
 
     test('listar solicitações pendentes: exige usuário autenticado', () async {
