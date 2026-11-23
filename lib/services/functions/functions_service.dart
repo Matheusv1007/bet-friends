@@ -12,6 +12,13 @@ abstract final class CallableNames {
   /// Chamada por `UserProfileService.criarPerfilDoUsuarioAtual` (KAN-32).
   static const String createUserProfile = 'createUserProfile';
 
+  /// Converte um username no e-mail da conta, para o login por username.
+  /// Única callable pública: funciona sem usuário logado. Devolve
+  /// `{'email': null}` para username inexistente. Excesso de consultas:
+  /// `FunctionsException(code: 'resource-exhausted')`. Chamada por
+  /// `AuthService.signIn`.
+  static const String resolveLoginEmail = 'resolveLoginEmail';
+
   /// Bônus de recuperação de +100 BetCoins do usuário logado (KAN-80), sem
   /// parâmetros. Não elegível: `FunctionsException(code: 'failed-precondition')`
   /// com `motivo` `saldo-reservado`, `saldo-suficiente`,

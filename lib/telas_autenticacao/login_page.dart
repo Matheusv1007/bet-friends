@@ -14,20 +14,20 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _isLoading = false;
 
   Future<void> _entrar() async {
-    final email = _emailController.text.trim();
+    final identifier = _identifierController.text.trim();
     final password = _passwordController.text;
 
     // Validação básica antes de chamar o Firebase
-    if (email.isEmpty || password.isEmpty) {
+    if (identifier.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preencha o e-mail e a senha.')),
+        const SnackBar(content: Text('Preencha o e-mail ou usuário e a senha.')),
       );
       return;
     }
@@ -40,7 +40,7 @@ class _LoginPageState extends State<LoginPage> {
       // Em caso de sucesso, o AuthGate recebe a nova sessão e exibe a Home.
       // Não navegar aqui para não empilhar uma segunda Home.
       await context.read<AuthProvider>().signIn(
-        email: email,
+        identifier: identifier,
         password: password,
       );
     } on FirebaseAuthException catch (e) {
@@ -59,7 +59,7 @@ class _LoginPageState extends State<LoginPage> {
 
         case 'wrong-password':
         case 'invalid-credential':
-          mensagem = 'E-mail ou senha incorretos.';
+          mensagem = 'E-mail, usuário ou senha incorretos.';
           break;
 
         case 'user-disabled':
@@ -100,7 +100,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -179,18 +179,19 @@ class _LoginPageState extends State<LoginPage> {
 
                   const SizedBox(height: 36),
 
-                  // Campo Email
+                  // Campo E-mail ou usuário
                   TextField(
-                    controller: _emailController,
+                    controller: _identifierController,
                     keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
                     enabled: !_isLoading,
                     style: const TextStyle(color: Colors.white, fontSize: 15),
                     cursorColor: primaryGreen,
                     decoration: InputDecoration(
-                      labelText: 'Email',
+                      labelText: 'E-mail ou usuário',
                       labelStyle: const TextStyle(color: textMuted),
                       prefixIcon: const Icon(
-                        Icons.email_outlined,
+                        Icons.person_outline,
                         color: Color(0xFF94A3B8),
                         size: 20,
                       ),

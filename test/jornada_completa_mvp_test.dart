@@ -48,11 +48,12 @@ class _JornadaAuthService extends FakeAuthService {
 
   @override
   Future<UserCredential> signIn({
-    required String email,
+    required String identifier,
     required String password,
   }) async {
     signInCalls++;
     if (signInError != null) throw signInError!;
+    final email = identifier;
     final uid = email.toLowerCase().contains('bia')
         ? 'b9Wx4k6J1nTs'
         : (email.toLowerCase().contains('ana') ? 'a7Qz2r8P0xLm' : 'uid-$email');

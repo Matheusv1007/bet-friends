@@ -312,3 +312,13 @@ Para ligar (só depois de conferir os passos):
 3. Em App Check → APIs → Cloud Functions, confira nas métricas que as requisições aparecem como **verificadas** (não só "não verificadas") antes de exigir.
 4. Altere o arquivo **versionado** `functions/.env.betfriends-unirv-2026` para `ENFORCE_APP_CHECK=true`, versione a mudança e publique: `npx firebase-tools@15.32.1 deploy --only functions --project betfriends-unirv-2026`. Ele contém apenas configuração pública; nunca adicione tokens. O valor inicial `false` preserva o padrão do código, pois a exigência em produção não foi confirmada.
 5. Para desligar, troque para `false` e publique de novo. Tentando uma chamada sem token com a exigência ligada, o erro é `unauthenticated`.
+
+## 13 - Login por username
+
+O login aceita e-mail **ou** username (imutável). O Firebase Authentication só autentica por e-mail, então o app converte o username antes de entrar, com a callable `resolveLoginEmail` (`perfil/resolveLoginEmail.ts`).
+
+- **Pública:** é a única callable que não exige usuário logado, porque roda antes do login. Recebe `{ username }` (com ou sem `@`, sem diferenciar maiúsculas) e devolve `{ email }`, ou `{ email: null }` para username inexistente ou fora do formato (3 a 20 caracteres; letras, números e `_`). Nunca devolve nome, UID nem saldo.
+- **Privacidade:** quem souber o username de alguém (ele é público na busca) consegue obter o e-mail dessa pessoa. O e-mail sozinho não dá acesso à conta; falta a senha.
+- **Limite de uso:** 10 consultas por minuto por IP (`rateLimits/resolveLoginEmail_{hash do IP}`), com o contrato `resource-exhausted` da seção 12. Formato inválido não consulta nada nem consome cota.
+- **No app:** `AuthService.signIn(identifier:, password:)` usa o texto como e-mail se tiver `@` (que não seja o inicial) e como username nos demais casos. Username inexistente falha com `invalid-credential`, igual a senha errada; a tela não revela quais usernames existem.
+- **Deploy:** `firebase deploy --only functions:resolveLoginEmail`. Como as demais, a callable nova precisa de permissão pública de invocação (ver seção 7).
