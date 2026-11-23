@@ -445,9 +445,9 @@ Um usuário tem no máximo um `RESERVE` e uma liquidação por desafio, então `
 }
 ```
 
-### 3.7 - `system/matchSync` **[PROPOSTA — aguarda revisão de Matheus]**
+### 3.7 - `system/matchSync_{código}` **[PROPOSTA — aguarda revisão de Matheus]**
 
-Estado da sincronização periódica de partidas (`functions/src/partidas/execucaoDaSincronizacao.ts`). Documento único, só do backend: as Security Rules negam leitura e escrita ao app (regra padrão). Se o app precisar exibir a última atualização (RN-CACHE-002), será preciso liberar a leitura em uma regra própria. Não guarda token nem resposta do provedor.
+Estado da sincronização periódica de partidas (`functions/src/partidas/execucaoDaSincronizacao.ts`). **Um documento por competição**, `system/matchSync_{código}` (ex.: `system/matchSync_BSA`, `system/matchSync_PL`), para que falhas, varreduras e a base das saídas por tempo do cancelamento (T-01) não se misturem entre ligas. O documento único anterior, `system/matchSync`, deixa de ser lido: sem migração, a primeira varredura de cada competição o recria no formato novo, e até lá nenhum cancelamento por tempo ocorre para ela (lado seguro). Só do backend: as Security Rules negam leitura e escrita ao app (regra padrão). Se o app precisar exibir a última atualização (RN-CACHE-002), será preciso liberar a leitura em uma regra própria. Não guarda token nem resposta do provedor.
 
 | Campo | Tipo | Regra |
 |---|---|---|
