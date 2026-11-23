@@ -292,11 +292,20 @@ void main() {
       expect(find.byKey(const Key('palpite_away_win')), findsOneWidget);
 
       // Faz scroll para visualizar o amigo selecionado no fim da lista
-      await tester.scrollUntilVisible(find.text('Carlos Silva'), 100);
+      await tester.scrollUntilVisible(
+        find.text('Carlos Silva'),
+        100,
+        // A faixa de filtros por campeonato também rola (na horizontal).
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Carlos Silva'), findsOneWidget);
     });
 
     testWidgets('seleciona palpite e altera valor de aposta', (tester) async {
+      // Tela alta o bastante para a lista (com a faixa de filtros) caber inteira.
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       final fakeProvider = FakePartidasProvider(partidasFake);
       final fakeService = FakeChallengeService();
 
@@ -410,6 +419,195 @@ void main() {
       await tester.tap(find.byKey(const Key('btn_enviar_desafio')));
       await tester.pumpAndSettle();
       expect(service.lastMatchId, 'jogo_7');
+    });
+  });
+
+  group('CriarDesafioScreen - campeonatos', () {
+    // As quatro ligas já entre as 5 primeiras; BSA tem 7 para exercitar o limite.
+    List<PartidaModel> partidasDasLigas() {
+      var hora = 1;
+      PartidaModel p(String id, String codigo) => PartidaModel(
+            id: id,
+            timeMandante: 'Casa $id',
+            timeVisitante: 'Fora $id',
+            status: 'AGENDADA',
+            horario: '20:00',
+            startsAtUtc: DateTime.now().add(Duration(hours: 3 + hora++)),
+            competitionCode: codigo,
+          );
+      return [
+        p('bsa_1', 'BSA'),
+        p('pl_1', 'PL'),
+        p('sa_1', 'SA'),
+        p('pd_1', 'PD'),
+        p('pl_2', 'PL'),
+        for (var i = 2; i <= 7; i++) p('bsa_$i', 'BSA'),
+      ];
+    }
+
+    Future<FakeChallengeService> abrir(
+      WidgetTester tester,
+      List<PartidaModel> partidas, {
+      String? preSelecionada,
+    }) async {
+      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final service = FakeChallengeService();
+      await tester.pumpWidget(montarAppComNavegacao(
+        provider: FakePartidasProvider(partidas),
+        child: CriarDesafioScreen(
+          preSelectedMatchId: preSelecionada,
+          preSelectedFriendId: 'p8r6',
+          preSelectedFriendName: 'Bia Rocha',
+          challengeService: service,
+          saldoInicial: 500,
+          amigosIniciais: const [],
+        ),
+      ));
+      await tester.tap(find.byKey(const Key('btn_abrir_tela')));
+      await tester.pumpAndSettle();
+      return service;
+    }
+
+    Future<void> filtrar(WidgetTester tester, String chave) async {
+      final chip = find.byKey(Key('filtro_campeonato_$chave'));
+      await tester.ensureVisible(chip);
+      await tester.tap(chip);
+      await tester.pumpAndSettle();
+    }
+
+    String? rotulo(WidgetTester tester, String id) => tester
+        .widget<Text>(find.byKey(Key('partida_desafio_campeonato_$id')))
+        .data;
+
+    testWidgets('lista partidas das 4 ligas, cada uma com o nome da liga', (tester) async {
+      await abrir(tester, partidasDasLigas());
+      await tester.tap(find.byKey(const Key('btn_mostrar_mais_partidas')));
+      await tester.pumpAndSettle();
+
+      expect(rotulo(tester, 'bsa_1'), 'Brasileirão Série A');
+      expect(rotulo(tester, 'pl_1'), 'Premier League');
+      expect(rotulo(tester, 'sa_1'), 'Serie A');
+      expect(rotulo(tester, 'pd_1'), 'La Liga');
+    });
+
+    testWidgets('mostra os 5 chips, com "Todos" selecionado por padrão e alvo de toque de 48 dp', (tester) async {
+      await abrir(tester, partidasDasLigas());
+      for (final chave in ['todos', 'BSA', 'PL', 'SA', 'PD']) {
+        final chip = find.byKey(Key('filtro_campeonato_$chave'));
+        expect(chip, findsOneWidget, reason: chave);
+        expect(tester.getSize(chip).height, greaterThanOrEqualTo(48), reason: chave);
+      }
+      expect(find.text('Todos'), findsOneWidget);
+      expect(find.text('Brasileirão'), findsOneWidget);
+      // Sem filtro: as 5 primeiras de todas as ligas e o contador de ocultas.
+      expect(find.byKey(const Key('partida_desafio_pd_1')), findsOneWidget);
+      expect(find.byKey(const Key('partida_desafio_bsa_2')), findsNothing);
+      expect(find.text('Mostrar mais (6)'), findsOneWidget);
+    });
+
+    testWidgets('filtro mostra só a liga escolhida e "Todos" volta a mostrar tudo', (tester) async {
+      await abrir(tester, partidasDasLigas());
+      await filtrar(tester, 'PL');
+      expect(find.byKey(const Key('partida_desafio_pl_1')), findsOneWidget);
+      expect(find.byKey(const Key('partida_desafio_pl_2')), findsOneWidget);
+      expect(find.byKey(const Key('partida_desafio_bsa_1')), findsNothing);
+      expect(find.byKey(const Key('partida_desafio_sa_1')), findsNothing);
+      expect(find.byKey(const Key('btn_mostrar_mais_partidas')), findsNothing);
+
+      await filtrar(tester, 'PD');
+      expect(find.byKey(const Key('partida_desafio_pd_1')), findsOneWidget);
+      expect(find.byKey(const Key('partida_desafio_pl_1')), findsNothing);
+
+      await filtrar(tester, 'todos');
+      expect(find.byKey(const Key('partida_desafio_bsa_1')), findsOneWidget);
+      expect(find.byKey(const Key('partida_desafio_pl_1')), findsOneWidget);
+      expect(find.byKey(const Key('partida_desafio_sa_1')), findsOneWidget);
+    });
+
+    testWidgets('"Mostrar mais" conta dentro do filtro e trocar de filtro recolhe a lista', (tester) async {
+      await abrir(tester, partidasDasLigas());
+      await filtrar(tester, 'BSA');
+      expect(find.byKey(const Key('partida_desafio_bsa_5')), findsOneWidget);
+      expect(find.byKey(const Key('partida_desafio_bsa_6')), findsNothing);
+      expect(find.text('Mostrar mais (2)'), findsOneWidget);
+
+      final botao = find.byKey(const Key('btn_mostrar_mais_partidas'));
+      await tester.ensureVisible(botao);
+      await tester.tap(botao);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('partida_desafio_bsa_7')), findsOneWidget);
+      expect(find.text('Mostrar menos'), findsOneWidget);
+
+      // Trocar de filtro (e voltar) recolhe: o limite de 5 vale de novo.
+      await filtrar(tester, 'PL');
+      expect(find.text('Mostrar menos'), findsNothing);
+      await filtrar(tester, 'BSA');
+      expect(find.byKey(const Key('partida_desafio_bsa_7')), findsNothing);
+      expect(find.text('Mostrar mais (2)'), findsOneWidget);
+    });
+
+    testWidgets('partida pré-selecionada de outra liga continua visível e é enviada com o filtro ativo', (tester) async {
+      final service = await abrir(tester, partidasDasLigas(), preSelecionada: 'pd_1');
+      await filtrar(tester, 'PL');
+
+      expect(find.byKey(const Key('partida_desafio_pl_1')), findsOneWidget);
+      expect(find.byKey(const Key('partida_desafio_pd_1')), findsOneWidget);
+      expect(find.byKey(const Key('partida_desafio_bsa_1')), findsNothing);
+      expect(find.text('A partida selecionada não está mais disponível. Escolha outra partida.'), findsNothing);
+
+      await tester.ensureVisible(find.byKey(const Key('btn_enviar_desafio')));
+      await tester.tap(find.byKey(const Key('btn_enviar_desafio')));
+      await tester.pumpAndSettle();
+      expect(service.lastMatchId, 'pd_1');
+    });
+
+    testWidgets('liga sem partidas mostra a mensagem e os chips continuam utilizáveis', (tester) async {
+      final semSerieA = partidasDasLigas().where((p) => p.competitionCode != 'SA').toList();
+      await abrir(tester, semSerieA);
+      await filtrar(tester, 'SA');
+
+      expect(find.text('Nenhuma partida agendada disponível em Serie A no momento.'), findsOneWidget);
+      expect(find.byKey(const Key('filtro_campeonato_SA')), findsOneWidget);
+      expect(find.byKey(const Key('partida_desafio_pl_1')), findsNothing);
+
+      await filtrar(tester, 'PL');
+      expect(find.byKey(const Key('filtro_campeonato_vazio')), findsNothing);
+      expect(find.byKey(const Key('partida_desafio_pl_1')), findsOneWidget);
+    });
+
+    testWidgets('selecionar uma partida da PL e enviar usa o matchId dela', (tester) async {
+      final service = await abrir(tester, partidasDasLigas());
+      await filtrar(tester, 'PL');
+      await tester.tap(find.byKey(const Key('partida_desafio_pl_2')));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('btn_enviar_desafio')));
+      await tester.tap(find.byKey(const Key('btn_enviar_desafio')));
+      await tester.pumpAndSettle();
+      expect(service.lastMatchId, 'pl_2');
+    });
+
+    testWidgets('partida antiga (só BSA, sem código) aparece, entra no filtro do Brasileirão e é enviada', (tester) async {
+      final antiga = PartidaModel.fromFirestoreMap({
+        'homeTeam': 'Santos',
+        'awayTeam': 'Bahia',
+        'status': 'SCHEDULED',
+        'startsAtUtc': DateTime.now().toUtc().add(const Duration(days: 2)).toIso8601String(),
+      }, 'antiga_1');
+      final service = await abrir(tester, [antiga]);
+
+      expect(rotulo(tester, 'antiga_1'), 'Brasileirão Série A');
+      await filtrar(tester, 'BSA');
+      expect(find.byKey(const Key('partida_desafio_antiga_1')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('partida_desafio_antiga_1')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('btn_enviar_desafio')));
+      await tester.tap(find.byKey(const Key('btn_enviar_desafio')));
+      await tester.pumpAndSettle();
+      expect(service.lastMatchId, 'antiga_1');
     });
   });
 
