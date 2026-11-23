@@ -545,8 +545,9 @@ Em 23/11/2026, `firestore.indexes.json` declara **treze índices compostos**, to
 | `friendships` | `participants CONTAINS`, `status ASC`, `requesterId ASC` (`__name__ ASC` implícito) | Solicitações recebidas paginadas, excluindo as enviadas (N-11) |
 | `matches` | `competitionCode ASC`, `startsAtUtc ASC` | Partidas da competição |
 | `matches` | `competitionCode ASC`, `startsAtUtc DESC` | Partidas encerradas recentes, com limite (N-01) |
+| `betCoinTransactions` | `userId ASC`, `createdAt DESC` (`__name__ DESC` implícito) | Extrato do próprio usuário, paginado (RF-019) |
 
-Não há índices compostos de `betCoinTransactions` declarados neste arquivo.
+Publicar o índice do extrato com `firebase deploy --only firestore:indexes --project betfriends-unirv-2026`. O app lê apenas os lançamentos da sessão autenticada, sem Callable e sem escritas. Reservas, liberações e reembolsos são neutros no saldo total. Referências como “Desafio 1” são locais à tela, sem expor IDs internos.
 
 ---
 

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/user_profile.dart';
+import '../services/extrato_service.dart';
+import '../tela_extrato/tela_extrato.dart';
 import '../services/friendship_service.dart';
 import '../services/user_search_service.dart';
 import '../tela_amigos/tela_buscar_usuarios.dart';
@@ -74,6 +76,32 @@ class DadosDoPerfil extends StatelessWidget {
               side: const BorderSide(color: primaryGreen, width: 1.2),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 48,
+          child: ElevatedButton.icon(
+            key: const Key('perfil_extrato'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => TelaExtrato(
+                  extratoService: context.read<ExtratoService?>(),
+                ),
+              ),
+            ),
+            icon: const Icon(Icons.receipt_long_outlined, size: 18),
+            label: const Text('Extrato de BetCoins',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: cardBg,
+              foregroundColor: primaryGreen,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: primaryGreen.withValues(alpha: 0.4)),
               ),
             ),
           ),
