@@ -687,4 +687,17 @@ describe("caminhos não declarados", () => {
     await expectDenied(getDoc(ANA, `rateLimits/searchUsers_${ANA}`));
     await expectDenied(commit(ANA, [setWrite(`rateLimits/searchUsers_${ANA}`, { count: 0, windowStart: T0 })]));
   });
+
+  test("guarda de exclusão (accountDeletions) não pode ser lida, criada, alterada nem apagada pelo app", async () => {
+    const path = `accountDeletions/${ANA}`;
+    const data = { count: 1, windowStart: T0 };
+    await expectAllowed(commit(ADMIN, [setWrite(path, data)]));
+    for (const auth of [ANA, BIA, null]) {
+      await expectDenied(getDoc(auth, path));
+      await expectDenied(listCollection(auth, "accountDeletions"));
+      await expectDenied(commit(auth, [setWrite(path, { ...data, count: 0 })]));
+      await expectDenied(commit(auth, [deleteWrite(path)]));
+      await expectDenied(commit(auth, [createWrite(`accountDeletions/${CAIO}`, data)]));
+    }
+  });
 });

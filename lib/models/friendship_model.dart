@@ -6,7 +6,8 @@ import 'usuario_publico.dart';
 enum FriendshipStatus {
   pending('PENDING'),
   accepted('ACCEPTED'),
-  rejected('REJECTED');
+  rejected('REJECTED'),
+  removed('REMOVED');
 
   final String valor;
   const FriendshipStatus(this.valor);
@@ -17,6 +18,8 @@ enum FriendshipStatus {
         return FriendshipStatus.accepted;
       case 'REJECTED':
         return FriendshipStatus.rejected;
+      case 'REMOVED':
+        return FriendshipStatus.removed;
       case 'PENDING':
       default:
         return FriendshipStatus.pending;
@@ -181,6 +184,17 @@ class SolicitacaoAmizade {
 
   @override
   int get hashCode => friendshipId.hashCode;
+}
+
+/// Página de pendências recebidas; o cursor é opaco para a interface.
+class PaginaSolicitacoesAmizade {
+  final List<SolicitacaoAmizade> requests;
+  final Map<String, dynamic>? nextCursor;
+
+  const PaginaSolicitacoesAmizade({
+    this.requests = const [],
+    this.nextCursor,
+  });
 }
 
 /// Modelo da relação de amizade entre dois usuários no Firestore (docs/firestore-schema.md §3.3).

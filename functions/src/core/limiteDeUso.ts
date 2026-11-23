@@ -1,4 +1,4 @@
-import { Firestore, Timestamp, Transaction } from "firebase-admin/firestore";
+import { DocumentReference, Firestore, Timestamp, Transaction } from "firebase-admin/firestore";
 import { HttpsError } from "firebase-functions/https";
 
 /**
@@ -46,6 +46,16 @@ export async function planejarConsumoDeLimiteNaTransacao(
   agora: Date = new Date(),
 ): Promise<() => void> {
   const ref = db.collection(COLECAO_DE_LIMITES).doc(chave);
+  return planejarConsumoDeLimiteNoDocumentoNaTransacao(t, ref, limite, agora);
+}
+
+/** Mesmo contador em um documento de coordenação que precisa sobreviver à limpeza de rateLimits. */
+export async function planejarConsumoDeLimiteNoDocumentoNaTransacao(
+  t: Transaction,
+  ref: DocumentReference,
+  limite: LimiteDeUso,
+  agora: Date = new Date(),
+): Promise<() => void> {
   const doc = await t.get(ref);
   const inicio = doc.exists ? (doc.get("windowStart") as Timestamp).toDate() : null;
   const contagem = doc.exists ? (doc.get("count") as number) : 0;

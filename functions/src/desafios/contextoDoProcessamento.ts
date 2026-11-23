@@ -2,6 +2,7 @@ import { Firestore } from "firebase-admin/firestore";
 
 import { ErroDePartida, Match } from "../partidas/match";
 import { COLECAO_DE_PARTIDAS, matchDoDocumento } from "../partidas/matchFirestore";
+import { DOCUMENTO_DE_ESTADO, ultimaVarreduraDe } from "../partidas/estadoDaSincronizacao";
 import { Challenge, ErroDeDesafio } from "./challenge";
 import { COLECAO_DE_DESAFIOS, desafioDoDocumento } from "./challengeFirestore";
 
@@ -13,6 +14,8 @@ export interface ContextoDoProcessamento {
   readonly desafios: Map<string, Challenge>;
   readonly partidas: ReadonlyMap<string, Match | ErroDePartida | null>;
   readonly invalidos: readonly { readonly id: string; readonly status: StatusNaoTerminal; readonly motivo: string }[];
+  /** Última sincronização da temporada inteira com sucesso; base das saídas por tempo (T-01). */
+  readonly ultimaVarredura: Date | null;
 }
 
 export async function carregarContextoDoProcessamento(
@@ -33,7 +36,10 @@ export async function carregarContextoDoProcessamento(
   }
 
   const ids = [...new Set([...desafios.values()].map((d) => d.matchId))];
-  const lidas = ids.length === 0 ? [] : await db.getAll(...ids.map((id) => db.collection(COLECAO_DE_PARTIDAS).doc(id)));
+  // Sem desafios não há o que cancelar por tempo: o estado da sincronização só é lido junto das partidas, no mesmo getAll.
+  const refs = ids.length === 0 ? [] : [...ids.map((id) => db.collection(COLECAO_DE_PARTIDAS).doc(id)), db.doc(DOCUMENTO_DE_ESTADO)];
+  const lidas = refs.length === 0 ? [] : await db.getAll(...refs);
+  const estado = lidas.pop();
   const partidas = new Map<string, Match | ErroDePartida | null>();
   for (const doc of lidas) {
     try {
@@ -43,7 +49,7 @@ export async function carregarContextoDoProcessamento(
       partidas.set(doc.id, err);
     }
   }
-  return { desafios, partidas, invalidos };
+  return { desafios, partidas, invalidos, ultimaVarredura: ultimaVarreduraDe(estado?.data()) };
 }
 
 export function partidaDoContexto(contexto: ContextoDoProcessamento, desafio: Challenge): Match | null {

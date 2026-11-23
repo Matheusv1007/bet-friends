@@ -56,6 +56,10 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
+  /// O AuthGate reage ao logout emitido pelo serviço após a exclusão.
+  Future<void> deleteAccount({required String password}) =>
+      _authService.deleteAccount(password: password);
+
   /// Encerra a sessão no Firebase. A navegação para o Login é feita pelo
   /// AuthGate ao receber o novo estado de `authStateChanges`.
   /// Erros são repassados para a tela informar a falha ao usuário.

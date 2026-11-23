@@ -21,6 +21,7 @@ import 'package:betfriends/app.dart';
 import 'package:betfriends/widgets_home_page/card_de_desafios_ativos.dart';
 import 'package:betfriends/data/firestore/challenge_repository.dart';
 import 'package:betfriends/data/firestore/user_profile_repository.dart';
+import 'package:betfriends/data/firestore/historico_de_desafios_repository.dart';
 import 'package:betfriends/models/carteira.dart';
 import 'package:betfriends/models/challenge_model.dart';
 import 'package:betfriends/models/partida_model.dart';
@@ -28,6 +29,8 @@ import 'package:betfriends/models/user_profile.dart';
 import 'package:betfriends/services/api/partidas_service.dart';
 import 'package:betfriends/services/challenge_service.dart';
 import 'package:betfriends/services/user_profile_service.dart';
+import 'package:betfriends/services/historico_de_desafios_service.dart';
+import 'package:betfriends/tela_historico/tela_historico_desafios.dart';
 import 'package:betfriends/telas_principais/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -73,12 +76,18 @@ class _FakeChallengeServiceControlado implements ChallengeService {
   @override
   Future<int?> buscarSaldoDisponivel() async => 750;
 
-  @override
-  Future<List<AmigoItem>> listarAmigosAceitos() async => const [
+  List<AmigoItem> amigos = const [
     AmigoItem(uid: 'u7P9x', displayName: 'Pedro', username: 'pedro'),
     AmigoItem(uid: 'v8Q0z', displayName: 'Lucas', username: 'lucas'),
     AmigoItem(uid: 'w1R2a', displayName: 'Guilherme', username: 'gui'),
   ];
+  bool falharNomes = false;
+
+  @override
+  Future<List<AmigoItem>> listarAmigosAceitos() async {
+    if (falharNomes) throw Exception('Sem conexão');
+    return amigos;
+  }
 
   @override
   Future<CriarDesafioResponse> criarDesafio({
@@ -139,6 +148,21 @@ class _FakePartidasServiceConfiguravel extends PartidasService {
   Future<List<PartidaModel>> getPartidas({int limit = 15}) async => partidasRetorno;
 }
 
+class _FakeHistoricoService extends Fake implements HistoricoDeDesafiosService {
+  int consultas = 0;
+
+  @override
+  Future<PaginaDoHistorico> buscarDoUsuarioAtual({
+    int limite = 20, CursorDoHistorico? cursor,
+  }) async {
+    consultas++;
+    return const PaginaDoHistorico(
+      itens: [], ignorados: 0, doCache: false,
+      temMais: false, proximoCursor: null,
+    );
+  }
+}
+
 void main() {
   testWidgets('N-20: falha tem retry sem desafios demonstrativos', (tester) async {
     var tentativas = 0;
@@ -166,6 +190,7 @@ void main() {
   Future<void> renderizarHome(
     WidgetTester tester, {
     List<PartidaModel> partidas = const [],
+    HistoricoDeDesafiosService? historicoService,
   }) async {
     final partidasService = _FakePartidasServiceConfiguravel(partidas);
 
@@ -174,6 +199,7 @@ void main() {
       partidasService: partidasService,
       userProfileService: UserProfileService(authService: authService, repository: perfilRepo),
       challengeService: challengeService,
+      historicoService: historicoService,
     ));
 
     await tester.pumpAndSettle();
@@ -194,6 +220,53 @@ void main() {
     createdAt: DateTime.now(),
     updatedAt: DateTime.now(),
   );
+
+  final partidaDoDesafio = PartidaModel(
+    id: 'partida_101', timeMandante: 'Time A', timeVisitante: 'Time B',
+  );
+
+  testWidgets('T-05: UID desconhecido usa Jogador e atualiza após falha', (tester) async {
+    challengeService.falharNomes = true;
+    await renderizarHome(tester, partidas: [partidaDoDesafio]);
+    challengeService.emitirDesafios([desafioPendenteRecebido]);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Desafio de Jogador'), findsOneWidget);
+    expect(find.text('Desafio de Amigo'), findsNothing);
+    challengeService.falharNomes = false;
+    await tester.tap(find.byKey(const Key('home_atualizar_nomes')));
+    await tester.pumpAndSettle();
+    expect(find.text('Desafio de Pedro'), findsOneWidget);
+    expect(find.byKey(const Key('home_atualizar_nomes')), findsNothing);
+    await encerrar(tester);
+  });
+
+  testWidgets('T-05: recarrega amigos quando chega um adversário desconhecido', (tester) async {
+    challengeService.amigos = [];
+    await renderizarHome(tester, partidas: [partidaDoDesafio]);
+    challengeService.amigos = const [
+      AmigoItem(uid: 'u7P9x', displayName: 'Pedro', username: 'pedro'),
+    ];
+    challengeService.emitirDesafios([desafioPendenteRecebido]);
+    await tester.pumpAndSettle();
+    expect(find.text('Desafio de Pedro'), findsOneWidget);
+    await encerrar(tester);
+  });
+
+  testWidgets('T-05: mantém nome público já visto quando deixa de ser amigo', (tester) async {
+    await renderizarHome(tester, partidas: [partidaDoDesafio]);
+    challengeService.emitirDesafios([desafioPendenteRecebido]);
+    await tester.pumpAndSettle();
+    expect(find.text('Desafio de Pedro'), findsOneWidget);
+
+    challengeService.amigos = [];
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.text('Desafio de Pedro'), findsOneWidget);
+    expect(find.text('Desafio de Amigo'), findsNothing);
+    await encerrar(tester);
+  });
 
   final desafioEmAberto = ChallengeModel(
     id: 'chl_aberto_2',
@@ -272,6 +345,26 @@ void main() {
   ];
 
   group('Visualizar resumo da Home (D-003, Plano Mestre v3.2)', () {
+    testWidgets('Ver todos nos finalizados abre o histórico usando o serviço injetado', (tester) async {
+      final historicoService = _FakeHistoricoService();
+      await renderizarHome(tester,
+        partidas: partidasExemplo, historicoService: historicoService);
+      challengeService.emitirDesafios([desafioFinalizadoVitoria]);
+      await tester.pump();
+      await tester.pump();
+      final entrada = find.byKey(const Key('home_ver_todos_desafios'));
+      await tester.scrollUntilVisible(entrada, 200);
+      await tester.tap(entrada);
+      await tester.pumpAndSettle();
+      expect(find.byType(TelaHistoricoDesafios), findsOneWidget);
+      expect(find.text('Você ainda não tem desafios encerrados'), findsOneWidget);
+      expect(historicoService.consultas, 1);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.byType(Homepage), findsOneWidget);
+      await encerrar(tester);
+    });
+
     testWidgets('Home com todos os dados disponíveis (saldo, partidas, pendentes, abertos, finalizados)', (tester) async {
       await renderizarHome(tester, partidas: partidasExemplo);
 

@@ -18,7 +18,7 @@ class ApresentacaoDesafios extends InheritedWidget {
   static ApresentacaoDesafios? of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<ApresentacaoDesafios>();
 
-  String nome(String uid) => uid == currentUserId ? 'Você' : nomes[uid] ?? 'Amigo';
+  String nome(String uid) => uid == currentUserId ? 'Você' : nomes[uid] ?? 'Jogador';
 
   String partida(String id) {
     final p = partidas[id];

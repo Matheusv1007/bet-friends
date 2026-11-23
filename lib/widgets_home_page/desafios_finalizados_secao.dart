@@ -8,8 +8,10 @@ class DesafiosFinalizadosSecao extends StatelessWidget {
   final List<ChallengeModel> desafios;
   final String? currentUserId;
   final ValueChanged<ChallengeModel> onDetalhes;
+  final VoidCallback? onVerTodos;
+  final bool exibirCabecalho;
 
-  const DesafiosFinalizadosSecao({super.key, required this.desafios, required this.currentUserId, required this.onDetalhes});
+  const DesafiosFinalizadosSecao({super.key, required this.desafios, required this.currentUserId, required this.onDetalhes, this.onVerTodos, this.exibirCabecalho = true});
 
   @override
   Widget build(BuildContext context) {
@@ -17,17 +19,20 @@ class DesafiosFinalizadosSecao extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (exibirCabecalho) ...[
           const SizedBox(height: 24),
           Row(
             children: [
-              const Text(
-                "DESAFIOS FINALIZADOS",
-                key: Key('home_desafios_finalizados'),
-                style: TextStyle(
-                  color: Color(0xFF8E9CAE),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  letterSpacing: 0.8,
+              const Expanded(
+                child: Text(
+                  "DESAFIOS FINALIZADOS",
+                  key: Key('home_desafios_finalizados'),
+                  style: TextStyle(
+                    color: Color(0xFF8E9CAE),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    letterSpacing: 0.8,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -51,9 +56,20 @@ class DesafiosFinalizadosSecao extends StatelessWidget {
                   ),
                 ),
               ),
+              if (onVerTodos != null)
+                TextButton(
+                  key: const Key('home_ver_todos_desafios'),
+                  onPressed: onVerTodos,
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF00D084),
+                    minimumSize: const Size(48, 48),
+                  ),
+                  child: const Text('Ver todos'),
+                ),
             ],
           ),
           const SizedBox(height: 10),
+        ],
           ...desafios.map((c) {
             final venceu = currentUserId != null && c.winnerId == currentUserId;
             final efeito = currentUserId == null ? null : c.efeitoNosBetCoins(currentUserId!);
@@ -61,7 +77,7 @@ class DesafiosFinalizadosSecao extends StatelessWidget {
             final resultadoLabel = c.winnerId != null
                 ? (venceu
                     ? "Você venceu!${efeito == null ? '' : ' $efeito'}"
-                    : "Vencedor: ${dados?.nome(c.winnerId!) ?? 'Amigo'}${efeito == null ? '' : ' • $efeito'}")
+                    : "Vencedor: ${dados?.nome(c.winnerId!) ?? 'Jogador'}${efeito == null ? '' : ' • $efeito'}")
                 : semVencedor
                     ? "Ninguém acertou • apostas devolvidas"
                     : c.motivoDoCancelamento ?? "Status: ${c.status.label}";
@@ -72,8 +88,8 @@ class DesafiosFinalizadosSecao extends StatelessWidget {
             return DesafioResumoItem(
               itemKey: Key('card_desafio_finalizado_${c.id}'),
               botaoKey: Key('btn_detalhes_desafio_finalizado_${c.id}'),
-              jogador1: dados?.nome(c.challengerId) ?? 'Amigo',
-              jogador2: dados?.nome(c.challengedId) ?? 'Amigo',
+              jogador1: dados?.nome(c.challengerId) ?? 'Jogador',
+              jogador2: dados?.nome(c.challengedId) ?? 'Jogador',
               subtitulo: "${dados?.partida(c.matchId) ?? 'Partida indisponível'} • ${c.amount} BetCoins",
               statusLabel: resultadoLabel,
               statusColor: resultadoColor,

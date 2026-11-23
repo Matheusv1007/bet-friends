@@ -1,4 +1,5 @@
 import { Firestore, Timestamp } from "firebase-admin/firestore";
+import { DOCUMENTO_DE_ESTADO, ultimaVarreduraDe } from "./estadoDaSincronizacao";
 import { logger } from "firebase-functions";
 
 import {
@@ -20,8 +21,6 @@ import { ResultadoDaSincronizacao, sincronizarPartidas } from "./sincronizacao";
  * próximas atualizadas; a temporada inteira, de tempos em tempos, alcança as
  * que saíram da janela (adiamento longo, resultado tardio).
  */
-
-export const DOCUMENTO_DE_ESTADO = "system/matchSync";
 
 /** Falhas transitórias seguidas a partir das quais o log vira erro. */
 export const FALHAS_PARA_ALERTA = 3;
@@ -130,9 +129,8 @@ export async function executarSincronizacao(
 ): Promise<ResultadoDaSincronizacao> {
   const agora = opcoes.agora ?? new Date();
   const estado = (await db.doc(DOCUMENTO_DE_ESTADO).get()).data();
-  const varredura = estado?.lastSeasonSuccessAt;
   const temporadaFalhou = estado?.lastRunScope === "temporada" && contagem(estado?.consecutiveSeasonFailures) > 0;
-  const escopo = escopoDaExecucao(agora, varredura instanceof Timestamp ? varredura.toDate() : null, config, temporadaFalhou);
+  const escopo = escopoDaExecucao(agora, ultimaVarreduraDe(estado), config, temporadaFalhou);
 
   const resultado = await sincronizarPartidas(
     db,

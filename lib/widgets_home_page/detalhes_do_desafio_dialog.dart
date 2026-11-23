@@ -33,10 +33,10 @@ class DetalhesDoDesafioDialog extends StatelessWidget {
               Text(c.motivoDoCancelamento!, style: const TextStyle(color: Color(0xFFF59E0B))),
             ],
             const SizedBox(height: 6),
-            Text("Criador: ${dados?.nome(c.challengerId) ?? 'Amigo'} (${c.challengerPrediction.label})", style: const TextStyle(color: Colors.white70)),
+            Text("Criador: ${dados?.nome(c.challengerId) ?? 'Jogador'} (${c.challengerPrediction.label})", style: const TextStyle(color: Colors.white70)),
             if (c.challengedPrediction != null) ...[
               const SizedBox(height: 6),
-              Text("Desafiado: ${dados?.nome(c.challengedId) ?? 'Amigo'} (${c.challengedPrediction!.label})", style: const TextStyle(color: Colors.white70)),
+              Text("Desafiado: ${dados?.nome(c.challengedId) ?? 'Jogador'} (${c.challengedPrediction!.label})", style: const TextStyle(color: Colors.white70)),
             ],
             if (c.settledResult != null) ...[
               const SizedBox(height: 8),
@@ -44,7 +44,7 @@ class DetalhesDoDesafioDialog extends StatelessWidget {
             ],
             if (c.winnerId != null) ...[
               const SizedBox(height: 6),
-              Text("Vencedor: ${dados?.nome(c.winnerId!) ?? 'Amigo'}", style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold)),
+              Text("Vencedor: ${dados?.nome(c.winnerId!) ?? 'Jogador'}", style: const TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold)),
             ],
             if (dados?.currentUserId != null && c.efeitoNosBetCoins(dados!.currentUserId!) != null) ...[
               const SizedBox(height: 6),

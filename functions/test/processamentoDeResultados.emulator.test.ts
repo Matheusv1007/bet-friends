@@ -172,7 +172,7 @@ describe("processamento automático de resultados (Firestore Emulator)", { skip:
     ]);
   });
 
-  test("5. doze desafios sem mudança usam uma leitura da partida e nenhuma transação", async (t) => {
+  test("5. doze desafios sem mudança usam uma leitura em lote (partida e estado da sincronização) e nenhuma transação", async (t) => {
     await gravarMatch(db, { ...partida("1", "AGENDADA"), startsAtUtc: new Date(Date.now() + 60 * 60 * 1000) });
     const ids: string[] = [];
     const statuses: string[] = [];
@@ -193,7 +193,8 @@ describe("processamento automático de resultados (Firestore Emulator)", { skip:
 
     assert.equal(transacoes.mock.callCount(), 0);
     assert.equal(leituras.mock.callCount(), 1);
-    assert.deepEqual(leituras.mock.calls[0].arguments.map((ref) => "path" in ref ? ref.path : null), ["matches/footballdata_1"]);
+    // Um único getAll: a partida e o estado da sincronização (base das saídas por tempo, T-01).
+    assert.deepEqual(leituras.mock.calls[0].arguments.map((ref) => "path" in ref ? ref.path : null), ["matches/footballdata_1", "system/matchSync"]);
     assert.deepEqual([resumo.cancelados, resumo.iniciados, resumo.aguardandoResultado, resumo.finalizados, resumo.falhas], [[], [], [], [], []]);
     assert.equal(resumo.aguardando, 3);
     // Restaura antes das leituras usadas só para conferir o estado persistido.

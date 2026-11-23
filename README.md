@@ -21,8 +21,8 @@ Projeto Final da disciplina de Desenvolvimento Mobile.
 
 ## Como o jogo funciona
 
-1. **Conta e carteira.** O usuário se cadastra com e-mail e senha, escolhe um username único e recebe **1.000 BetCoins**.
-2. **Amizades.** Só amigos se desafiam: busca por username, solicitação, aceite ou recusa.
+1. **Conta e carteira.** O usuário se cadastra com e-mail e senha, escolhe um username único e recebe **1.000 BetCoins**. O Perfil mostra o extrato de BetCoins e permite **excluir a conta** (sem desafio em andamento nem saldo reservado): o perfil, as amizades e a conta de acesso são apagados e o username volta a ficar livre; o extrato e os desafios já encerrados permanecem, sem dados pessoais.
+2. **Amizades.** Só amigos se desafiam: busca por username, solicitação, aceite ou recusa. Uma amizade aceita pode ser removida, desde que não haja desafio em andamento entre os dois; depois disso, só voltam a se desafiar com uma nova amizade. O login aceita e-mail ou username.
 3. **Desafio.** Um usuário escolhe um amigo, uma partida que ainda não começou, um valor (de **10 a 500** BetCoins) e o palpite (vitória do mandante, empate ou vitória do visitante). O valor fica **reservado** na carteira dele.
 4. **Aceite.** O amigo aceita com um palpite **diferente** do primeiro, e o mesmo valor é reservado na carteira dele. Ele também pode recusar. Desafio pendente que não é aceito expira, e o criador pode cancelá-lo.
 5. **Partida.** Criar e aceitar só é possível até 5 minutos antes do início. O backend acompanha a partida e inicia o desafio quando ela começa.
@@ -30,7 +30,7 @@ Projeto Final da disciplina de Desenvolvimento Mobile.
    - quem acertou recebe o valor apostado pelo adversário (o total do desafio é 2x o valor, **sem taxa**);
    - se nenhum dos dois acertou, cada um recebe a própria reserva de volta;
    - se a partida for cancelada ou adiada além do tolerado, o desafio é cancelado e as reservas são devolvidas.
-7. **Recuperação.** Quem fica sem saldo para apostar e sem nada reservado pode resgatar um bônus de recuperação, com intervalo mínimo entre resgates.
+7. **Recuperação (RF-020).** A Home oferece **Resgatar bônus de recuperação (+100 BetCoins)** junto à carteira somente com saldo disponível abaixo de 10, nenhuma reserva e pelo menos 24 horas desde o último bônus. Durante o intervalo, informa a data e a hora local do próximo resgate; outras condições ocultam a ação. O servidor valida as regras pela callable `claimRecoveryBonus`; o saldo se atualiza pelo stream do perfil, sem escrita local. Sem confirmação do servidor, a tela informa o erro e não repete automaticamente: confira a carteira antes de tentar novamente.
 
 Estados de um desafio: `PENDING` → `ACCEPTED` → `IN_PROGRESS` → `WAITING_RESULT` → `FINISHED`, com saídas para `REJECTED`, `EXPIRED` e `CANCELLED`. Toda movimentação de saldo é registrada em um extrato imutável (ledger), e as operações financeiras são transações atômicas.
 
@@ -60,7 +60,7 @@ Princípios do projeto:
 - **Identidade vem do token.** Toda função tira o UID do usuário autenticado, nunca do payload.
 - **Segredos ficam fora do repositório.** O token da football-data.org está no Secret Manager do Google Cloud.
 
-São 14 funções exportadas em `functions/src/index.ts`: 13 callables e a agendada `syncMatches`.
+São 17 funções exportadas em `functions/src/index.ts`: 16 callables e a agendada `syncMatches`.
 
 ## Tecnologias
 
@@ -317,7 +317,9 @@ Fluxo de trabalho:
 | [`integration_test/README.md`](integration_test/README.md) | Testes de integração no Android com emuladores |
 | [`tests/firestore-rules/README.md`](tests/firestore-rules/README.md) | Testes das Security Rules |
 | [`docs/auditoria/`](docs/auditoria/README.md) | Auditorias técnicas e o status de cada achado |
-| [`docs/entrega-2/`](docs/entrega-2/README.md) | Material da Entrega 2 da disciplina (histórico) |
+| [`docs/entrega-2/`](docs/entrega-2/README.md) | Material da Entrega 2 da disciplina (histórico); o estado atual das funcionalidades está em [`funcionalidades.md`](docs/entrega-2/funcionalidades.md) |
+| [`docs/politica-de-privacidade.md`](docs/politica-de-privacidade.md) | Rascunho da política de privacidade (dados coletados, retenção e exclusão de conta) |
+| [`CHANGELOG.md`](CHANGELOG.md) | Histórico de mudanças por versão |
 
 ## Solução de problemas
 

@@ -1,5 +1,7 @@
 # Status Report — roteiro de até 5 minutos
 
+> **Histórico (01/11/2026):** roteiro escrito para a Segunda Entrega. Os "próximos passos" abaixo foram em grande parte cumpridos; ver [funcionalidades.md](funcionalidades.md) antes de reaproveitar o texto.
+
 > Rascunho para a equipe revisar, atualizado em 01/11/2026. Ajuste nomes e divisão de falas antes da apresentação. Tempo estimado por leitura em voz alta; **ainda não cronometrado em ensaio**.
 
 ## 1. Abertura (≈ 20 s)

@@ -41,6 +41,70 @@ class _TelaListaAmigosState extends State<TelaListaAmigos> {
   List<UsuarioPublico> _amigos = [];
   String _termoFiltro = '';
 
+  bool _remocaoEmAndamento = false;
+
+  Future<void> _removerAmizade(UsuarioPublico amigo) async {
+    if (_remocaoEmAndamento) return;
+    setState(() => _remocaoEmAndamento = true);
+    try {
+      var respostaEnviada = false;
+      final confirmar = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Remover amizade?'),
+          content: Text(
+            'Deseja remover a amizade com ${amigo.displayName}? '
+            'Vocês não poderão se desafiar até voltarem a ser amigos. '
+            'O histórico de desafios será mantido.',
+          ),
+          actions: [
+            TextButton(
+              key: const Key('cancelar_remocao_amizade'),
+              onPressed: () {
+                if (respostaEnviada) return;
+                respostaEnviada = true;
+                Navigator.pop(context, false);
+              },
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              key: const Key('confirmar_remocao_amizade'),
+              onPressed: () {
+                if (respostaEnviada) return;
+                respostaEnviada = true;
+                Navigator.pop(context, true);
+              },
+              child: const Text('Remover amizade'),
+            ),
+          ],
+        ),
+      );
+      if (confirmar != true || !mounted) return;
+      await _friendshipService.removerAmizade(amigo.userId);
+      if (!mounted) return;
+      setState(() {
+        _amigos = _amigos.where((item) => item.userId != amigo.userId).toList();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Amizade removida com sucesso.')),
+      );
+    } on FriendshipException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (e, s) {
+      registrarErro('remover amizade na lista', e, s);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível remover a amizade. Tente novamente.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _remocaoEmAndamento = false);
+    }
+  }
   @override
   void initState() {
     super.initState();
@@ -373,6 +437,16 @@ class _TelaListaAmigosState extends State<TelaListaAmigos> {
                 ),
               ),
             ),
+          ),
+          IconButton(
+            key: Key('btn_remover_amigo_${amigo.userId}'),
+            tooltip: 'Remover amizade',
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            icon: const Icon(Icons.person_remove_outlined),
+            color: const Color(0xFF8E9CAB),
+            onPressed: _remocaoEmAndamento
+                ? null
+                : () => _removerAmizade(amigo),
           ),
         ],
       ),

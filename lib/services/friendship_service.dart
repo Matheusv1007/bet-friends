@@ -29,6 +29,26 @@ class FriendshipService {
       _repositorySobDemanda ??
       FunctionsFriendshipRepository(functions: _functions);
 
+
+  /// Recebe exclusivamente o UID público do amigo; não interpreta underscores.
+  Future<void> removerAmizade(String friendUserId) async {
+    final usuario = _authService.currentUser;
+    if (usuario == null) {
+      throw const FriendshipException(
+        FriendshipErrorCode.unauthenticated,
+        'É necessário estar autenticado para remover uma amizade.',
+      );
+    }
+    final uid = friendUserId.trim();
+    if (uid.isEmpty || uid == usuario.uid) {
+      throw const FriendshipException(
+        FriendshipErrorCode.invalidData,
+        'Identificador de amigo inválido.',
+      );
+    }
+    final uids = [usuario.uid, uid]..sort();
+    await _repository.removerAmizade('${uids[0]}_${uids[1]}');
+  }
   /// Envia uma solicitação de amizade para o usuário indicado por [toUserId].
   Future<ResultadoEnvioAmizade> enviarSolicitacaoAmizade(String toUserId) async {
     final usuarioLogado = _authService.currentUser;
@@ -114,7 +134,9 @@ class FriendshipService {
   /// Diretrizes de Privacidade:
   /// - Retorna apenas o remetente público (nome e @username).
   /// - Dados privados (e-mail, saldos e transações) nunca são expostos.
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  }) async {
     final usuarioLogado = _authService.currentUser;
     if (usuarioLogado == null) {
       throw const FriendshipException(
@@ -123,7 +145,7 @@ class FriendshipService {
       );
     }
 
-    return _repository.listarSolicitacoesPendentes();
+    return _repository.listarSolicitacoesPendentes(cursor: cursor);
   }
 
   /// Lista os amigos com relação de amizade aceita (RF-006, RN-FRD-001, RN-PROF-002).

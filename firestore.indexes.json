@@ -5,6 +5,15 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "challengerId", "order": "ASCENDING" },
+        { "fieldPath": "challengedId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "challenges",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "challengerId", "order": "ASCENDING" },
         { "fieldPath": "matchId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
@@ -91,6 +100,14 @@
       "fields": [
         { "fieldPath": "competitionCode", "order": "ASCENDING" },
         { "fieldPath": "startsAtUtc", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "betCoinTransactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {

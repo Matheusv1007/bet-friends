@@ -291,6 +291,8 @@ Criação e aceite recusam com `partida-invalida` partidas remarcadas mais de se
 
 Saídas por tempo (N-05/A-01): `ACCEPTED` com partida `AGENDADA` há mais de sete dias é cancelado como `MATCH_POSTPONED`. `IN_PROGRESS`/`EM_ANDAMENTO` há mais de 24h desde `startedAt` gera `logger.error` com `challengeId`, sem cancelar. `WAITING_RESULT` com partida `SUSPENSA`/`REVISAO_NECESSARIA` há mais de `DIAS_DE_ESPERA_DE_RESULTADO_TOLERADO` (7 dias desde a entrada em espera, `updatedAt`) é cancelado pelo mesmo caminho transacional e libera as duas reservas, sem pagar vencedor. É a política segura e reversível para ausência prolongada de resultado confiável; exatamente no prazo ainda espera.
 
+**Só com sincronização viva (T-01).** As duas saídas por tempo sem mudança de status (`ACCEPTED` com partida `AGENDADA` e `WAITING_RESULT` com partida `SUSPENSA`/`REVISAO_NECESSARIA`) só cancelam se `system/matchSync.lastSeasonSuccessAt` (última sincronização da temporada inteira com sucesso) for **posterior ao fim do prazo de 7 dias**. Com a sincronização parada (token revogado, provedor fora do ar), o dado da partida está velho: o desafio espera e é liquidado normalmente quando a sincronização voltar e trouxer o resultado. Sem nenhuma varredura registrada, nada é cancelado por tempo. As demais regras (partida `CANCELADA`, adiamento além de 7 dias da data original) não mudam.
+
 ## 12 - App Check e limite de uso (A-05)
 
 Duas proteções contra uso do backend por quem não é o app, ou em volume abusivo:
@@ -302,6 +304,10 @@ Duas proteções contra uso do backend por quem não é o app, ou em volume abus
 `sendFriendRequest` exige perfil em `users` tanto do remetente quanto do destinatário; remetente sem perfil recebe `failed-precondition`, `details.motivo = "perfil-inexistente"`. Permite 30 envios bem-sucedidos por hora por remetente, incluindo aceite cruzado e reabertura. Reabrir após recusa consome também uma cota de 3 reaberturas por dia por par/remetente. As duas cotas são transacionais, usam `core/limiteDeUso.ts`, não consomem em falhas e retornam `resource-exhausted` com o mesmo contrato acima (N-11).
 
 `getFriendRequests` aceita payload omitido, `null`, `{}` ou `{ limit?, cursor? }`. `limit` é inteiro de 1 a 200, padrão 100 (compatível com o app atual). A resposta preserva `requests: [{ friendshipId, remetente: { userId, displayName, username }, createdAt, status: "PENDING" }]` e acrescenta `nextCursor: { requesterId, friendshipId } | null`. Envie `nextCursor` como `cursor` para a página seguinte; `null` indica fim, e uma página cheia pode ter uma próxima página vazia. Ordenação estável por `requesterId` e ID da amizade, não cronológica; inclui só convites recebidos ainda pendentes. Cada página lê no máximo `limit` amizades e seus perfis públicos. Alterações de status entre páginas não constituem snapshot histórico.
+
+No app, as comunicações de amizade preservam o cursor e oferecem **Carregar mais** até `nextCursor == null` (resposta antiga sem cursor também encerra a lista). Falhar numa página adicional preserva as pendências já exibidas e permite repetir a consulta.
+
+A Home recarrega `getFriends` quando um novo UID de adversário aparece, ao retomar o app e pela ação **Atualizar nomes** quando houver desconhecidos. Guarda em memória os nomes públicos já recebidos enquanto a Home permanece montada, descartando-os na troca de usuário. Um UID nunca encontrado é exibido como **Jogador**, sem inferir que seja amigo ou conta removida. O backend atual não oferece busca de nomes por UID (`searchUsers` busca por username); ex-amigos não vistos nesta sessão continuam com o rótulo neutro. Resolver esses nomes exige o snapshot público no desafio ou uma consulta pública por UID no backend (T-05); o app não consulta perfis privados no Firestore.
 
 **App Check.** O app já envia o token de App Check em toda chamada (`main.dart`; provedor de depuração em debug, Play Integrity em release; não ativa contra os emuladores). O backend só **exige** o token quando o parâmetro `ENFORCE_APP_CHECK` está `true` no deploy; o padrão é `false`, porque exigir antes de configurar o console derruba todas as chamadas do app. Todas as Callables passam por `authedCallable`, então o parâmetro vale para todas.
 
@@ -322,3 +328,27 @@ O login aceita e-mail **ou** username (imutável). O Firebase Authentication só
 - **Limite de uso:** 10 consultas por minuto por IP (`rateLimits/resolveLoginEmail_{hash do IP}`), com o contrato `resource-exhausted` da seção 12. Formato inválido não consulta nada nem consome cota.
 - **No app:** `AuthService.signIn(identifier:, password:)` usa o texto como e-mail se tiver `@` (que não seja o inicial) e como username nos demais casos. Username inexistente falha com `invalid-credential`, igual a senha errada; a tela não revela quais usernames existem.
 - **Deploy:** `firebase deploy --only functions:resolveLoginEmail`. Como as demais, a callable nova precisa de permissão pública de invocação (ver seção 7).
+
+## 14 - Remover amizade (RF-006)
+
+`removeFriend` usa `authedCallable` (2ª geração, Node 22, `southamerica-east1`). Recebe `{ friendshipId }`, ID determinístico dos UIDs ordenados, e devolve somente `{ friendshipId, status: "REMOVED" }`. O autor vem exclusivamente do token; campos extras não substituem sua identidade.
+
+- Somente participante de uma amizade `ACCEPTED` remove. Inexistente, relação de terceiros, `PENDING` e `REJECTED` têm a mesma resposta: `not-found`, mensagem `"Solicitação de amizade não encontrada."`, `details.motivo = "solicitacao-inexistente"` (N-09).
+- O documento fica em `REMOVED`: repetir por qualquer participante tem a mesma resposta de sucesso sem alterar a amizade. Reenviar solicitação reutiliza o documento e as cotas N-11 de reabertura; somente novo aceite permite desafios.
+- Bloqueia com `failed-precondition`, `details.motivo = "desafio-ativo"`, se houver desafio do par em qualquer direção em `PENDING`, `ACCEPTED`, `IN_PROGRESS` ou `WAITING_RESULT`. A consulta ocorre na transação da remoção. Criação de desafio também escreve a amizade, impedindo corrida; aceite parte de `PENDING`, que já bloqueia remoção.
+- Desafios `FINISHED`, `REJECTED`, `EXPIRED` e `CANCELLED` não bloqueiam e permanecem no histórico dos dois. Nenhum desafio, saldo ou ledger é alterado pela remoção.
+- `unauthenticated` sem token; payload inválido retorna `invalid-argument` (identificador inválido: `uid-invalido`). Limite de 30 sucessos/hora por usuário em `rateLimits/removeFriend_{uid}`, incluindo replays, com `resource-exhausted`, `limite-de-uso` e `tentarNovamenteEm` conforme seção 12. Falhas não consomem cota.
+- No app: confirmação explícita, sem repetição automática; erros e falta de conexão mantêm o amigo na lista. O novo índice composto de `challenges` está em `firestore.indexes.json` e precisa ser publicado pelo responsável antes de usar a callable em produção.
+
+## 15 - Exclusão de conta (N-14)
+
+`deleteAccount` exige autenticação e recebe **somente `{}`**: o UID é sempre o do token, nunca um parâmetro. O app pede a senha novamente, reautentica com o e-mail da sessão e renova o ID token. O backend exige `auth_time` de no máximo cinco minutos; token antigo ou sem essa informação retorna `failed-precondition`, `details.motivo = "login-recente-necessario"`.
+
+Resposta de sucesso: `{ deleted: true }`. Payload omitido, `null` ou com campos extras é `invalid-argument`. Sem sessão, a callable retorna `unauthenticated`. Falhas inesperadas de Firestore/Authentication retornam `internal`, sem confirmar exclusão: tente novamente. O limite é de três tentativas por hora, com `resource-exhausted` e `details.motivo = "limite-de-uso"`; a guarda interna `accountDeletions/{uid}` conserva a contagem durante retomadas e impede recriar o perfil usando um token ainda válido (ver schema §3.1.3).
+
+- **Bloqueios:** `failed-precondition` com `desafio-ativo` se o usuário participa, como criador ou desafiado, de qualquer desafio `PENDING`, `ACCEPTED`, `IN_PROGRESS` ou `WAITING_RESULT`; `saldo-reservado` se `saldoReservado > 0`. Nenhuma exclusão acontece antes dessas validações.
+- **Apaga:** perfil `users/{uid}`, reserva de username (que fica disponível para novo cadastro), amizades/solicitações de todos os estados, contadores pessoais de `rateLimits` e, por último, a conta no Firebase Authentication. Não apaga usuários nem relações entre terceiros.
+- **Preserva:** ledger `betCoinTransactions` e desafios encerrados, referenciando apenas UIDs, sem acrescentar dados pessoais. O rótulo de participante removido nos desafios é responsabilidade da resolução de nomes no app.
+- **Retomada:** uma falha parcial permite repetir a operação, inclusive se o perfil já foi apagado mas a conta no Authentication permanece. O backend não depende do perfil para localizar reservas de username remanescentes, nem usa a ausência dele para revelar dados de outra pessoa.
+- **App:** confirmação digitando o próprio username, senha obrigatória e bloqueio de duplo envio. Falta de conexão não é sucesso; o diálogo mostra o erro e permite tentar novamente. A senha é descartada após cada tentativa. Ao confirmar a exclusão, o serviço encerra a sessão e limpa a persistência local do Firestore; o `AuthGate` apresenta o login, sem navegação manual.
+- **Validação manual necessária:** os testes usam Firestore Emulator e função falsa para apagar o Authentication. O responsável deve testar reautenticação, renovação de token, exclusão no Authentication real e retorno ao login com uma conta descartável; isso não foi comprovado pelos testes automatizados.

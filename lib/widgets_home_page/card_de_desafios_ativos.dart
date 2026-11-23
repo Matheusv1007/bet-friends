@@ -11,6 +11,7 @@ import '../models/challenge_model.dart';
 import '../services/challenge_service.dart';
 import '../tela_criar_desafio/modal_aceitar_desafio.dart';
 import '../tela_criar_desafio/tela_criar_desafio.dart';
+import '../tela_historico/tela_historico_desafios.dart';
 import 'desafios_em_aberto_secao.dart';
 import 'desafios_enviados_card.dart';
 import 'desafios_finalizados_secao.dart';
@@ -48,29 +49,79 @@ class DesafiosAtivosWidget extends StatefulWidget {
   State<DesafiosAtivosWidget> createState() => _DesafiosAtivosWidgetState();
 }
 
-class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget> {
+class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget>
+    with WidgetsBindingObserver {
   final _nomes = <String, String>{};
   final _cancelando = <String>{};
   final _partidas = <String, PartidaModel>{};
   final _consultadas = <String>{};
+  final _uidsConsultados = <String>{};
+  bool _carregandoNomes = false;
+
+  Set<String> get _uidsDesconhecidos => {
+    for (final c in widget.desafios ?? <ChallengeModel>[])
+      for (final uid in [c.challengerId, c.challengedId])
+        if (uid != widget.currentUserId && !_nomes.containsKey(uid)) uid,
+  };
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _carregarNomes();
   }
 
+  @override
+  void didUpdateWidget(covariant DesafiosAtivosWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentUserId != widget.currentUserId) {
+      _nomes.clear();
+      _uidsConsultados.clear();
+    }
+    if (_uidsDesconhecidos.any((uid) => !_uidsConsultados.contains(uid))) {
+      _carregarNomes();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _carregarNomes();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
   Future<void> _carregarNomes() async {
+    final servico = widget.challengeService;
+    if (_carregandoNomes || servico == null) return;
+    final usuario = widget.currentUserId;
+    _carregandoNomes = true;
+    _uidsConsultados.addAll(_uidsDesconhecidos);
     try {
-      final amigos = await widget.challengeService?.listarAmigosAceitos();
-      if (!mounted) return;
+      final amigos = await servico.listarAmigosAceitos();
+      if (!mounted || usuario != widget.currentUserId) return;
       setState(() {
-        for (final amigo in amigos ?? <AmigoItem>[]) {
-          _nomes[amigo.uid] = amigo.displayName;
+        // Preserva nomes públicos já vistos mesmo após a remoção da amizade.
+        for (final amigo in amigos) {
+          if (amigo.displayName.trim().isNotEmpty) {
+            _nomes[amigo.uid] = amigo.displayName;
+          }
         }
       });
     } catch (e, s) {
       registrarErro('Carregar nomes dos adversários', e, s);
+    } finally {
+      _carregandoNomes = false;
+      if (mounted) {
+        setState(() {});
+        // Desafios podem ter chegado enquanto a consulta estava em andamento.
+        if (_uidsDesconhecidos.any((uid) => !_uidsConsultados.contains(uid))) {
+          _carregarNomes();
+        }
+      }
     }
   }
 
@@ -217,6 +268,16 @@ class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget> {
     return _apresentar(Builder(builder: (context) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (_uidsDesconhecidos.isNotEmpty)
+          TextButton(
+            key: const Key('home_atualizar_nomes'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF00D084),
+              minimumSize: const Size(48, 48),
+            ),
+            onPressed: _carregandoNomes ? null : _carregarNomes,
+            child: Text(_carregandoNomes ? 'Atualizando nomes...' : 'Atualizar nomes'),
+          ),
         // 1. DESTAQUE: DESAFIOS RECEBIDOS AGUARDANDO RESPOSTA
         if (pendentesRecebidos.isNotEmpty)
           DesafiosRecebidosCard(
@@ -225,7 +286,7 @@ class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget> {
               ModalAceitarDesafio.exibir(
                 context: context,
                 desafio: c,
-                nomeCriador: _nomes[c.challengerId] ?? 'Amigo',
+                nomeCriador: _apresentar(const SizedBox()).nome(c.challengerId),
                 descricaoPartida: _apresentar(const SizedBox()).partida(c.matchId),
                 challengeService: widget.challengeService,
               );
@@ -249,6 +310,16 @@ class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget> {
             desafios: desafiosFinalizados,
             currentUserId: widget.currentUserId,
             onDetalhes: (c) => _exibirDetalhesDesafio(context, c),
+            onVerTodos: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => TelaHistoricoDesafios(
+                  currentUserId: widget.currentUserId,
+                  nomes: _nomes,
+                  partidas: _partidas,
+                ),
+              ),
+            ),
           ),
       ],
     )));

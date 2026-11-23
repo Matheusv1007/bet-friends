@@ -12,12 +12,14 @@ import {
   validarNovoDesafio,
 } from "./challenge";
 import { reservarBetCoinsNaTransacao, validarValorDaAposta } from "../betcoins/reserva";
-import { verificarAmizadeAceitaNaTransacao } from "../amigos/friendshipFirestore";
+import { COLECAO_DE_AMIZADES, verificarAmizadeAceitaNaTransacao } from "../amigos/friendshipFirestore";
+import { gerarFriendshipId } from "../amigos/friendship";
 import { lerMatchNaTransacao } from "../partidas/matchFirestore";
 import { RESULTADOS_DA_PARTIDA } from "../partidas/match";
 import { EventoDoDesafio, aplicarEvento } from "./maquinaDeEstados";
 import { remarcadaAlemDoTolerado } from "./prazoDeAdiamento";
 import { planejarConsumoDeLimiteNaTransacao } from "../core/limiteDeUso";
+import { verificarContasDisponiveisNaTransacao } from "../perfil/contaDisponivel";
 
 export const LIMITE_DE_CRIACAO_DE_DESAFIOS = { maximo: 30, janelaMs: 60 * 60 * 1000 };
 
@@ -286,6 +288,8 @@ export async function criarDesafioParaAmigoNaTransacao(
   const challengeId = challengeRef.id;
 
   // LEITURAS OBRIGATÓRIAS ANTES DE QUALQUER ESCRITA
+  // A reserva abaixo verifica o marcador do criador na mesma transação.
+  await verificarContasDisponiveisNaTransacao(transacao, db, [challengedId]);
   const match = await lerMatchNaTransacao(transacao, db, matchId);
   if (match === null) {
     throw new ErroDeDesafio("Partida não encontrada.", "desafio-invalido");
@@ -316,6 +320,11 @@ export async function criarDesafioParaAmigoNaTransacao(
     valor: amount,
     matchId,
   });
+  // Escrita no mesmo documento da remoção: serializa as duas operações mesmo
+  // quando a consulta de desafios da remoção ainda não encontrou este convite.
+  transacao.update(db.collection(COLECAO_DE_AMIZADES).doc(
+    gerarFriendshipId(challengerId, challengedId).friendshipId,
+  ), { updatedAt: FieldValue.serverTimestamp() });
   gravarLimite();
 
   criarDesafioNaTransacao(
@@ -390,6 +399,8 @@ export async function aceitarDesafioNaTransacao(
   if (challenge.challengedId !== challengedId) {
     throw new ErroDeDesafio("Somente o usuário desafiado pode aceitar o desafio.", "nao-desafiado");
   }
+  // A reserva abaixo verifica o marcador do desafiado na mesma transação.
+  await verificarContasDisponiveisNaTransacao(transacao, db, [challenge.challengerId]);
 
   if (challengedPrediction === challenge.challengerPrediction) {
     throw new ErroDeDesafio("O palpite do desafiado deve ser diferente do palpite do criador.", "palpite-duplicado");

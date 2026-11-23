@@ -15,6 +15,7 @@ import { EventoDoDesafio } from "./maquinaDeEstados";
 import { carregarContextoDoProcessamento, ContextoDoProcessamento, partidaDoContexto } from "./contextoDoProcessamento";
 import { CONCORRENCIA_COM_CARTEIRA, processarComConcorrencia } from "./concorrenciaLimitada";
 import { DIAS_DE_ADIAMENTO_TOLERADO, limiteDeAdiamento, remarcadaAlemDoTolerado } from "./prazoDeAdiamento";
+import { DOCUMENTO_DE_ESTADO, ultimaVarreduraDe } from "../partidas/estadoDaSincronizacao";
 import { planejarConsumoDeLimiteNaTransacao } from "../core/limiteDeUso";
 
 export const LIMITE_DE_CANCELAMENTO_DE_DESAFIOS = { maximo: 30, janelaMs: 60 * 60 * 1000 };
@@ -141,6 +142,11 @@ export function cancelarDesafioPeloCriador(
   return db.runTransaction((t) => cancelarDesafioPeloCriadorNaTransacao(t, db, pedido, agora));
 }
 
+/** A sincronização da temporada inteira confirmou a situação da partida depois de [limiteMs]. */
+function confirmadaDepoisDe(ultimaVarredura: Date | null, limiteMs: number): boolean {
+  return ultimaVarredura !== null && ultimaVarredura.getTime() > limiteMs;
+}
+
 /**
  * Motivo pelo qual a situação da partida cancela o desafio, ou `null` se ele
  * deve continuar. Regras (RN-MAT-007 a 011):
@@ -150,13 +156,21 @@ export function cancelarDesafioPeloCriador(
  *   data já está além desse limite, seja porque a partida continua sem nova
  *   data depois dele; até lá o desafio espera;
  * - partida remarcada (`AGENDADA`) para além do limite: cancela os desafios
- *   ainda não iniciados (`PENDING` e `ACCEPTED`).
+ *   ainda não iniciados (`PENDING` e `ACCEPTED`);
+ * - saídas por tempo sem mudança de status (T-01): `ACCEPTED` com partida
+ *   `AGENDADA` sete dias depois do início, e `WAITING_RESULT` com partida
+ *   `SUSPENSA`/`REVISAO_NECESSARIA` sete dias depois de entrar em espera, só
+ *   cancelam se [ultimaVarredura] (última sincronização da temporada inteira
+ *   com sucesso) for posterior ao fim desse prazo. Com a sincronização parada,
+ *   o dado da partida está velho e o desafio espera; sem varredura confirmada
+ *   (`null`), nada é cancelado por tempo.
  * Desafio terminal nunca é cancelado.
  */
 export function motivoDeCancelamentoPelaPartida(
   desafio: Challenge,
   partida: Match,
   agora: Date,
+  ultimaVarredura: Date | null = null,
 ): MotivoDeCancelamento | null {
   if (partida.id !== desafio.matchId) {
     throw new ErroDeDesafio(`A partida ${partida.id} não é a do desafio ${desafio.id}.`);
@@ -169,8 +183,10 @@ export function motivoDeCancelamentoPelaPartida(
     logger.error("Partida em andamento além do prazo de alerta", { challengeId: desafio.id, matchId: partida.id });
   }
   if (desafio.status === "ACCEPTED" && partida.status === "AGENDADA" &&
+      confirmadaDepoisDe(ultimaVarredura, partida.startsAtUtc.getTime() + DIAS_DE_ADIAMENTO_TOLERADO * MS_DE_UM_DIA) &&
       agora.getTime() - partida.startsAtUtc.getTime() > DIAS_DE_ADIAMENTO_TOLERADO * MS_DE_UM_DIA) return "MATCH_POSTPONED";
   if (desafio.status === "WAITING_RESULT" && (partida.status === "SUSPENSA" || partida.status === "REVISAO_NECESSARIA") &&
+      confirmadaDepoisDe(ultimaVarredura, desafio.updatedAt.getTime() + DIAS_DE_ESPERA_DE_RESULTADO_TOLERADO * MS_DE_UM_DIA) &&
       agora.getTime() - desafio.updatedAt.getTime() > DIAS_DE_ESPERA_DE_RESULTADO_TOLERADO * MS_DE_UM_DIA) return "MATCH_POSTPONED";
   const limite = limiteDeAdiamento(partida);
   const remarcadaParaDepoisDoLimite = remarcadaAlemDoTolerado(partida);
@@ -204,7 +220,8 @@ export async function cancelarDesafioPelaPartidaNaTransacao(
 
   const partida = await lerMatchNaTransacao(transacao, db, desafio.matchId);
   if (partida === null) return { resultado: "mantido", challengeId };
-  const motivo = motivoDeCancelamentoPelaPartida(desafio, partida, agora);
+  const ultimaVarredura = ultimaVarreduraDe((await transacao.get(db.doc(DOCUMENTO_DE_ESTADO))).data());
+  const motivo = motivoDeCancelamentoPelaPartida(desafio, partida, agora, ultimaVarredura);
   if (motivo === null) return { resultado: "mantido", challengeId };
 
   await liberarReservasEEncerrar(transacao, db, desafio, { tipo: "CANCELAR", motivo }, agora);
@@ -253,7 +270,7 @@ export async function cancelarDesafiosPelaPartida(
       ignorados.push({ id: desafio.id, motivo: err instanceof Error ? err.message : String(err) });
       return;
     }
-    if (partida === null || motivoDeCancelamentoPelaPartida(desafio, partida, agora) === null) return;
+    if (partida === null || motivoDeCancelamentoPelaPartida(desafio, partida, agora, contexto.ultimaVarredura) === null) return;
     try {
       const r = await cancelarDesafioPelaPartida(db, desafio.id, agora);
       if (r.resultado === "cancelado") {

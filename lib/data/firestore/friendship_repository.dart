@@ -16,6 +16,7 @@ enum FriendshipErrorCode {
   unavailable,
   invalidData,
   unknown,
+  activeChallenge,
 }
 
 /// Exceção de domínio para operações de amizade (RF-005, RN-FRD-001, RN-FRD-003, RN-FRD-005).
@@ -27,6 +28,13 @@ class FriendshipException implements Exception {
 
   factory FriendshipException.fromFunctionsException(FunctionsException e) {
     final motivo = e.motivo;
+
+    if (motivo == 'desafio-ativo') {
+      return const FriendshipException(
+        FriendshipErrorCode.activeChallenge,
+        'Você tem um desafio em andamento com este amigo. Conclua ou cancele o desafio antes de remover a amizade.',
+      );
+    }
 
     if (motivo == 'auto-solicitacao') {
       return const FriendshipException(
@@ -142,10 +150,15 @@ abstract interface class FriendshipRepository {
   Future<ResultadoRecusaAmizade> recusarSolicitacaoAmizade(String identificador);
 
   /// Lista solicitações de amizade pendentes recebidas pelo usuário logado (RF-005, RN-PROF-002).
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes();
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  });
 
   /// Lista os amigos com relação aceita do usuário logado (RF-006, RN-FRD-001, RN-PROF-002).
   Future<List<UsuarioPublico>> listarAmigosAceitos();
+
+  /// Remove uma amizade aceita, sem apagar o histórico dos desafios.
+  Future<void> removerAmizade(String friendshipId);
 }
 
 /// Implementação padrão recomendada via Callable Function do backend.
@@ -156,6 +169,28 @@ class FunctionsFriendshipRepository implements FriendshipRepository {
       : _functionsSobDemanda = functions;
 
   FunctionsService get _functions => _functionsSobDemanda ?? FunctionsService();
+
+  @override
+  Future<void> removerAmizade(String friendshipId) async {
+    try {
+      final response = await _functions.call(
+        CallableNames.removeFriend,
+        {'friendshipId': friendshipId},
+      );
+      if (response['friendshipId'] != friendshipId ||
+          response['status'] != 'REMOVED') {
+        throw const FormatException('Resposta de remoção de amizade inválida.');
+      }
+    } on FunctionsException catch (e) {
+      throw FriendshipException.fromFunctionsException(e);
+    } catch (e, s) {
+      registrarErro('remover amizade', e, s);
+      throw const FriendshipException(
+        FriendshipErrorCode.unknown,
+        'Não foi possível remover a amizade. Tente novamente.',
+      );
+    }
+  }
 
   @override
   Future<ResultadoEnvioAmizade> enviarSolicitacaoAmizade(String toUserId) async {
@@ -239,14 +274,24 @@ class FunctionsFriendshipRepository implements FriendshipRepository {
   }
 
   @override
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  }) async {
     try {
-      final response = await _functions.call(CallableNames.getFriendRequests);
+      final response = await _functions.call(
+        CallableNames.getFriendRequests,
+        {'cursor': ?cursor},
+      );
       final rawRequests = response['requests'] as List? ?? [];
-      return rawRequests
-          .whereType<Map>()
-          .map((item) => SolicitacaoAmizade.fromMap(Map<String, dynamic>.from(item)))
-          .toList();
+      return PaginaSolicitacoesAmizade(
+        requests: rawRequests
+            .whereType<Map>()
+            .map((item) => SolicitacaoAmizade.fromMap(Map<String, dynamic>.from(item)))
+            .toList(),
+        nextCursor: response['nextCursor'] == null
+            ? null
+            : Map<String, dynamic>.from(response['nextCursor'] as Map),
+      );
     } on FunctionsException catch (e) {
       throw FriendshipException.fromFunctionsException(e);
     } catch (e, s) {

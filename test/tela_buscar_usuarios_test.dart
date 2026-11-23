@@ -43,6 +43,10 @@ class _FakeSearchRepository implements UserSearchRepository {
 }
 
 class _FakeFriendshipRepoForWidget implements FriendshipRepository {
+  @override
+  Future<void> removerAmizade(String friendshipId) async =>
+      throw UnimplementedError();
+
   bool crossRequest = false;
   bool throwError = false;
   String? errorMessage;
@@ -102,8 +106,10 @@ class _FakeFriendshipRepoForWidget implements FriendshipRepository {
   }
 
   @override
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
-    return [];
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  }) async {
+    return const PaginaSolicitacoesAmizade();
   }
 
   @override

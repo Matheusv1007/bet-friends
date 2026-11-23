@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/user_profile.dart';
+import '../services/extrato_service.dart';
+import '../tela_extrato/tela_extrato.dart';
 import '../services/friendship_service.dart';
 import '../services/user_search_service.dart';
 import '../tela_amigos/tela_buscar_usuarios.dart';
@@ -11,6 +13,7 @@ import '../tela_sobre/tela_informacoes_creditos.dart';
 import 'aviso_sem_conexao.dart';
 import 'cabecalho_do_perfil.dart';
 import 'editar_nome_dialog.dart';
+import 'excluir_conta_dialog.dart';
 import 'linha_do_perfil.dart';
 
 class DadosDoPerfil extends StatelessWidget {
@@ -73,6 +76,32 @@ class DadosDoPerfil extends StatelessWidget {
               side: const BorderSide(color: primaryGreen, width: 1.2),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 48,
+          child: ElevatedButton.icon(
+            key: const Key('perfil_extrato'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => TelaExtrato(
+                  extratoService: context.read<ExtratoService?>(),
+                ),
+              ),
+            ),
+            icon: const Icon(Icons.receipt_long_outlined, size: 18),
+            label: const Text('Extrato de BetCoins',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: cardBg,
+              foregroundColor: primaryGreen,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: primaryGreen.withValues(alpha: 0.4)),
               ),
             ),
           ),
@@ -182,7 +211,43 @@ class DadosDoPerfil extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 24),
+        SizedBox(
+          height: 48,
+          child: OutlinedButton.icon(
+            key: const Key('perfil_excluir_conta'),
+            onPressed: () => _excluirConta(context),
+            icon: const Icon(Icons.warning_amber_rounded, size: 20),
+            label: const Text(
+              'Excluir conta',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFFEF4444),
+              side: const BorderSide(color: Color(0xFFEF4444)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Future<void> _excluirConta(BuildContext context) async {
+    if (semConexao) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sem conexão. Conecte-se à internet para excluir a conta.'),
+        ),
+      );
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => ExcluirContaDialog(username: perfil.username),
     );
   }
 

@@ -1,7 +1,8 @@
 import { authedCallable } from "../core/callable";
 import { db } from "../core/firebase";
-import { consumirLimiteDeUso } from "../core/limiteDeUso";
+import { planejarConsumoDeLimiteNaTransacao } from "../core/limiteDeUso";
 import { requireObject } from "../core/validation";
+import { verificarContasDisponiveisNaTransacao } from "./contaDisponivel";
 import {
   BUSCAS_POR_MINUTO,
   PublicUserData,
@@ -42,7 +43,13 @@ export const searchUsers = authedCallable<SearchUsersRequest, SearchUsersRespons
       return { users: [] };
     }
 
-    await consumirLimiteDeUso(db, `searchUsers_${auth.uid}`, { maximo: BUSCAS_POR_MINUTO, janelaMs: 60_000 });
+    await db.runTransaction(async (t) => {
+      await verificarContasDisponiveisNaTransacao(t, db, [auth.uid]);
+      const gravar = await planejarConsumoDeLimiteNaTransacao(t, db, `searchUsers_${auth.uid}`, {
+        maximo: BUSCAS_POR_MINUTO, janelaMs: 60_000,
+      });
+      gravar();
+    });
     return { users: await buscarUsuariosPorUsername(db, auth.uid, termo, limiteDaBusca(data.limit)) };
   },
   {

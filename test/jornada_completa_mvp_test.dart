@@ -155,6 +155,10 @@ class _ControladorDePerfis implements UserProfileRepository {
 }
 
 class _ControladorDeAmizades implements FriendshipRepository {
+  @override
+  Future<void> removerAmizade(String friendshipId) async =>
+      throw UnimplementedError();
+
   final Map<String, List<UsuarioPublico>> _amigosPorUsuario = {};
   final Map<String, List<SolicitacaoAmizade>> _solicitacoesPorUsuario = {};
   bool simularErro = false;
@@ -176,11 +180,15 @@ class _ControladorDeAmizades implements FriendshipRepository {
   }
 
   @override
-  Future<List<SolicitacaoAmizade>> listarSolicitacoesPendentes() async {
+  Future<PaginaSolicitacoesAmizade> listarSolicitacoesPendentes({
+    Map<String, dynamic>? cursor,
+  }) async {
     if (simularErro) {
       throw FriendshipException(FriendshipErrorCode.unavailable, mensagemErro);
     }
-    return List.from(_solicitacoesPorUsuario[_uidAtual] ?? []);
+    return PaginaSolicitacoesAmizade(
+      requests: List.from(_solicitacoesPorUsuario[_uidAtual] ?? []),
+    );
   }
 
   @override

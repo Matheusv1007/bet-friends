@@ -1,5 +1,7 @@
 # Checklist da Segunda Entrega — 05/11/2026, 21h
 
+> **Histórico (01/11/2026):** critérios e estado da Segunda Entrega. Para o estado atual das funcionalidades, ver [funcionalidades.md](funcionalidades.md).
+
 Atualizado em 01/11/2026 (base: `qas` em `805eea8`).
 
 Legenda: ✅ atendido e verificado · 🟡 atendido com ressalvas · ⏳ pendente (ação manual) · ❌ não atendido
