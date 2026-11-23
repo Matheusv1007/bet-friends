@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../data/firestore/challenge_repository.dart';
 import '../models/challenge_model.dart';
+import '../models/campeonato.dart';
 import '../models/partida_model.dart';
 import '../provider/partidas_provider.dart';
 import '../services/challenge_service.dart';
@@ -49,6 +50,7 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
   int valor = 50;
   String? partidaId;
   bool _mostrarTodasPartidas = false;
+  Campeonato? _filtroCampeonato;
   Palpite palpiteSelecionado = Palpite.homeWin;
   String? amigoId;
   String? amigoNome;
@@ -393,6 +395,11 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
                     onAlternarMostrarTodas: () => setState(
                       () => _mostrarTodasPartidas = !_mostrarTodasPartidas,
                     ),
+                    filtro: _filtroCampeonato,
+                    onFiltroChanged: (campeonato) => setState(() {
+                      _filtroCampeonato = campeonato;
+                      _mostrarTodasPartidas = false;
+                    }),
                   );
                 },
               ),

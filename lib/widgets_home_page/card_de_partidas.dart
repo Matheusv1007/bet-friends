@@ -62,6 +62,21 @@ class Carddepartidas extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (partida != null) ...[
+                  Text(
+                    partida!.nomeDoCampeonato,
+                    key: Key('partida_campeonato_${partida!.id}'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFF8E9CAB),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                ],
                 if (isFinalizado) ...[
                   // BADGE FINALIZADO
                   Container(
