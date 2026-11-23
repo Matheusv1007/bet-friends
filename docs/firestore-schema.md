@@ -63,8 +63,9 @@ A correspondência completa com os nomes do Plano está em [§8](#8---correspond
 | `matches` | `{provedor}_{externalMatchId}` | Backend (sincronização) | Qualquer usuário autenticado | [PLANO] [KAN-17]; ID **[PROPOSTA]** |
 | `challenges` | ID automático | Backend | Participantes | [PLANO] [KAN-17] |
 | `betCoinTransactions` | Determinístico (ver §3.6) | Backend, somente criação | Somente o dono | [PLANO] [KAN-17]; ID **[PROPOSTA]** |
+| `accountDeletions` | UID do Firebase Auth | Backend | Nenhuma (negação padrão) | Guarda de exclusão (N-14) |
 
-As cinco coleções oficiais continuam as da KAN-17 (`FirestoreCollections`). `usernames` é a única coleção nova proposta, necessária para garantir unicidade sob concorrência (ver §3.2).
+As cinco coleções oficiais continuam as da KAN-17 (`FirestoreCollections`). `usernames` é auxiliar da unicidade (ver §3.2); `accountDeletions` é uma guarda interna de ciclo de vida, inacessível ao app (§3.1.3).
 
 ---
 
@@ -134,6 +135,20 @@ KAN-25 exige "identidade consistente sem perfil parcial", e KAN-72 exige carteir
 
 No app, a chamada é feita por `UserProfileService.criarPerfilDoUsuarioAtual` (KAN-32); ver [§7](#7---compatibilidade-com-o-código-existente).
 
+#### 3.1.3 - Ciclo de vida: exclusão de conta (N-14)
+
+A callable `deleteAccount` só exclui o próprio usuário com login recente (até cinco minutos). Antes de apagar qualquer dado, recusa participação em desafios `PENDING`, `ACCEPTED`, `IN_PROGRESS` ou `WAITING_RESULT` (inclusive convite recebido) e `saldoReservado > 0`.
+
+A limpeza apaga todas as amizades/solicitações do participante, seus contadores em `rateLimits`, suas reservas em `usernames` e `users/{uid}`. A conta no Firebase Authentication é apagada por último. A reserva liberada pode ser usada por outro cadastro. Falhas parciais são retomáveis mesmo com perfil já ausente; cada lote tem no máximo 500 gravações.
+
+`betCoinTransactions` e desafios encerrados permanecem imutáveis para o histórico financeiro, com referências por UID, sem nome, e-mail ou username acrescentados pela exclusão. Contas e amizades entre terceiros permanecem intactas. O cliente não recebe autorização de escrita adicional; toda a limpeza usa o Admin SDK.
+
+**Guarda de concorrência e retomada:** `accountDeletions/{uid}` é criado pelo backend depois da validação dos bloqueios, com apenas `windowStart: Timestamp` e `count: number` (limite de três tentativas por hora). O UID só aparece no ID: não contém nome, e-mail, username ou saldo. O documento permanece após a exclusão, sem expiração automática, para impedir recriação de perfil com token ainda válido e novas operações durante a limpeza; também preserva a cota se o Authentication falhar depois da remoção de `rateLimits`. O responsável deve revisar essa retenção técnica ao publicar a funcionalidade. A coleção cai no `match /{document=**}` de negação de leitura/escrita do cliente, sem abertura das Security Rules.
+
+Cadastro, criação/aceite de desafios, novas reservas e envio/aceite de amizades consultam essa guarda dentro de suas transações; recusam com `failed-precondition`, `details.motivo = "conta-em-exclusao"`. A busca não apresenta perfis em exclusão. O marcador e a remoção do perfil são atômicos, antes dos lotes de limpeza; tentativas inicialmente bloqueadas usam `rateLimits/deleteAccount_{uid}`, e a contagem migra para a guarda quando a exclusão começa.
+
+A limpeza de limites reconhece as chaves exatas dos produtores do backend, incluindo os pares das amizades, antes de apagar essas relações. Não usa substring simples do UID: UIDs podem conter `_` ou ser substring de outro UID, e isso não pode apagar contadores de terceiros.
+
 ---
 
 ### 3.2 - `usernames/{usernameNormalized}` [PROPOSTA — auxiliar da KAN-31]
@@ -149,7 +164,7 @@ O Firestore não tem restrição de unicidade por campo. Uma consulta `where('us
 **Normalização (decidida na KAN-31):**
 - `usernameNormalized = username.trim().toLowerCase()`, o que atende RN-AUTH-003 (`Simon` = `simon`).
 - Formato de `username`: 3 a 20 caracteres, apenas `a-z`, `A-Z`, `0-9` e `_`. Isso evita ambiguidades de acentos e de Unicode sem exigir normalização adicional.
-- Como o username é imutável (D-011), o documento nunca é movido nem apagado.
+- Como o username é imutável (D-011), o documento não é movido; só é apagado na exclusão da conta (N-14), liberando o valor para reutilização.
 
 Leitura: nenhuma pelo app; a verificação de disponibilidade é feita pela Function.
 
@@ -519,7 +534,7 @@ Em 23/11/2026, `firestore.indexes.json` declara **treze índices compostos**, to
 |---|---|---|
 | `challenges` | `participants CONTAINS`, `status ASC`, `finishedAt DESC` | Histórico |
 | `challenges` | `participants CONTAINS`, `status ASC`, `updatedAt DESC` | Desafios terminais recentes do usuário, com limite (N-19) |
-| `challenges` | `participants CONTAINS`, `status ASC` | Desafios não terminais do usuário (`status in`, N-19) |
+| `challenges` | `participants CONTAINS`, `status ASC` | Desafios não terminais do usuário (`status in`, N-19) e bloqueio de exclusão de conta (N-14) |
 | `challenges` | `challengerId ASC`, `matchId ASC` | Desafio do criador por partida |
 | `challenges` | `participants CONTAINS`, `matchId ASC` | Participação por partida |
 | `challenges` | `challengerId ASC`, `matchId ASC`, `status ASC` | Existência de desafio ativo do criador, sem ler histórico terminal (N-10) |

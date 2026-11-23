@@ -19,6 +19,7 @@ import { RESULTADOS_DA_PARTIDA } from "../partidas/match";
 import { EventoDoDesafio, aplicarEvento } from "./maquinaDeEstados";
 import { remarcadaAlemDoTolerado } from "./prazoDeAdiamento";
 import { planejarConsumoDeLimiteNaTransacao } from "../core/limiteDeUso";
+import { verificarContasDisponiveisNaTransacao } from "../perfil/contaDisponivel";
 
 export const LIMITE_DE_CRIACAO_DE_DESAFIOS = { maximo: 30, janelaMs: 60 * 60 * 1000 };
 
@@ -287,6 +288,8 @@ export async function criarDesafioParaAmigoNaTransacao(
   const challengeId = challengeRef.id;
 
   // LEITURAS OBRIGATÓRIAS ANTES DE QUALQUER ESCRITA
+  // A reserva abaixo verifica o marcador do criador na mesma transação.
+  await verificarContasDisponiveisNaTransacao(transacao, db, [challengedId]);
   const match = await lerMatchNaTransacao(transacao, db, matchId);
   if (match === null) {
     throw new ErroDeDesafio("Partida não encontrada.", "desafio-invalido");
@@ -396,6 +399,8 @@ export async function aceitarDesafioNaTransacao(
   if (challenge.challengedId !== challengedId) {
     throw new ErroDeDesafio("Somente o usuário desafiado pode aceitar o desafio.", "nao-desafiado");
   }
+  // A reserva abaixo verifica o marcador do desafiado na mesma transação.
+  await verificarContasDisponiveisNaTransacao(transacao, db, [challenge.challengerId]);
 
   if (challengedPrediction === challenge.challengerPrediction) {
     throw new ErroDeDesafio("O palpite do desafiado deve ser diferente do palpite do criador.", "palpite-duplicado");

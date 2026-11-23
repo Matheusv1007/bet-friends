@@ -4,6 +4,7 @@ import { CARTEIRA_INICIAL, SALDO_INICIAL, SALDOS_ANTES_DA_CARTEIRA, validarUid }
 import { COLECAO_DE_TRANSACOES, idDaTransacao } from "../betcoins/transacoes";
 import { ledgerDoSaldoInicial } from "../betcoins/transacoesTransacao";
 import { ErroDePerfil, Username, validarNome, validarUsername } from "./username";
+import { verificarContasDisponiveisNaTransacao } from "./contaDisponivel";
 
 export const COLECAO_DE_USERNAMES = "usernames";
 
@@ -45,6 +46,7 @@ export async function criarPerfilNaTransacao(
   pedido: PedidoDePerfil,
 ): Promise<ResultadoDoPerfil> {
   const { uid, email, displayName, username, usernameNormalized } = validarPedidoDePerfil(pedido);
+  await verificarContasDisponiveisNaTransacao(transacao, db, [uid]);
 
   const usuarioRef = db.collection("users").doc(uid);
   const usernameRef = db.collection(COLECAO_DE_USERNAMES).doc(usernameNormalized);
