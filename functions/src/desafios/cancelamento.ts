@@ -12,10 +12,16 @@ import {
   lerDesafioNaTransacao,
 } from "./challengeFirestore";
 import { EventoDoDesafio } from "./maquinaDeEstados";
-import { carregarContextoDoProcessamento, ContextoDoProcessamento, partidaDoContexto } from "./contextoDoProcessamento";
+import {
+  carregarContextoDoProcessamento,
+  ContextoDoProcessamento,
+  partidaDoContexto,
+  varreduraDaPartida,
+} from "./contextoDoProcessamento";
 import { CONCORRENCIA_COM_CARTEIRA, processarComConcorrencia } from "./concorrenciaLimitada";
 import { DIAS_DE_ADIAMENTO_TOLERADO, limiteDeAdiamento, remarcadaAlemDoTolerado } from "./prazoDeAdiamento";
-import { DOCUMENTO_DE_ESTADO, ultimaVarreduraDe } from "../partidas/estadoDaSincronizacao";
+import { CODIGO_DE_COMPETICAO } from "../partidas/agendaDaSincronizacao";
+import { documentoDeEstado, ultimaVarreduraDe } from "../partidas/estadoDaSincronizacao";
 import { planejarConsumoDeLimiteNaTransacao } from "../core/limiteDeUso";
 
 export const LIMITE_DE_CANCELAMENTO_DE_DESAFIOS = { maximo: 30, janelaMs: 60 * 60 * 1000 };
@@ -161,10 +167,10 @@ function confirmadaDepoisDe(ultimaVarredura: Date | null, limiteMs: number): boo
  *   `AGENDADA` sete dias depois do início, e `WAITING_RESULT` com partida
  *   `SUSPENSA`/`REVISAO_NECESSARIA` sete dias depois de entrar em espera, só
  *   cancelam se [ultimaVarredura] (última sincronização da temporada inteira
- *   com sucesso) for posterior ao fim desse prazo. Com a sincronização parada,
- *   o dado da partida está velho e o desafio espera; sem varredura confirmada
- *   (`null`), nada é cancelado por tempo.
- * Desafio terminal nunca é cancelado.
+ *   com sucesso **da liga da partida**, `system/matchSync_{código}`) for
+ *   posterior ao fim desse prazo. A varredura de uma liga nunca vale para outra.
+ *   Com a sincronização parada, o dado da partida está velho e o desafio
+ *   espera; sem varredura confirmada (`null`), nada é cancelado por tempo.
  */
 export function motivoDeCancelamentoPelaPartida(
   desafio: Challenge,
@@ -205,6 +211,16 @@ export type ResultadoDoCancelamentoPelaPartida =
   | { readonly resultado: "mantido"; readonly challengeId: string };
 
 /**
+ * Varredura da liga da [partida] (T-01), relida na transação antes de qualquer
+ * gravação. Vale o estado da liga da partida lida, mesmo fora da configuração
+ * atual; código fora do formato não vira caminho: sem varredura, `null`.
+ */
+async function lerVarreduraDaLigaNaTransacao(transacao: Transaction, db: Firestore, partida: Match): Promise<Date | null> {
+  if (!CODIGO_DE_COMPETICAO.test(partida.competitionCode)) return null;
+  return ultimaVarreduraDe((await transacao.get(db.doc(documentoDeEstado(partida.competitionCode)))).data());
+}
+
+/**
  * Cancela o desafio [challengeId] se a partida, relida nesta transação, pede
  * (ver [motivoDeCancelamentoPelaPartida]) e libera as reservas de quem já
  * reservou. Repetir não faz nada: o desafio já está terminal.
@@ -220,7 +236,7 @@ export async function cancelarDesafioPelaPartidaNaTransacao(
 
   const partida = await lerMatchNaTransacao(transacao, db, desafio.matchId);
   if (partida === null) return { resultado: "mantido", challengeId };
-  const ultimaVarredura = ultimaVarreduraDe((await transacao.get(db.doc(DOCUMENTO_DE_ESTADO))).data());
+  const ultimaVarredura = await lerVarreduraDaLigaNaTransacao(transacao, db, partida);
   const motivo = motivoDeCancelamentoPelaPartida(desafio, partida, agora, ultimaVarredura);
   if (motivo === null) return { resultado: "mantido", challengeId };
 
@@ -248,7 +264,11 @@ export interface ResumoDoCancelamentoPelaPartida {
  * Varre os desafios não terminais e cancela os que a situação da partida
  * manda cancelar. Lê cada partida uma única vez, fora de transação, só para
  * escolher os candidatos; a decisão final é de cada transação, que relê
- * desafio e partida. A falha de um desafio não impede os demais: nada dele
+ * desafio, partida e o estado da liga dela. Nas saídas por tempo (T-01), o
+ * filtro usa a varredura da liga da partida no contexto, que só tem as ligas
+ * configuradas: liga retirada de `PARTIDAS_SYNC_COMPETICOES` não é cancelada
+ * por tempo enquanto não voltar à lista (partida `CANCELADA` e adiamento
+ * seguem normais). A falha de um desafio não impede os demais: nada dele
  * é gravado e a próxima execução tenta de novo.
  */
 export async function cancelarDesafiosPelaPartida(
@@ -270,7 +290,7 @@ export async function cancelarDesafiosPelaPartida(
       ignorados.push({ id: desafio.id, motivo: err instanceof Error ? err.message : String(err) });
       return;
     }
-    if (partida === null || motivoDeCancelamentoPelaPartida(desafio, partida, agora, contexto.ultimaVarredura) === null) return;
+    if (partida === null || motivoDeCancelamentoPelaPartida(desafio, partida, agora, varreduraDaPartida(contexto, partida)) === null) return;
     try {
       const r = await cancelarDesafioPelaPartida(db, desafio.id, agora);
       if (r.resultado === "cancelado") {
