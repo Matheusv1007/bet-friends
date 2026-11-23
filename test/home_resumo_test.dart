@@ -73,12 +73,18 @@ class _FakeChallengeServiceControlado implements ChallengeService {
   @override
   Future<int?> buscarSaldoDisponivel() async => 750;
 
-  @override
-  Future<List<AmigoItem>> listarAmigosAceitos() async => const [
+  List<AmigoItem> amigos = const [
     AmigoItem(uid: 'u7P9x', displayName: 'Pedro', username: 'pedro'),
     AmigoItem(uid: 'v8Q0z', displayName: 'Lucas', username: 'lucas'),
     AmigoItem(uid: 'w1R2a', displayName: 'Guilherme', username: 'gui'),
   ];
+  bool falharNomes = false;
+
+  @override
+  Future<List<AmigoItem>> listarAmigosAceitos() async {
+    if (falharNomes) throw Exception('Sem conexão');
+    return amigos;
+  }
 
   @override
   Future<CriarDesafioResponse> criarDesafio({
@@ -194,6 +200,53 @@ void main() {
     createdAt: DateTime.now(),
     updatedAt: DateTime.now(),
   );
+
+  final partidaDoDesafio = PartidaModel(
+    id: 'partida_101', timeMandante: 'Time A', timeVisitante: 'Time B',
+  );
+
+  testWidgets('T-05: UID desconhecido usa Jogador e atualiza após falha', (tester) async {
+    challengeService.falharNomes = true;
+    await renderizarHome(tester, partidas: [partidaDoDesafio]);
+    challengeService.emitirDesafios([desafioPendenteRecebido]);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Desafio de Jogador'), findsOneWidget);
+    expect(find.text('Desafio de Amigo'), findsNothing);
+    challengeService.falharNomes = false;
+    await tester.tap(find.byKey(const Key('home_atualizar_nomes')));
+    await tester.pumpAndSettle();
+    expect(find.text('Desafio de Pedro'), findsOneWidget);
+    expect(find.byKey(const Key('home_atualizar_nomes')), findsNothing);
+    await encerrar(tester);
+  });
+
+  testWidgets('T-05: recarrega amigos quando chega um adversário desconhecido', (tester) async {
+    challengeService.amigos = [];
+    await renderizarHome(tester, partidas: [partidaDoDesafio]);
+    challengeService.amigos = const [
+      AmigoItem(uid: 'u7P9x', displayName: 'Pedro', username: 'pedro'),
+    ];
+    challengeService.emitirDesafios([desafioPendenteRecebido]);
+    await tester.pumpAndSettle();
+    expect(find.text('Desafio de Pedro'), findsOneWidget);
+    await encerrar(tester);
+  });
+
+  testWidgets('T-05: mantém nome público já visto quando deixa de ser amigo', (tester) async {
+    await renderizarHome(tester, partidas: [partidaDoDesafio]);
+    challengeService.emitirDesafios([desafioPendenteRecebido]);
+    await tester.pumpAndSettle();
+    expect(find.text('Desafio de Pedro'), findsOneWidget);
+
+    challengeService.amigos = [];
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.text('Desafio de Pedro'), findsOneWidget);
+    expect(find.text('Desafio de Amigo'), findsNothing);
+    await encerrar(tester);
+  });
 
   final desafioEmAberto = ChallengeModel(
     id: 'chl_aberto_2',

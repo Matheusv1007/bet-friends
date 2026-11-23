@@ -84,8 +84,8 @@ class DesafiosEmAbertoSecao extends StatelessWidget {
             return DesafioResumoItem(
               itemKey: Key('card_desafio_aberto_${c.id}'),
               botaoKey: Key('btn_detalhes_desafio_${c.id}'),
-              jogador1: dados?.nome(c.challengerId) ?? 'Amigo',
-              jogador2: dados?.nome(c.challengedId) ?? 'Amigo',
+              jogador1: dados?.nome(c.challengerId) ?? 'Jogador',
+              jogador2: dados?.nome(c.challengedId) ?? 'Jogador',
               subtitulo: "${dados?.partida(c.matchId) ?? 'Partida indisponível'} • ${c.amount} BetCoins",
               statusLabel: c.status.label,
               statusColor: const Color(0xFF00D084),
