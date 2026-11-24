@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../models/challenge_model.dart';
+import '../tema/tema.dart';
 import 'apresentacao_desafios.dart';
+import 'desafio_resumo_item.dart';
 
+/// Desafios enviados aguardando o amigo; o criador ainda pode cancelar.
 class DesafiosEnviadosCard extends StatelessWidget {
   final List<ChallengeModel> desafios;
   final ValueChanged<ChallengeModel> onCancelar;
@@ -13,100 +16,55 @@ class DesafiosEnviadosCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dados = ApresentacaoDesafios.of(context);
-    return Container(
-            key: const Key('home_desafios_enviados_pendentes'),
-            margin: const EdgeInsets.only(bottom: 20),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFF151E2E),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.08),
-                width: 1,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "DESAFIOS ENVIADOS",
-                  style: TextStyle(
-                    color: Color(0xFF8E9CAE),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    letterSpacing: 0.8,
-                  ),
+    return Padding(
+      key: const Key('home_desafios_enviados_pendentes'),
+      padding: const EdgeInsets.only(bottom: EspacosApp.e16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          CabecalhoDeDesafios('Enviados', complemento: '${desafios.length}'),
+          const SizedBox(height: EspacosApp.e4),
+          ...desafios.map((c) {
+            final nome = dados?.nome(c.challengedId) ?? 'Jogador';
+            return DesafioResumoItem(
+              itemKey: Key('card_desafio_enviado_${c.id}'),
+              titulo: Padding(
+                padding: const EdgeInsets.only(top: EspacosApp.e12),
+                child: Text.rich(
+                  TextSpan(children: [
+                    const TextSpan(text: 'Aguardando '),
+                    TextSpan(
+                      text: nome,
+                      style: const TextStyle(fontWeight: FontWeight.w600, color: CoresApp.texto),
+                    ),
+                  ]),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextoApp.secundario.copyWith(fontSize: 15),
                 ),
-                const SizedBox(height: 12),
-                ...desafios.map((c) {
-                  return Container(
-                    key: Key('card_desafio_enviado_${c.id}'),
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0E1420),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Aguardando ${dados?.nome(c.challengedId) ?? 'Jogador'}",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13.5,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                "${dados?.partida(c.matchId) ?? 'Partida indisponível'} • ${c.amount} BetCoins",
-                                style: const TextStyle(
-                                  color: Color(0xFF94A3B8),
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                "Seu palpite: ${c.challengerPrediction.label}",
-                                style: const TextStyle(
-                                  color: Color(0xFF60A5FA),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        OutlinedButton(
-                          key: Key('btn_cancelar_desafio_${c.id}'),
-                          onPressed: cancelando.contains(c.id) ? null : () => onCancelar(c),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFEF4444),
-                            side: const BorderSide(color: Color(0xFFEF4444)),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            "CANCELAR",
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-            ),
-          );
+              ),
+              lateral: TextButton(
+                key: Key('btn_cancelar_desafio_${c.id}'),
+                onPressed: cancelando.contains(c.id) ? null : () => onCancelar(c),
+                style: TextButton.styleFrom(
+                  foregroundColor: CoresApp.destrutivo,
+                  minimumSize: const Size(48, 48),
+                  padding: const EdgeInsets.symmetric(horizontal: EspacosApp.e8),
+                  textStyle: TextoApp.corpoForte,
+                ),
+                child: const Text('Cancelar'),
+              ),
+              partida: dados?.confronto(c.matchId) ?? 'Partida indisponível',
+              contexto: dados?.contextoDaPartida(c.matchId),
+              tabela: TabelaDoDesafio(
+                rotuloDoPalpite: 'Seu palpite',
+                palpite: dados?.palpite(c.challengerPrediction, c.matchId) ?? c.challengerPrediction.label,
+                valor: c.amount,
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 }
-

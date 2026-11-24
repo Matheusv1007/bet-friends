@@ -4,6 +4,49 @@ import '../data/firestore/challenge_repository.dart';
 import '../models/challenge_model.dart';
 import '../services/challenge_service.dart';
 import '../services/registro_de_erros.dart';
+import '../tema/tema.dart';
+import '../widgets/componentes.dart';
+
+/// Recusa [desafio] (vira REJECTED e a reserva do criador é liberada) e avisa
+/// o resultado. Devolve `true` quando o servidor confirmou. Usada pelo modal e
+/// pelo "Recusar" da lista de recebidos, depois da confirmação.
+Future<bool> recusarDesafioComAviso(
+  BuildContext context,
+  ChallengeService service,
+  ChallengeModel desafio,
+) {
+  return _responderDesafio(
+    context,
+    () => service.recusarDesafio(challengeId: desafio.id),
+    sucesso: 'Desafio recusado.',
+    falha: 'Não foi possível recusar o desafio. Tente novamente.',
+  );
+}
+
+/// Executa [acao] e mostra o aviso de sucesso ou de falha; `true` em caso de sucesso.
+Future<bool> _responderDesafio(
+  BuildContext context,
+  Future<void> Function() acao, {
+  required String sucesso,
+  required String falha,
+}) async {
+  String mensagem;
+  var ok = false;
+  try {
+    await acao();
+    mensagem = sucesso;
+    ok = true;
+  } on ChallengeException catch (e) {
+    mensagem = e.message;
+  } catch (e, s) {
+    registrarErro('Responder ao desafio', e, s);
+    mensagem = falha;
+  }
+  if (context.mounted) {
+    mostrarAviso(context, mensagem, tom: ok ? Tom.sucesso : Tom.destrutivo);
+  }
+  return ok;
+}
 
 /// Modal para aceitar um desafio pendente (RF-011).
 ///
@@ -42,10 +85,6 @@ class ModalAceitarDesafio extends StatefulWidget {
       isScrollControlled: true,
       isDismissible: false,
       enableDrag: false,
-      backgroundColor: const Color(0xFF151E2E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (context) => ModalAceitarDesafio(
         desafio: desafio,
         nomeCriador: nomeCriador,
@@ -64,19 +103,16 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
   Palpite? _palpiteSelecionado;
   bool _isSubmitting = false;
 
+  // Palpites permitidos para o desafiado: todos EXCETO o do criador (RN-PRD-003)
+  List<Palpite> get _opcoesPermitidas =>
+      Palpite.values.where((p) => p != widget.desafio.challengerPrediction).toList();
+
   @override
   void initState() {
     super.initState();
     _challengeService = widget.challengeService ?? ChallengeService();
-
-    // Palpites permitidos para o desafiado: todos EXCETO o do criador (RN-PRD-003)
-    final opcoesDisponiveis = Palpite.values
-        .where((p) => p != widget.desafio.challengerPrediction)
-        .toList();
-
-    if (opcoesDisponiveis.isNotEmpty) {
-      _palpiteSelecionado = opcoesDisponiveis.first;
-    }
+    final opcoes = _opcoesPermitidas;
+    if (opcoes.isNotEmpty) _palpiteSelecionado = opcoes.first;
   }
 
   Future<void> _confirmarAceite() {
@@ -84,307 +120,223 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
     if (palpite == null) return Future.value();
 
     return _executar(
-      () => _challengeService.aceitarDesafio(
-        challengeId: widget.desafio.id,
-        challengedPrediction: palpite,
+      () => _responderDesafio(
+        context,
+        () => _challengeService.aceitarDesafio(
+          challengeId: widget.desafio.id,
+          challengedPrediction: palpite,
+        ),
+        sucesso: 'Desafio aceito com sucesso! Suas BetCoins foram reservadas.',
+        falha: 'Não foi possível aceitar o desafio. Tente novamente.',
       ),
-      sucesso: 'Desafio aceito com sucesso! Suas BetCoins foram reservadas.',
-      falha: 'Não foi possível aceitar o desafio. Tente novamente.',
     );
   }
 
-  Future<void> _recusar() {
-    return _executar(
-      () => _challengeService.recusarDesafio(challengeId: widget.desafio.id),
-      sucesso: 'Desafio recusado.',
-      falha: 'Não foi possível recusar o desafio. Tente novamente.',
-    );
-  }
+  Future<void> _recusar() =>
+      _executar(() => recusarDesafioComAviso(context, _challengeService, widget.desafio));
 
-  /// Executa [acao] com o botão travado, mostra o resultado e fecha o modal com `true` em caso de sucesso.
-  Future<void> _executar(
-    Future<void> Function() acao, {
-    required String sucesso,
-    required String falha,
-  }) async {
+  /// Executa [acao] com os botões travados e fecha o modal com `true` em caso de sucesso.
+  Future<void> _executar(Future<bool> Function() acao) async {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
-
     try {
-      await acao();
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(sucesso),
-          backgroundColor: const Color(0xFF00D084),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-
-      Navigator.of(context).pop(true);
-    } on ChallengeException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: const Color(0xFFEF4444),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    } catch (e, s) {
-      registrarErro('Responder ao desafio', e, s);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(falha),
-          backgroundColor: const Color(0xFFEF4444),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      final ok = await acao();
+      if (ok && mounted) Navigator.of(context).pop(true);
     } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    const primaryGreen = Color(0xFF00D084);
-    const cardBg = Color(0xFF0E1420);
-    const textMuted = Color(0xFF8E9CAB);
-
-    final opcoesPermitidas = Palpite.values
-        .where((p) => p != widget.desafio.challengerPrediction)
-        .toList();
+    final d = widget.desafio;
+    final nome = widget.nomeCriador;
 
     return PopScope(
       canPop: !_isSubmitting,
-      child: Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Barra superior de fechar / título
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: EspacosApp.e20,
+            right: EspacosApp.e20,
+            top: EspacosApp.e12,
+            bottom: MediaQuery.of(context).viewInsets.bottom + EspacosApp.e20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Aceitar Desafio',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Aceitar desafio',
+                      style: TextoApp.tituloDeBarra.copyWith(color: CoresApp.texto),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Fechar',
+                    icon: const Icon(Icons.close, color: CoresApp.textoSuave),
+                    onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
+                  ),
+                ],
+              ),
+              const SizedBox(height: EspacosApp.e8),
+
+              // Resumo do desafio em linhas
+              Container(
+                decoration: const BoxDecoration(
+                  color: CoresApp.superficie2,
+                  borderRadius: RaiosApp.bordaCartao,
+                ),
+                child: Column(
+                  children: [
+                    if (nome != null) _LinhaDoResumo('Desafiado por', nome),
+                    if (widget.descricaoPartida != null)
+                      _LinhaDoResumo('Partida', widget.descricaoPartida!),
+                    _LinhaDoResumo(
+                      'Valor apostado',
+                      '${d.amount} BetCoins',
+                      chave: const Key('modal_aceitar_valor'),
+                    ),
+                    _LinhaDoResumo(
+                      nome == null ? 'Palpite do criador' : 'Palpite de ${nome.split(' ').first}',
+                      d.challengerPrediction.label,
+                      chave: const Key('modal_aceitar_palpite_criador'),
+                    ),
+                    _LinhaDoResumo('Prêmio se acertar', '+${d.amount} BetCoins', divisor: false),
+                  ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.close, color: textMuted),
-                onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
+              const SizedBox(height: EspacosApp.e20),
+
+              // Seleção do palpite do desafiado (diferente do criador: RN-PRD-003)
+              const TituloDeSecao('Seu palpite'),
+              const Text(
+                'Escolha um palpite diferente do palpite do criador.',
+                style: TextoApp.secundario,
+              ),
+              const SizedBox(height: EspacosApp.e8),
+              _SeletorDePalpite(
+                opcoes: _opcoesPermitidas,
+                selecionado: _palpiteSelecionado,
+                onChanged: _isSubmitting ? null : (p) => setState(() => _palpiteSelecionado = p),
+              ),
+              const SizedBox(height: EspacosApp.e24),
+
+              BotaoPrimario(
+                key: const Key('btn_confirmar_aceite'),
+                rotulo: 'Confirmar e aceitar',
+                larguraTotal: true,
+                onPressed: _isSubmitting ? null : _confirmarAceite,
+              ),
+              const SizedBox(height: EspacosApp.e8),
+
+              // Recusa: o desafio vira REJECTED e a reserva do criador é liberada
+              BotaoDestrutivo(
+                key: const Key('btn_recusar_desafio'),
+                rotulo: 'Recusar desafio',
+                larguraTotal: true,
+                onPressed: _isSubmitting ? null : _recusar,
               ),
             ],
           ),
-          const SizedBox(height: 16),
+        ),
+      ),
+    );
+  }
+}
 
-          // Informações do desafio
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.05),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (widget.nomeCriador != null) ...[
-                  Row(
-                    children: [
-                      const Icon(Icons.person, size: 16, color: primaryGreen),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Desafiado por ${widget.nomeCriador}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                if (widget.descricaoPartida != null) ...[
-                  Row(
-                    children: [
-                      const Icon(Icons.sports_soccer, size: 16, color: textMuted),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.descricaoPartida!,
-                          style: const TextStyle(
-                            color: textMuted,
-                            fontSize: 12.5,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                Row(
-                  children: [
-                    const Icon(Icons.monetization_on_outlined, size: 16, color: Color(0xFFF59E0B)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Valor apostado: ${widget.desafio.amount} BetCoins',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.sports_score, size: 16, color: Color(0xFF60A5FA)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Palpite do criador: ${widget.desafio.challengerPrediction.label}',
-                      style: const TextStyle(
-                        color: Color(0xFF93C5FD),
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
+class _LinhaDoResumo extends StatelessWidget {
+  final String rotulo;
+  final String valor;
+  final bool divisor;
+  final Key? chave;
 
-          // Seleção do palpite do desafiado (diferente do criador: RN-PRD-003)
-          const Text(
-            'ESCOLHA SEU PALPITE',
-            style: TextStyle(
-              color: textMuted,
-              fontSize: 11.5,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'O palpite do desafiado deve ser diferente do palpite do criador.',
-            style: TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 11,
-            ),
-          ),
-          const SizedBox(height: 12),
+  const _LinhaDoResumo(this.rotulo, this.valor, {this.divisor = true, this.chave});
 
-          Row(
-            children: opcoesPermitidas.map((p) {
-              final sel = _palpiteSelecionado == p;
-              return Expanded(
-                child: InkWell(
-                  onTap: _isSubmitting ? null : () => setState(() => _palpiteSelecionado = p),
-                  child: Container(
-                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: sel ? primaryGreen : cardBg,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: sel ? primaryGreen : Colors.white.withValues(alpha: 0.08),
-                        width: sel ? 1.5 : 1,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      p.label,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: sel ? const Color(0xFF062319) : Colors.white,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 24),
-
-          // Botão Confirmar Aceite
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryGreen,
-                foregroundColor: const Color(0xFF062319),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              onPressed: _isSubmitting ? null : _confirmarAceite,
-              child: _isSubmitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Color(0xFF062319),
-                      ),
-                    )
-                  : const Text(
-                      'CONFIRMAR E ACEITAR',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Recusa: o desafio vira REJECTED e a reserva do criador é liberada
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: TextButton(
-              key: const Key('btn_recusar_desafio'),
-              onPressed: _isSubmitting ? null : _recusar,
-              child: const Text(
-                'RECUSAR DESAFIO',
-                style: TextStyle(
-                  color: Color(0xFFEF4444),
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.8,
-                ),
-              ),
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: chave,
+      constraints: const BoxConstraints(minHeight: 44),
+      padding: const EdgeInsets.symmetric(horizontal: EspacosApp.e12, vertical: EspacosApp.e8),
+      decoration: divisor
+          ? const BoxDecoration(border: Border(bottom: BorderSide(color: CoresApp.filete)))
+          : null,
+      child: Row(
+        children: [
+          Text(rotulo, style: TextoApp.secundario),
+          const SizedBox(width: EspacosApp.e12),
+          // Nomes e partidas longos quebram em até 2 linhas, sem estourar a linha
+          Expanded(
+            child: Text(
+              valor,
+              textAlign: TextAlign.end,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextoApp.corpoForte.copyWith(color: CoresApp.texto),
             ),
           ),
         ],
       ),
-    ));
+    );
+  }
+}
+
+/// Grupo segmentado com apenas os palpites permitidos.
+class _SeletorDePalpite extends StatelessWidget {
+  final List<Palpite> opcoes;
+  final Palpite? selecionado;
+  final ValueChanged<Palpite>? onChanged;
+
+  const _SeletorDePalpite({required this.opcoes, required this.selecionado, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(EspacosApp.e4),
+      decoration: BoxDecoration(
+        color: CoresApp.superficie2,
+        borderRadius: RaiosApp.bordaBotao,
+        border: Border.all(color: CoresApp.contorno),
+      ),
+      child: Row(
+        children: [
+          for (final p in opcoes)
+            Expanded(
+              child: Semantics(
+                button: true,
+                selected: p == selecionado,
+                inMutuallyExclusiveGroup: true,
+                child: Material(
+                  color: p == selecionado ? CoresApp.primario : Colors.transparent,
+                  borderRadius: RaiosApp.bordaChip,
+                  child: InkWell(
+                    key: Key('palpite_aceite_${p.valor}'),
+                    borderRadius: RaiosApp.bordaChip,
+                    onTap: onChanged == null ? null : () => onChanged!(p),
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: EspacosApp.alvoDeToque),
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: EspacosApp.e8, vertical: EspacosApp.e4),
+                      child: Text(
+                        p.label,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextoApp.corpoForte.copyWith(
+                          color: p == selecionado ? CoresApp.sobrePrimario : CoresApp.texto,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
