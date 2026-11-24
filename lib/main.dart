@@ -1,4 +1,5 @@
 import 'package:betfriends/app.dart';
+import 'package:betfriends/tema/tema_app.dart';
 import 'package:betfriends/services/registro_de_erros.dart';
 import 'package:betfriends/services/functions/functions_service.dart';
 import 'package:betfriends/services/functions/functions_smoke_test.dart';
@@ -6,6 +7,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +18,16 @@ void main() async {
     registrarErro('executar operação assíncrona não tratada', erro, pilha);
     return true;
   };
+
+  // Ícones claros sobre o fundo escuro, inclusive nas telas sem AppBar
+  SystemChrome.setSystemUIOverlayStyle(TemaApp.barrasDoSistema);
+  // A fonte embutida é SIL OFL 1.1: a licença aparece na tela de licenças
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(
+      const ['Schibsted Grotesk'],
+      await rootBundle.loadString('assets/fonts/OFL-SchibstedGrotesk.txt'),
+    );
+  });
 
   // Inicialização do Firebase (se estiver usando)
   await Firebase.initializeApp();
