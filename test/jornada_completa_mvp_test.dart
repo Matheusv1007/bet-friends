@@ -591,7 +591,7 @@ void main() {
 
       expect(find.byType(PerfilScreen), findsOneWidget);
       expect(find.text('Ana Lima'), findsWidgets);
-      expect(find.text('@AnaL'), findsOneWidget);
+      expect(find.text('@AnaL'), findsNWidgets(2)); // cabeçalho e grupo Dados
 
       // Abre a lista de amigos a partir do Perfil
       await tester.tap(find.byKey(const Key('perfil_meus_amigos')));

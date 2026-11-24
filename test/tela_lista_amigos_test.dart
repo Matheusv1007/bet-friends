@@ -431,7 +431,7 @@ void main() {
       await tester.pump();
 
       expect(find.byKey(const Key('perfil_meus_amigos')), findsOneWidget);
-      expect(find.text('MEUS AMIGOS'), findsOneWidget);
+      expect(find.text('Meus amigos'), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('perfil_meus_amigos')));
       await tester.pumpAndSettle();

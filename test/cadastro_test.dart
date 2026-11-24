@@ -471,8 +471,7 @@ void main() {
       await avancar(tester);
       expect(find.text('Perfil ainda não criado'), findsOneWidget);
 
-      // O botão é da tela de Perfil; a caixa do texto é dela
-      await tester.tap(find.textContaining(RegExp('concluir cadastro', caseSensitive: false)));
+      await tester.tap(find.text('Concluir cadastro'));
       await avancar(tester);
       expect(
         find.descendant(of: find.byType(AppBar), matching: find.text('Concluir cadastro')),
@@ -490,7 +489,7 @@ void main() {
       expect(find.byType(CadastroPage), findsNothing);
       expect(find.byType(PerfilScreen), findsOneWidget);
       expect(find.text('Rita Costa'), findsWidgets);
-      expect(find.text('@rita_c'), findsOneWidget);
+      expect(find.text('@rita_c'), findsNWidgets(2)); // cabeçalho e grupo Dados
 
       await encerrarApp(tester);
     });

@@ -122,7 +122,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('Perfil ainda não criado'), findsOneWidget);
-      expect(find.text('TENTAR NOVAMENTE'), findsNothing);
+      expect(find.text('Tentar novamente'), findsNothing);
       expect(repositorio.uidsObservados, ['uid-ana']);
     });
   });
@@ -136,7 +136,7 @@ void main() {
       expect(find.text('Não foi possível carregar o perfil'), findsOneWidget);
       expect(find.textContaining('Sem conexão'), findsOneWidget);
 
-      await tester.tap(find.text('TENTAR NOVAMENTE'));
+      await tester.tap(find.text('Tentar novamente'));
       await tester.pump();
       expect(repositorio.uidsObservados, ['uid-ana', 'uid-ana']);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
@@ -204,7 +204,7 @@ void main() {
 
       repositorio.atual.add(_ana);
       await tester.pump();
-      expect(find.text('@AnaL'), findsOneWidget);
+      expect(find.text('@AnaL'), findsNWidgets(2)); // cabeçalho e grupo Dados
 
       await tester.tap(find.byTooltip('Voltar'));
       await tester.pumpAndSettle();
@@ -235,6 +235,64 @@ void main() {
 
       expect(find.byType(PerfilScreen), findsNothing);
       expect(find.byKey(const Key('login_entrar')), findsOneWidget);
+    });
+  });
+
+  group('Layout em grupos', () {
+    Future<void> perfilAberto(WidgetTester tester) async {
+      await abrirPerfil(tester);
+      repositorio.atual.add(_ana);
+      await tester.pump();
+    }
+
+    testWidgets('mostra os grupos DADOS, ATIVIDADE, INFORMAÇÕES e a zona de risco no fim', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await perfilAberto(tester);
+
+      for (final titulo in ['DADOS', 'ATIVIDADE', 'INFORMAÇÕES', 'ZONA DE RISCO']) {
+        expect(find.text(titulo), findsOneWidget, reason: titulo);
+      }
+      double y(String t) => tester.getTopLeft(find.text(t)).dy;
+      expect(y('DADOS'), lessThan(y('ATIVIDADE')));
+      expect(y('ATIVIDADE'), lessThan(y('INFORMAÇÕES')));
+      expect(y('INFORMAÇÕES'), lessThan(y('ZONA DE RISCO')));
+      for (final linha in [
+        'Extrato de BetCoins',
+        'Meus amigos',
+        'Buscar amigos',
+        'Solicitações de amizade',
+        'Informações e créditos',
+      ]) {
+        expect(find.text(linha), findsOneWidget, reason: linha);
+      }
+      expect(find.byIcon(Icons.chevron_right), findsNWidgets(5));
+      expect(find.text('Ação permanente: apaga seu perfil e suas amizades.'), findsOneWidget);
+      expect(y('Excluir conta'), greaterThan(y('ZONA DE RISCO')));
+      // Só uma ação destrutiva e nenhum botão em caixa alta
+      expect(find.text('EDITAR NOME'), findsNothing);
+      expect(find.text('EXCLUIR CONTA'), findsNothing);
+    });
+
+    testWidgets('grupo Dados mostra o nome e o username com @', (tester) async {
+      await perfilAberto(tester);
+
+      expect(find.text('Nome de exibição'), findsOneWidget);
+      expect(find.text('Nome de usuário'), findsOneWidget);
+      expect(tester.widget<Text>(find.byKey(const Key('perfil_dados_nome'))).data, 'Ana Lima');
+      expect(tester.widget<Text>(find.byKey(const Key('perfil_dados_usuario'))).data, '@AnaL');
+    });
+
+    testWidgets('"Editar" abre o diálogo do nome de exibição com o nome atual', (tester) async {
+      await perfilAberto(tester);
+
+      await tester.tap(find.text('Editar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Editar nome de exibição'), findsOneWidget);
+      final campo = tester.widget<TextFormField>(find.byKey(const Key('editar_nome_campo')));
+      expect(campo.controller!.text, 'Ana Lima');
     });
   });
 }

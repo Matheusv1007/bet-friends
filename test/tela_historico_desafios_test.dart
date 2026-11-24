@@ -5,6 +5,7 @@ import 'package:betfriends/data/firestore/partidas_repository.dart';
 import 'package:betfriends/models/desafio_encerrado.dart';
 import 'package:betfriends/models/partida_model.dart';
 import 'package:betfriends/services/historico_de_desafios_service.dart';
+import 'package:betfriends/tema/tema.dart';
 import 'package:betfriends/tela_historico/tela_historico_desafios.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,11 +29,17 @@ class _Repositorio implements HistoricoDeDesafiosRepository {
 
 class _Partidas extends Fake implements FirestorePartidasRepository {
   final consultadas = <String>[];
+  int? golsMandante;
+  int? golsVisitante;
 
   @override
   Future<PartidaModel?> buscarPorId(String id) async {
     consultadas.add(id);
-    return PartidaModel(id: id, timeMandante: 'Flamengo', timeVisitante: 'Bahia');
+    return PartidaModel(
+      id: id, timeMandante: 'Flamengo', timeVisitante: 'Bahia',
+      golsMandante: golsMandante, golsVisitante: golsVisitante,
+      competitionCode: 'BSA',
+    );
   }
 }
 
@@ -82,7 +89,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Flamengo x Bahia'), findsOneWidget);
     expect(find.textContaining('João'), findsOneWidget);
-    expect(find.text('Você venceu! +50 BetCoins'), findsOneWidget);
+    expect(find.text('Você venceu'), findsOneWidget);
+    expect(find.text('+50'), findsOneWidget);
     expect(find.text('Fim do histórico'), findsOneWidget);
     await tester.tap(find.byKey(const Key('btn_detalhes_desafio_finalizado_recente')));
     await tester.pumpAndSettle();
@@ -113,7 +121,7 @@ void main() {
     expect(find.byKey(const Key('card_desafio_finalizado_antigo')), findsOneWidget);
     expect(tester.getTopLeft(find.byKey(const Key('card_desafio_finalizado_recente'))).dy,
       lessThan(tester.getTopLeft(find.byKey(const Key('card_desafio_finalizado_antigo'))).dy));
-    expect(find.textContaining('-50 BetCoins'), findsOneWidget);
+    expect(find.text('−50'), findsOneWidget);
     expect(find.text('Carregar mais'), findsNothing);
     expect(find.text('Fim do histórico'), findsOneWidget);
     expect(partidas.consultadas, ['partida']);
@@ -172,5 +180,61 @@ void main() {
     expect(find.text('Você ainda não tem desafios encerrados'), findsNothing);
     expect(find.textContaining('Verifique sua conexão'), findsOneWidget);
     expect(find.text('Tentar novamente'), findsOneWidget);
+  });
+
+  DesafioEncerrado desfecho(String id, StatusEncerrado status, {String? vencedor, String? motivo}) =>
+      DesafioEncerrado(
+        id: id, challengerId: 'eu', challengedId: 'amigo', matchId: 'partida',
+        challengerPrediction: 'HOME_WIN', challengedPrediction: 'AWAY_WIN',
+        amount: 50, status: status, winnerId: vencedor,
+        settledResult: null, cancelReason: motivo,
+        createdAt: DateTime(2026, 11, 1), acceptedAt: null, startedAt: null,
+        finishedAt: DateTime(2026, 11, 20),
+      );
+
+  testWidgets('cada desfecho mostra resultado e valor à direita, com a cor do desfecho', (tester) async {
+    repo.respostas.add(() async => _pagina([
+      desfecho('venceu', StatusEncerrado.finished, vencedor: 'eu'),
+      desfecho('perdeu', StatusEncerrado.finished, vencedor: 'amigo'),
+      desfecho('ninguem', StatusEncerrado.finished),
+      desfecho('adiada', StatusEncerrado.cancelled, motivo: 'MATCH_POSTPONED'),
+      desfecho('recusado', StatusEncerrado.rejected),
+      desfecho('expirado', StatusEncerrado.expired),
+    ]));
+    await abrir(tester);
+    await tester.pumpAndSettle();
+
+    final esperado = {
+      'venceu': ('Você venceu', '+50', CoresApp.primario),
+      'perdeu': ('Você perdeu', '−50', CoresApp.destrutivo),
+      'ninguem': ('Ninguém acertou', '0', CoresApp.textoSuave),
+      'adiada': ('Partida adiada', '0', CoresApp.textoSuave),
+      'recusado': ('Recusado', '0', CoresApp.textoSuave),
+      'expirado': ('Expirado', '0', CoresApp.textoSuave),
+    };
+    for (final e in esperado.entries) {
+      final linha = find.byKey(Key('card_desafio_finalizado_${e.key}'));
+      final rotulo = find.descendant(of: linha, matching: find.text(e.value.$1));
+      final valor = find.descendant(of: linha, matching: find.text(e.value.$2));
+      expect(rotulo, findsOneWidget, reason: e.key);
+      expect(valor, findsOneWidget, reason: e.key);
+      expect(tester.widget<Text>(rotulo).style!.color, e.value.$3, reason: e.key);
+      // O resultado fica à direita do título da linha
+      expect(tester.getTopLeft(rotulo).dx, greaterThan(tester.getTopLeft(find.descendant(of: linha, matching: find.text('Você x João'))).dx));
+      expect(tester.getTopLeft(valor).dx, greaterThan(tester.getSize(linha).width / 2), reason: e.key);
+    }
+    expect(find.text('FINALIZADOS', findRichText: false), findsNothing);
+    expect(find.textContaining('FINALIZADOS', findRichText: true), findsOneWidget);
+  });
+
+  testWidgets('partida com placar mostra "Flamengo 2 x 1 Bahia", liga, data e aposta', (tester) async {
+    partidas..golsMandante = 2..golsVisitante = 1;
+    repo.respostas.add(() async => _pagina([_desafio('recente')]));
+    await abrir(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Flamengo 2 x 1 Bahia'), findsOneWidget);
+    expect(find.text('Brasileirão Série A · 20/11 · aposta 50'), findsOneWidget);
+    expect(find.text('Você x João'), findsOneWidget);
   });
 }

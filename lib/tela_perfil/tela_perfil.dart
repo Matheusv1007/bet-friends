@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../data/firestore/user_profile_repository.dart';
 import '../services/user_profile_service.dart';
+import '../tema/tema.dart';
 import '../telas_autenticacao/cadastro_page.dart';
 import 'aviso_perfil.dart';
 import 'dados_do_perfil.dart';
@@ -46,91 +47,59 @@ class _PerfilScreenState extends State<PerfilScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const bgScaffold = Color(0xFF0B111D);
-
     return Scaffold(
-      backgroundColor: bgScaffold,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
         leading: IconButton(
           tooltip: 'Voltar',
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            size: 18,
-            color: Colors.white,
-          ),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text(
-          'Perfil',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+        title: const Text('Perfil'),
       ),
-      body: Container(
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(-0.85, -0.9),
-            radius: 1.2,
-            colors: [Color(0xFF0F2624), Color(0xFF0B111D), Color(0xFF0B111D)],
-            stops: [0.0, 0.45, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: StreamBuilder<PerfilObservado>(
-            stream: _perfil,
-            builder: (context, snapshot) {
-              // Ao tentar novamente, o snapshot volta a "waiting" mas mantém o
-              // erro anterior; por isso o carregamento é verificado primeiro.
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF00D084)),
-                );
-              }
+      body: SafeArea(
+        child: StreamBuilder<PerfilObservado>(
+          stream: _perfil,
+          builder: (context, snapshot) {
+            // Ao tentar novamente, o snapshot volta a "waiting" mas mantém o
+            // erro anterior; por isso o carregamento é verificado primeiro.
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-              if (snapshot.hasError) {
-                return AvisoPerfil(
-                  icone: Icons.error_outline,
-                  corIcone: const Color(0xFFEF4444),
-                  titulo: 'Não foi possível carregar o perfil',
-                  mensagem: _mensagemDeErro(snapshot.error!),
-                  onTentarNovamente: _tentarNovamente,
-                );
-              }
-
-              final perfil = snapshot.data!.perfil;
-              if (perfil == null) {
-                // Conta criada no Auth sem perfil (cadastro interrompido): o
-                // perfil é concluído pela própria tela de cadastro (KAN-25)
-                return AvisoPerfil(
-                  icone: Icons.person_off_outlined,
-                  corIcone: const Color(0xFF94A3B8),
-                  titulo: 'Perfil ainda não criado',
-                  mensagem:
-                      'Sua conta está ativa, mas o cadastro não foi concluído. '
-                      'Escolha seu nome e username para criar o perfil.',
-                  rotuloDaAcao: 'CONCLUIR CADASTRO',
-                  iconeDaAcao: Icons.person_add_alt_1,
-                  onTentarNovamente: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const CadastroPage.concluirPerfil(),
-                    ),
-                  ),
-                );
-              }
-
-              return DadosDoPerfil(
-                perfil: perfil,
-                semConexao: snapshot.data!.doCache,
+            if (snapshot.hasError) {
+              return AvisoPerfil(
+                tom: Tom.destrutivo,
+                titulo: 'Não foi possível carregar o perfil',
+                mensagem: _mensagemDeErro(snapshot.error!),
+                onTentarNovamente: _tentarNovamente,
               );
-            },
-          ),
+            }
+
+            final perfil = snapshot.data!.perfil;
+            if (perfil == null) {
+              // Conta criada no Auth sem perfil (cadastro interrompido): o
+              // perfil é concluído pela própria tela de cadastro (KAN-25)
+              return AvisoPerfil(
+                tom: Tom.neutro,
+                titulo: 'Perfil ainda não criado',
+                mensagem:
+                    'Sua conta está ativa, mas o cadastro não foi concluído. '
+                    'Escolha seu nome e username para criar o perfil.',
+                rotuloDaAcao: 'Concluir cadastro',
+                iconeDaAcao: Icons.person_add_alt_1,
+                onTentarNovamente: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const CadastroPage.concluirPerfil(),
+                  ),
+                ),
+              );
+            }
+
+            return DadosDoPerfil(
+              perfil: perfil,
+              semConexao: snapshot.data!.doCache,
+            );
+          },
         ),
       ),
     );
