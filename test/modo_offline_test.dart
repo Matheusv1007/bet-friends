@@ -117,7 +117,7 @@ void main() {
     await abrirPerfil(tester, doCache: true);
 
     expect(_nomeExibido(tester), 'Ana Lima');
-    expect(find.text('@AnaL'), findsOneWidget);
+    expect(find.text('@AnaL'), findsNWidgets(2)); // cabeçalho e grupo Dados
     expect(_banner, findsOneWidget);
     expect(find.textContaining('Sem conexão. Exibindo os últimos dados salvos'), findsOneWidget);
   });
@@ -151,7 +151,7 @@ void main() {
       find.text('Sem conexão com o servidor. Verifique sua internet e tente novamente.'),
       findsOneWidget,
     );
-    expect(find.text('TENTAR NOVAMENTE'), findsOneWidget);
+    expect(find.text('Tentar novamente'), findsOneWidget);
     expect(find.text('Perfil ainda não criado'), findsNothing);
   });
 

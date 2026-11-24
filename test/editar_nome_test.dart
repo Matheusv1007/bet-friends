@@ -227,6 +227,6 @@ void main() {
     expect(repositorio.perfil.uid, 'uid-ana');
     expect(repositorio.perfil.username, 'AnaL');
     expect(repositorio.perfil.email, 'ana@example.com');
-    expect(find.text('@AnaL'), findsOneWidget);
+    expect(find.text('@AnaL'), findsNWidgets(2)); // cabeçalho e grupo Dados
   });
 }

@@ -367,7 +367,7 @@ void main() {
       await avancar(tester);
       expect(find.text('Perfil ainda não criado'), findsOneWidget);
 
-      await tester.tap(find.text('CONCLUIR CADASTRO'));
+      await tester.tap(find.text('Concluir cadastro'));
       await avancar(tester);
       expect(find.text('Concluir Cadastro'), findsOneWidget);
       expect(find.byKey(const Key('cadastro_email')), findsNothing);
@@ -382,7 +382,7 @@ void main() {
       expect(find.byType(CadastroPage), findsNothing);
       expect(find.byType(PerfilScreen), findsOneWidget);
       expect(find.text('Rita Costa'), findsWidgets);
-      expect(find.text('@rita_c'), findsOneWidget);
+      expect(find.text('@rita_c'), findsNWidgets(2)); // cabeçalho e grupo Dados
 
       await encerrarApp(tester);
     });
