@@ -13,6 +13,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
+import 'package:betfriends/data/firestore/user_profile_repository.dart';
+import 'package:betfriends/models/carteira.dart';
+import 'package:betfriends/services/user_profile_service.dart';
+import 'package:betfriends/tema/tema.dart';
 import 'support/fake_auth.dart';
 
 class _Repo implements ExtratoRepository {
@@ -42,17 +46,34 @@ LancamentoDoExtrato item(String id, {String tipo = 'WIN'}) => LancamentoDoExtrat
   'createdAt': Timestamp.fromDate(DateTime(2026, 11, 23, 14, 30)),
 });
 
+/// Repositório de perfil que emite um único [PerfilObservado] (ou falha).
+class _RepoDePerfil implements UserProfileRepository {
+  final PerfilObservado? emissao;
+  final bool falhar;
+  _RepoDePerfil(this.emissao, {this.falhar = false});
+
+  @override
+  Stream<PerfilObservado> observarPorUid(String uid) =>
+      falhar ? Stream.error(StateError('sem conexão')) : Stream.value(emissao!);
+
+  @override
+  Future<UserProfile?> buscarPorUid(String uid) async => null;
+
+  @override
+  Future<void> atualizarDisplayName(String uid, String displayName) async {}
+}
+
 void main() {
   test('todos os tipos do backend têm rótulo e sinal financeiro correto', () {
     final esperados = {
-      'INITIAL_BALANCE': ('Saldo inicial', '+20 BC'),
-      'RESERVE': ('Reserva para desafio', '20 BC'),
-      'RELEASE': ('Liberação de reserva', '20 BC'),
-      'WIN': ('Prêmio por vitória', '+20 BC'),
-      'LOSS': ('Perda no desafio', '−20 BC'),
-      'REFUND': ('Reembolso por empate', '20 BC'),
-      'RECOVERY_BONUS': ('Bônus de recuperação', '+20 BC'),
-      'DEV_TOP_UP': ('Reposição de desenvolvimento', '+20 BC'),
+      'INITIAL_BALANCE': ('Saldo inicial', '+20', 1),
+      'RESERVE': ('Reserva para desafio', '20', 0),
+      'RELEASE': ('Liberação de reserva', '20', 0),
+      'WIN': ('Prêmio por vitória', '+20', 1),
+      'LOSS': ('Perda no desafio', '−20', -1),
+      'REFUND': ('Reembolso por empate', '20', 0),
+      'RECOVERY_BONUS': ('Bônus de recuperação', '+20', 1),
+      'DEV_TOP_UP': ('Reposição de desenvolvimento', '+20', 1),
     };
     final backend = File('functions/src/betcoins/transacoes.ts').readAsStringSync();
     final bloco = backend.split('export const TIPOS_DE_TRANSACAO = [')[1].split('] as const')[0];
@@ -62,8 +83,9 @@ void main() {
     for (final caso in esperados.entries) {
       final lancamento = item('id', tipo: caso.key);
       expect(lancamento.tipo.rotulo, caso.value.$1);
-      expect(lancamento.valorFormatado, caso.value.$2);
-      if (lancamento.tipo.sinal == 0) expect(lancamento.tipo.explicacao, contains('total não alterado'));
+      expect(valorDoLancamento(lancamento), caso.value.$2);
+      expect(lancamento.tipo.sinal, caso.value.$3);
+      expect(glifoDoLancamento(lancamento.tipo), isA<IconData>());
     }
   });
 
@@ -115,10 +137,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('extrato_item_a')), findsOneWidget);
     expect(find.byKey(const Key('extrato_item_b')), findsOneWidget);
-    expect(find.text('Desafio 1'), findsNWidgets(2));
+    expect(find.textContaining('Desafio 1'), findsNWidgets(2));
     expect(find.textContaining('id-interno'), findsNothing);
     expect(find.text('Fim do extrato.'), findsOneWidget);
-    expect(find.textContaining('Reservado;'), findsOneWidget);
+    expect(find.text('Reserva e reembolso não alteram o total.'), findsOneWidget);
   });
 
   testWidgets('índice ausente mostra orientação e nova tentativa recupera', (tester) async {
@@ -154,5 +176,84 @@ void main() {
     expect(find.byType(TelaExtrato), findsOneWidget);
     expect(find.byKey(const Key('extrato_vazio')), findsOneWidget);
     expect(service.chamadas, 1);
+  });
+
+  group('Layout Evolução', () {
+    final todos = [
+      for (final tipo in ['INITIAL_BALANCE', 'RESERVE', 'RELEASE', 'WIN', 'LOSS', 'REFUND', 'RECOVERY_BONUS', 'DEV_TOP_UP'])
+        item(tipo.toLowerCase(), tipo: tipo),
+    ];
+
+    test('cada tipo tem glifo próprio por categoria e cor por sinal', () {
+      expect(glifoDoLancamento(TipoDoLancamento.reserva), Icons.lock_outline);
+      expect(glifoDoLancamento(TipoDoLancamento.premio), Icons.arrow_upward);
+      expect(glifoDoLancamento(TipoDoLancamento.perda), Icons.arrow_downward);
+      expect(glifoDoLancamento(TipoDoLancamento.reembolso), Icons.undo);
+      expect(glifoDoLancamento(TipoDoLancamento.liberacao), Icons.undo);
+      expect(glifoDoLancamento(TipoDoLancamento.saldoInicial), Icons.account_balance_wallet_outlined);
+      expect(corDoLancamento(TipoDoLancamento.premio), CoresApp.primario);
+      expect(corDoLancamento(TipoDoLancamento.perda), CoresApp.destrutivo);
+      expect(corDoLancamento(TipoDoLancamento.reserva), CoresApp.textoSuave);
+    });
+
+    testWidgets('mostra glifo, valor com sinal e cor, e o total depois de cada lançamento', (tester) async {
+      await tester.pumpWidget(MaterialApp(home: TelaExtrato(extratoService: _Service((_) async => pagina(todos)))));
+      await tester.pumpAndSettle();
+
+      Color cor(String id) => tester.widget<Text>(find.byKey(Key('extrato_valor_$id'))).style!.color!;
+      expect(tester.widget<Text>(find.byKey(const Key('extrato_valor_win'))).data, '+20');
+      expect(cor('win'), CoresApp.primario);
+      expect(tester.widget<Text>(find.byKey(const Key('extrato_valor_loss'))).data, '−20');
+      expect(cor('loss'), CoresApp.destrutivo);
+      expect(tester.widget<Text>(find.byKey(const Key('extrato_valor_reserve'))).data, '20');
+      expect(cor('reserve'), isNot(CoresApp.primario));
+      expect(cor('reserve'), isNot(CoresApp.destrutivo));
+      expect(find.text('total 1.000'), findsNWidgets(todos.length));
+      expect(find.textContaining(' BC'), findsNothing);
+      expect(find.byIcon(Icons.lock_outline), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_downward), findsOneWidget);
+      expect(find.byIcon(Icons.undo), findsNWidgets(2));
+      expect(find.byIcon(Icons.card_giftcard_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.add), findsOneWidget);
+      expect(find.byIcon(Icons.account_balance_wallet_outlined), findsOneWidget);
+      expect(find.textContaining('LANÇAMENTOS', findRichText: true), findsOneWidget);
+    });
+
+    testWidgets('resumo mostra Disponível, Reservado e Total da carteira', (tester) async {
+      final repo = _RepoDePerfil(PerfilObservado(null, carteira: Carteira(saldoTotal: 1000, saldoReservado: 100)));
+      final perfis = UserProfileService(
+        authService: FakeAuthService(usuarioInicial: FakeUser('ana')),
+        repository: repo,
+      );
+      await tester.pumpWidget(MaterialApp(
+        home: TelaExtrato(extratoService: _Service((_) async => pagina([])), perfilService: perfis),
+      ));
+      await tester.pumpAndSettle();
+
+      final resumo = find.byKey(const Key('extrato_resumo'));
+      expect(find.descendant(of: resumo, matching: find.text('Disponível')), findsOneWidget);
+      expect(find.descendant(of: resumo, matching: find.text('900')), findsOneWidget);
+      expect(find.descendant(of: resumo, matching: find.text('Reservado')), findsOneWidget);
+      expect(find.descendant(of: resumo, matching: find.text('100')), findsOneWidget);
+      expect(find.descendant(of: resumo, matching: find.text('Total')), findsOneWidget);
+      expect(find.descendant(of: resumo, matching: find.text('1.000')), findsOneWidget);
+    });
+
+    testWidgets('falha na leitura da carteira omite o resumo, sem erro', (tester) async {
+      final repo = _RepoDePerfil(null, falhar: true);
+      final perfis = UserProfileService(
+        authService: FakeAuthService(usuarioInicial: FakeUser('ana')),
+        repository: repo,
+      );
+      await tester.pumpWidget(MaterialApp(
+        home: TelaExtrato(extratoService: _Service((_) async => pagina([item('a')])), perfilService: perfis),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('extrato_resumo')), findsNothing);
+      expect(find.byKey(const Key('extrato_item_a')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

@@ -15,12 +15,6 @@ enum TipoDoLancamento {
   final String rotulo;
   final int sinal;
   const TipoDoLancamento(this.valor, this.rotulo, this.sinal);
-
-  String get explicacao => switch (this) {
-    reserva => 'Reservado; saldo total não alterado.',
-    liberacao || reembolso => 'Reserva devolvida ao disponível; saldo total não alterado.',
-    _ => '',
-  };
 }
 
 class LancamentoDoExtrato {
@@ -41,8 +35,6 @@ class LancamentoDoExtrato {
     required this.challengeId,
     required this.createdAt,
   });
-
-  String get valorFormatado => '${switch (tipo.sinal) { 1 => '+', -1 => '−', _ => '' }}$amount BC';
 
   factory LancamentoDoExtrato.fromMap(String id, Map<String, dynamic> dados) {
     final tipos = TipoDoLancamento.values.where((t) => t.valor == dados['type']);
