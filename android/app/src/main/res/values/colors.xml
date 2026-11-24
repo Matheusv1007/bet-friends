@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cor de fundo da marca (CoresApp.fundo): ícone, abertura e janela. -->
+    <color name="bf_fundo">#0E141C</color>
+</resources>
