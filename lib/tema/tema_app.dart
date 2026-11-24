@@ -316,6 +316,10 @@ abstract final class TemaApp {
         labelStyle: TextoApp.corpoForte,
         unselectedLabelStyle: TextoApp.corpo,
       ),
+      // Transição curta e discreta entre telas: esmaece e desliza pouco.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {TargetPlatform.android: FadeForwardsPageTransitionsBuilder()},
+      ),
     );
   }
 }
