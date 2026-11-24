@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../models/partida_model.dart';
 import '../provider/partidas_provider.dart';
 import '../services/registro_de_erros.dart';
+import '../tema/tema.dart';
+import '../widgets/componentes.dart';
 import 'apresentacao_desafios.dart';
 
 import '../data/firestore/challenge_repository.dart';
@@ -35,6 +37,9 @@ class DesafiosAtivosWidget extends StatefulWidget {
   final bool erro;
   final VoidCallback? onTentarNovamente;
 
+  /// Chave da seção Recebidos, para o aviso de pendência rolar até ela.
+  final GlobalKey? chaveRecebidos;
+
   const DesafiosAtivosWidget({
     super.key,
     this.desafios,
@@ -43,6 +48,7 @@ class DesafiosAtivosWidget extends StatefulWidget {
     this.carregando = false,
     this.erro = false,
     this.onTentarNovamente,
+    this.chaveRecebidos,
   });
 
   @override
@@ -53,6 +59,7 @@ class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget>
     with WidgetsBindingObserver {
   final _nomes = <String, String>{};
   final _cancelando = <String>{};
+  final _recusando = <String>{};
   final _partidas = <String, PartidaModel>{};
   final _consultadas = <String>{};
   final _uidsConsultados = <String>{};
@@ -148,58 +155,91 @@ class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget>
     );
   }
 
+  /// Pergunta "sim ou não" com a ação destrutiva à direita; `true` só se confirmou.
+  Future<bool> _confirmar(
+    BuildContext context, {
+    required String titulo,
+    required String mensagem,
+    required String manter,
+    required String confirmar,
+    required Key chaveManter,
+    required Key chaveConfirmar,
+  }) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(titulo),
+        content: Text(mensagem, style: TextoApp.corpo.copyWith(color: CoresApp.textoSuave)),
+        actions: [
+          TextButton(
+            key: chaveManter,
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(manter),
+          ),
+          TextButton(
+            key: chaveConfirmar,
+            style: TextButton.styleFrom(foregroundColor: CoresApp.destrutivo),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(confirmar),
+          ),
+        ],
+      ),
+    );
+    return confirmou == true;
+  }
+
   /// Pede confirmação e cancela um desafio pendente criado pelo usuário; o backend libera a reserva.
   Future<void> _confirmarCancelamento(BuildContext context, ChallengeModel c) async {
     if (!_cancelando.add(c.id)) return;
     setState(() {});
     try {
-    final confirmou = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF151E2E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          "Cancelar desafio?",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          "As ${c.amount} BetCoins reservadas voltam para o seu saldo disponível.",
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            key: const Key('btn_manter_desafio'),
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Manter", style: TextStyle(color: Color(0xFF00D084))),
-          ),
-          TextButton(
-            key: const Key('btn_confirmar_cancelamento'),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("Cancelar desafio", style: TextStyle(color: Color(0xFFEF4444))),
-          ),
-        ],
-      ),
-    );
-    if (confirmou != true || !context.mounted) return;
+      final confirmou = await _confirmar(
+        context,
+        titulo: 'Cancelar desafio?',
+        mensagem: 'As ${c.amount} BetCoins reservadas voltam para o seu saldo disponível.',
+        manter: 'Manter',
+        confirmar: 'Cancelar desafio',
+        chaveManter: const Key('btn_manter_desafio'),
+        chaveConfirmar: const Key('btn_confirmar_cancelamento'),
+      );
+      if (!confirmou || !context.mounted) return;
 
-    final messenger = ScaffoldMessenger.of(context);
-    var mensagem = 'Desafio cancelado. Suas BetCoins foram liberadas.';
-    var cor = const Color(0xFF00D084);
-    try {
-      await (widget.challengeService ?? ChallengeService()).cancelarDesafio(challengeId: c.id);
-    } on ChallengeException catch (e) {
-      mensagem = e.message;
-      cor = const Color(0xFFEF4444);
-    }
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(mensagem),
-        backgroundColor: cor,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+      var mensagem = 'Desafio cancelado. Suas BetCoins foram liberadas.';
+      var tom = Tom.sucesso;
+      try {
+        await (widget.challengeService ?? ChallengeService()).cancelarDesafio(challengeId: c.id);
+      } on ChallengeException catch (e) {
+        mensagem = e.message;
+        tom = Tom.destrutivo;
+      }
+      if (context.mounted) mostrarAviso(context, mensagem, tom: tom);
     } finally {
       if (mounted) setState(() => _cancelando.remove(c.id));
+    }
+  }
+
+  /// Pede confirmação e só então recusa o desafio recebido, pela mesma rotina do modal de aceite.
+  Future<void> _confirmarRecusa(BuildContext context, ChallengeModel c, String nome) async {
+    if (!_recusando.add(c.id)) return;
+    setState(() {});
+    try {
+      final confirmou = await _confirmar(
+        context,
+        titulo: 'Recusar desafio?',
+        mensagem: 'O desafio de $nome será recusado e as BetCoins reservadas por ele voltam para o saldo dele.',
+        manter: 'Voltar',
+        confirmar: 'Recusar',
+        chaveManter: const Key('btn_manter_recebido'),
+        chaveConfirmar: const Key('btn_confirmar_recusa'),
+      );
+      if (!confirmou || !context.mounted) return;
+      await recusarDesafioComAviso(
+        context,
+        widget.challengeService ?? ChallengeService(),
+        c,
+      );
+    } finally {
+      if (mounted) setState(() => _recusando.remove(c.id));
     }
   }
 
@@ -216,15 +256,36 @@ class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget>
       }
     }
     if (widget.erro) {
-      return Column(children: [
-        const Text('Não foi possível carregar os desafios.',
-          style: TextStyle(color: Colors.white)),
-        TextButton(onPressed: widget.onTentarNovamente,
-          child: const Text('Tentar novamente')),
-      ]);
+      return Container(
+        key: const Key('home_desafios_erro'),
+        padding: const EdgeInsets.all(EspacosApp.e16),
+        decoration: const BoxDecoration(
+          color: CoresApp.superficie1,
+          borderRadius: RaiosApp.bordaCartao,
+        ),
+        child: Column(
+          children: [
+            Text(
+              'Não foi possível carregar os desafios.',
+              textAlign: TextAlign.center,
+              style: TextoApp.corpo.copyWith(color: CoresApp.texto),
+            ),
+            const SizedBox(height: EspacosApp.e8),
+            BotaoSecundario(
+              rotulo: 'Tentar novamente',
+              icone: Icons.refresh,
+              pequeno: true,
+              onPressed: widget.onTentarNovamente,
+            ),
+          ],
+        ),
+      );
     }
     if (widget.carregando || lista == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Padding(
+        padding: EdgeInsets.all(EspacosApp.e24),
+        child: Center(child: CircularProgressIndicator()),
+      );
     }
 
     final pendentesRecebidos = lista.where((c) {
@@ -265,63 +326,72 @@ class _DesafiosAtivosWidgetState extends State<DesafiosAtivosWidget>
       );
     }
 
-    return _apresentar(Builder(builder: (context) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_uidsDesconhecidos.isNotEmpty)
-          TextButton(
-            key: const Key('home_atualizar_nomes'),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF00D084),
-              minimumSize: const Size(48, 48),
+    return _apresentar(Builder(builder: (context) {
+      final dados = ApresentacaoDesafios.of(context)!;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_uidsDesconhecidos.isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: BotaoTexto(
+                key: const Key('home_atualizar_nomes'),
+                rotulo: _carregandoNomes ? 'Atualizando nomes...' : 'Atualizar nomes',
+                icone: Icons.refresh,
+                pequeno: true,
+                onPressed: _carregandoNomes ? null : _carregarNomes,
+              ),
             ),
-            onPressed: _carregandoNomes ? null : _carregarNomes,
-            child: Text(_carregandoNomes ? 'Atualizando nomes...' : 'Atualizar nomes'),
-          ),
-        // 1. DESTAQUE: DESAFIOS RECEBIDOS AGUARDANDO RESPOSTA
-        if (pendentesRecebidos.isNotEmpty)
-          DesafiosRecebidosCard(
-            desafios: pendentesRecebidos,
-            onResponder: (c) {
-              ModalAceitarDesafio.exibir(
-                context: context,
-                desafio: c,
-                nomeCriador: _apresentar(const SizedBox()).nome(c.challengerId),
-                descricaoPartida: _apresentar(const SizedBox()).partida(c.matchId),
-                challengeService: widget.challengeService,
-              );
-            },
-          ),
-        // 1b. DESAFIOS ENVIADOS AGUARDANDO O AMIGO (o criador ainda pode cancelar)
-        if (pendentesEnviados.isNotEmpty)
-          DesafiosEnviadosCard(
-            desafios: pendentesEnviados,
-            cancelando: _cancelando,
-            onCancelar: (c) => _confirmarCancelamento(context, c),
-          ),
-        // 2. DESAFIOS EM ABERTO
-        DesafiosEmAbertoSecao(
-          desafios: desafiosEmAberto,
-          onDetalhes: (c) => _exibirDetalhesDesafio(context, c),
-        ),
-        // 3. DESTAQUE: DESAFIOS RECENTEMENTE FINALIZADOS
-        if (desafiosFinalizados.isNotEmpty)
-          DesafiosFinalizadosSecao(
-            desafios: desafiosFinalizados,
-            currentUserId: widget.currentUserId,
+          // 1. DESTAQUE: DESAFIOS RECEBIDOS AGUARDANDO RESPOSTA
+          if (pendentesRecebidos.isNotEmpty)
+            KeyedSubtree(
+              key: widget.chaveRecebidos,
+              child: DesafiosRecebidosCard(
+                desafios: pendentesRecebidos,
+                recusando: _recusando,
+                onResponder: (c) {
+                  ModalAceitarDesafio.exibir(
+                    context: context,
+                    desafio: c,
+                    nomeCriador: dados.nome(c.challengerId),
+                    descricaoPartida: dados.partida(c.matchId),
+                    challengeService: widget.challengeService,
+                  );
+                },
+                onRecusar: (c) => _confirmarRecusa(context, c, dados.nome(c.challengerId)),
+              ),
+            ),
+          // 1b. DESAFIOS ENVIADOS AGUARDANDO O AMIGO (o criador ainda pode cancelar)
+          if (pendentesEnviados.isNotEmpty)
+            DesafiosEnviadosCard(
+              desafios: pendentesEnviados,
+              cancelando: _cancelando,
+              onCancelar: (c) => _confirmarCancelamento(context, c),
+            ),
+          // 2. DESAFIOS EM ABERTO
+          DesafiosEmAbertoSecao(
+            desafios: desafiosEmAberto,
             onDetalhes: (c) => _exibirDetalhesDesafio(context, c),
-            onVerTodos: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => TelaHistoricoDesafios(
-                  currentUserId: widget.currentUserId,
-                  nomes: _nomes,
-                  partidas: _partidas,
+          ),
+          // 3. DESTAQUE: DESAFIOS RECENTEMENTE FINALIZADOS
+          if (desafiosFinalizados.isNotEmpty)
+            DesafiosFinalizadosSecao(
+              desafios: desafiosFinalizados,
+              currentUserId: widget.currentUserId,
+              onDetalhes: (c) => _exibirDetalhesDesafio(context, c),
+              onVerTodos: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => TelaHistoricoDesafios(
+                    currentUserId: widget.currentUserId,
+                    nomes: _nomes,
+                    partidas: _partidas,
+                  ),
                 ),
               ),
             ),
-          ),
-      ],
-    )));
+        ],
+      );
+    }));
   }
 }

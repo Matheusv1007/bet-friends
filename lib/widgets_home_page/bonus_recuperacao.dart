@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../models/carteira.dart';
 import '../services/bonus_recuperacao_service.dart';
+import '../tema/tema.dart';
+import '../widgets/componentes.dart';
 
 /// A elegibilidade local é uma indicação; a decisão final é sempre do servidor.
 class BonusRecuperacaoCard extends StatefulWidget {
@@ -58,11 +60,13 @@ class _BonusRecuperacaoCardState extends State<BonusRecuperacaoCard> {
     if (_resgatando) return;
     setState(() => _resgatando = true);
     String mensagem;
+    var tom = Tom.destrutivo;
     try {
       final resultado = await (widget.service ?? _service).resgatar();
       _confirmadoAte = resultado.proximaRecuperacaoEm;
       _agendarAtualizacao();
       mensagem = 'Bônus resgatado! +${resultado.amount} BetCoins.';
+      tom = Tom.sucesso;
     } on BonusRecuperacaoException catch (e) {
       mensagem = e.message;
     } catch (_) {
@@ -70,7 +74,7 @@ class _BonusRecuperacaoCardState extends State<BonusRecuperacaoCard> {
     }
     if (!mounted) return;
     setState(() => _resgatando = false);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensagem)));
+    mostrarAviso(context, mensagem, tom: tom);
   }
 
   @override
@@ -85,40 +89,50 @@ class _BonusRecuperacaoCardState extends State<BonusRecuperacaoCard> {
       final local = proxima.toLocal();
       String dois(int n) => n.toString().padLeft(2, '0');
       return Padding(
-        padding: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.only(top: EspacosApp.e12),
         child: Text(
           'Bônus de recuperação disponível em ${dois(local.day)}/${dois(local.month)}/${local.year} às ${dois(local.hour)}:${dois(local.minute)}.',
           key: const Key('bonus_recuperacao_intervalo'),
-          style: const TextStyle(color: Color(0xFF8E9CAB)),
+          style: TextoApp.secundario,
         ),
       );
     }
     if (!_resgatando && !carteira.podeResgatarBonus(agora)) {
       return const SizedBox.shrink();
     }
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: SizedBox(
-        width: double.infinity,
-        child: FilledButton(
-          key: const Key('resgatar_bonus_recuperacao'),
-          style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFF00D084),
-            foregroundColor: const Color(0xFF0B111D),
-            minimumSize: const Size(48, 48),
+    return Container(
+      key: const Key('bonus_recuperacao_card'),
+      margin: const EdgeInsets.only(top: EspacosApp.e12),
+      padding: const EdgeInsets.all(EspacosApp.e16),
+      decoration: const BoxDecoration(
+        color: CoresApp.superficie1,
+        borderRadius: RaiosApp.bordaCartao,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Bônus de recuperação', style: TextoApp.corpoForte.copyWith(color: CoresApp.texto)),
+          const SizedBox(height: EspacosApp.e4),
+          const Text(
+            'Seu saldo acabou. Resgate BetCoins para voltar a desafiar.',
+            style: TextoApp.secundario,
           ),
-          onPressed: _resgatando ? null : _resgatar,
-          child: _resgatando
-              ? const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                    SizedBox(width: 12),
-                    Text('Resgatando bônus…'),
-                  ],
-                )
-              : const Text('Resgatar bônus de recuperação (+100 BetCoins)', textAlign: TextAlign.center),
-        ),
+          const SizedBox(height: EspacosApp.e12),
+          FilledButton(
+            key: const Key('resgatar_bonus_recuperacao'),
+            onPressed: _resgatando ? null : _resgatar,
+            child: _resgatando
+                ? const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                      SizedBox(width: EspacosApp.e12),
+                      Flexible(child: Text('Resgatando bônus…')),
+                    ],
+                  )
+                : const Text('Resgatar +100 BetCoins', textAlign: TextAlign.center),
+          ),
+        ],
       ),
     );
   }

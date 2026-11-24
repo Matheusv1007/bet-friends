@@ -1,155 +1,113 @@
 import 'package:flutter/material.dart';
 
 import '../models/challenge_model.dart';
+import '../tema/tema.dart';
+import '../widgets/componentes.dart';
 import 'apresentacao_desafios.dart';
+import 'desafio_resumo_item.dart';
 
+/// Desafios recebidos aguardando resposta: quem desafiou, a partida, a tabela
+/// com o palpite do rival e as ações Responder e Recusar.
 class DesafiosRecebidosCard extends StatelessWidget {
   final List<ChallengeModel> desafios;
   final ValueChanged<ChallengeModel> onResponder;
+  final ValueChanged<ChallengeModel> onRecusar;
+  final Set<String> recusando;
 
-  const DesafiosRecebidosCard({super.key, required this.desafios, required this.onResponder});
+  const DesafiosRecebidosCard({
+    super.key,
+    required this.desafios,
+    required this.onResponder,
+    required this.onRecusar,
+    this.recusando = const {},
+  });
 
   @override
   Widget build(BuildContext context) {
     final dados = ApresentacaoDesafios.of(context);
-    return Container(
-            key: const Key('home_desafios_recebidos_pendentes'),
-            margin: const EdgeInsets.only(bottom: 20),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E2E),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
-                width: 1.5,
+    return Padding(
+      key: const Key('home_desafios_recebidos_pendentes'),
+      padding: const EdgeInsets.only(bottom: EspacosApp.e16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          CabecalhoDeDesafios(
+            'Recebidos',
+            complemento: '${desafios.length} aguardando',
+            complementoKey: const Key('badge_desafios_pendentes'),
+            corDoTitulo: CoresApp.atencao,
+          ),
+          const SizedBox(height: EspacosApp.e4),
+          ...desafios.map((c) {
+            final nome = dados?.nome(c.challengerId) ?? 'Jogador';
+            final primeiroNome = nome.split(' ').first;
+            final ocupado = recusando.contains(c.id);
+            return DesafioResumoItem(
+              itemKey: Key('card_desafio_pendente_${c.id}'),
+              destaque: CoresApp.atencao,
+              titulo: Row(
+                children: [
+                  DiscoDeIniciais(nome, tamanho: 28),
+                  const SizedBox(width: EspacosApp.e8),
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(children: [
+                        TextSpan(
+                          text: nome,
+                          style: const TextStyle(fontWeight: FontWeight.w600, color: CoresApp.texto),
+                        ),
+                        const TextSpan(text: ' te desafiou'),
+                      ]),
+                      key: Key('desafio_pendente_challenger_${c.id}'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextoApp.secundario.copyWith(fontSize: 15),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.mark_email_unread_outlined,
-                      color: Color(0xFFF59E0B),
-                      size: 20,
+              lateral: Padding(
+                padding: const EdgeInsets.only(top: EspacosApp.e4),
+                child: Text(tempoRelativo(c.createdAt), style: TextoApp.minimo.copyWith(color: CoresApp.textoSuave)),
+              ),
+              partida: dados?.confronto(c.matchId) ?? 'Partida indisponível',
+              contexto: dados?.contextoDaPartida(c.matchId),
+              tabela: TabelaDoDesafio(
+                key: Key('desafio_pendente_info_${c.id}'),
+                rotuloDoPalpite: 'Palpite de $primeiroNome',
+                palpite: dados?.palpite(c.challengerPrediction, c.matchId) ?? c.challengerPrediction.label,
+                valor: c.amount,
+              ),
+              rodape: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: BotaoPrimario(
+                      key: Key('btn_responder_desafio_${c.id}'),
+                      rotulo: 'Responder',
+                      pequeno: true,
+                      larguraTotal: true,
+                      onPressed: ocupado ? null : () => onResponder(c),
                     ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      "DESAFIOS RECEBIDOS",
-                      style: TextStyle(
-                        color: Color(0xFFF59E0B),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        letterSpacing: 0.8,
-                      ),
+                  ),
+                  const SizedBox(width: EspacosApp.e8),
+                  Expanded(
+                    flex: 2,
+                    child: BotaoSecundario(
+                      key: Key('btn_recusar_desafio_${c.id}'),
+                      rotulo: 'Recusar',
+                      pequeno: true,
+                      larguraTotal: true,
+                      carregando: ocupado,
+                      onPressed: () => onRecusar(c),
                     ),
-                    const Spacer(),
-                    Container(
-                      key: const Key('badge_desafios_pendentes'),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2B2213),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: const Text(
-                        "AGUARDANDO SUA RESPOSTA",
-                        style: TextStyle(
-                          color: Color(0xFFFBBF24),
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ...desafios.map((c) {
-                  return Container(
-                    key: Key('card_desafio_pendente_${c.id}'),
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF151E2E),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const CircleAvatar(
-                          radius: 18,
-                          backgroundColor: Color(0xFF2B2213),
-                          child: Icon(Icons.sports_kabaddi, color: Color(0xFFF59E0B), size: 18),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Desafio de ${dados?.nome(c.challengerId) ?? 'Jogador'}",
-                                key: Key('desafio_pendente_challenger_${c.id}'),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13.5,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                "${dados?.partida(c.matchId) ?? 'Partida indisponível'} • ${c.amount} BetCoins",
-                                key: Key('desafio_pendente_info_${c.id}'),
-                                style: const TextStyle(
-                                  color: Color(0xFF94A3B8),
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                "Palpite rival: ${c.challengerPrediction.label}",
-                                style: const TextStyle(
-                                  color: Color(0xFFF59E0B),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        ElevatedButton(
-                          key: Key('btn_responder_desafio_${c.id}'),
-                          onPressed: () => onResponder(c),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFF59E0B),
-                            foregroundColor: const Color(0xFF0D131F),
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            "RESPONDER",
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-            ),
-          );
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 }
-
