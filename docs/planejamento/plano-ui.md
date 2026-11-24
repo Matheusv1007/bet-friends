@@ -28,7 +28,7 @@ Iguais às das rodadas anteriores: commits em português, sem co-autor, sem push
 
 | # | Pergunta | Sugestão | Resposta |
 |---|---|---|---|
-| 1 | Direção visual e fonte | Primeira rodada (neon) descartada. Segunda rodada em [`direcoes-v2.md`](direcoes-v2.md): escolher entre Gramado, Jornal, Carvão e Marinho e a fonte; sugestão na própria página | Pendente |
+| 1 | Direção visual e fonte | Primeira e segunda rodadas viraram registro: o responsável quer manter a paleta atual sem neon. Protótipo em [`evolucao.md`](evolucao.md): confirmar a direção Evolução e a fonte (A: Schibsted Grotesk, sugerida; B: Bricolage com Instrument Sans) | Em avaliação |
 | 2 | Pode reorganizar a ordem da Home e reduzir a carteira? É a mudança que mais altera o que a equipe já conhece | Sim | Pendente |
 | 3 | Aba "Desafios": renomear ou criar uma tela de desafios de verdade (a segunda opção é maior) | Renomear primeiro | Pendente |
 | 4 | Existe arte de marca (logo e ícone)? Sem ela, uma versão simples feita com formas, só para trocar o ícone padrão | Versão simples | Pendente |

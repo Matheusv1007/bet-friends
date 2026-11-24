@@ -6,10 +6,11 @@ Pasta para registrar auditorias, decisões e planos de trabalho antes de execut�
 |---|---|---|
 | [`auditoria-visual.md`](auditoria-visual.md) | Auditoria do front end: 16 achados com imagens, estouros de layout, contraste e acabamento | Concluída em 23/11/2026 |
 | [`direcao-visual.md`](direcao-visual.md) | Primeira rodada de direções (neon) e comparação de 7 fontes | Descartada pelo responsável em 23/11/2026 (neon e "cara de IA"); mantida como registro |
-| [`direcoes-v2.md`](direcoes-v2.md) | Segunda rodada: 4 direções sóbrias (sem neon) e 8 fontes modernas | Aguardando decisão |
+| [`direcoes-v2.md`](direcoes-v2.md) | Segunda rodada: 4 direções sóbrias com paletas novas (Gramado, Jornal, Carvão, Marinho) e 8 fontes modernas | Registro; o responsável pediu manter a paleta atual |
+| [`evolucao.md`](evolucao.md) | Direção "Evolução": paleta atual sem neon, sistema de design e 8 telas redesenhadas (antes e depois) | Protótipo em avaliação |
 | [`plano-ui.md`](plano-ui.md) | Plano da rodada de melhoria visual: 7 branches, ordem e decisões pendentes | Proposta, não executada |
 
-As imagens ficam em [`imagens/`](imagens/): `auditoria/` (telas renderizadas), `direcoes/` (primeira rodada de mockups, com acento neon, descartada) e `direcoes-v2/` (segunda rodada: direções sóbrias e fontes modernas).
+As imagens ficam em [`imagens/`](imagens/): `auditoria/` (telas renderizadas), `direcoes/` (primeira rodada, com acento neon, descartada), `direcoes-v2/` (segunda rodada: paletas novas e fontes modernas) e `evolucao/` (a paleta atual sem neon, com a interface melhorada).
 
 ## Como as imagens foram geradas
 
@@ -17,4 +18,4 @@ As telas foram renderizadas por um **harness de teste descartável** (`flutter t
 
 O harness **não está versionado**: ficou num worktree local descartável. Se a rodada de melhoria visual for aprovada, ele pode ser recriado ou versionado para comparar antes e depois com as mesmas telas.
 
-Os mockups das direções (`imagens/direcoes/` e `imagens/direcoes-v2/`) são desenhos feitos só para comparação, não implementação do app. Os da primeira rodada mostram itens que o app ainda não tem, como "Esqueci minha senha", sino de notificação e "Trocar" amigo.
+Os mockups das direções (`imagens/direcoes/`, `imagens/direcoes-v2/` e `imagens/evolucao/`) são desenhos feitos só para comparação, não implementação do app. Os da primeira rodada mostram itens que o app ainda não tem, como "Esqueci minha senha", sino de notificação e "Trocar" amigo.

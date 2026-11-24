@@ -1,6 +1,8 @@
 # Direções visuais, segunda rodada: sem neon e com tipografia moderna
 
-**Data:** 23/11/2026 · **Situação:** aguardando decisão do responsável · **Origem:** a primeira rodada ([`direcao-visual.md`](direcao-visual.md)) foi descartada: o responsável não quer neon nem "cara de IA" e quer tipografia moderna. Esta rodada é **só protótipo visual (imagens)**. Nada foi implementado no app.
+> **Registro.** O responsável pediu depois para manter a paleta atual, sem neon, e melhorar a interface: ver [`evolucao.md`](evolucao.md).
+
+**Data:** 23/11/2026 · **Situação:** registro (substituída por [`evolucao.md`](evolucao.md)) · **Origem:** a primeira rodada ([`direcao-visual.md`](direcao-visual.md)) foi descartada: o responsável não quer neon nem "cara de IA" e quer tipografia moderna. Esta rodada é **só protótipo visual (imagens)**. Nada foi implementado no app.
 
 Cada prancha mostra os mesmos 4 quadros com o mesmo conteúdo: Login, topo da Home, Criar Desafio e Desafios. Os quadros usam só o que o app já faz (sem "esqueci a senha", sem notificações).
 
