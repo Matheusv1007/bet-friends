@@ -684,7 +684,7 @@ void main() {
       amizadesRepo.definirUidAtual('b9Wx4k6J1nTs');
       await tester.enterText(find.byType(TextField).first, 'bia@example.com');
       await tester.enterText(find.byType(TextField).last, 'senha123');
-      await tester.tap(find.widgetWithText(ElevatedButton, 'ENTRAR'));
+      await tester.tap(find.byKey(const Key('login_entrar')));
       await tester.pumpAndSettle();
 
       // Home agora é a de Bia Rocha

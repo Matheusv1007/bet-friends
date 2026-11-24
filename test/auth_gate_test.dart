@@ -5,6 +5,7 @@ import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
 import 'package:betfriends/telas_autenticacao/cadastro_page.dart';
 import 'package:betfriends/telas_autenticacao/login_page.dart';
 import 'package:betfriends/telas_principais/home_page.dart';
+import 'package:betfriends/widgets/componentes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -64,6 +65,32 @@ void main() {
       expect(find.byType(LoginPage), findsOneWidget);
     });
 
+    testWidgets('o carregamento mostra a logo centralizada e um indicador discreto, sobre o fundo do tema',
+        (tester) async {
+      final auth = FakeAuthService(sessaoPendente: true);
+      await tester.pumpWidget(App(authService: auth, partidasService: CountingPartidasService()));
+      await tester.pump();
+
+      final logo = find.byType(LogoBetFriends);
+      expect(logo, findsOneWidget);
+      expect(tester.widget<LogoBetFriends>(logo).variante, VarianteDoLogo.vertical);
+      final tela = tester.getRect(find.byType(Scaffold));
+      expect(tester.getCenter(logo).dx, closeTo(tela.center.dx, 0.5));
+      final indicador = tester.getSize(find.byType(CircularProgressIndicator));
+      expect(indicador.width, lessThanOrEqualTo(24));
+      expect(tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor, isNull,
+          reason: 'o fundo vem do tema escuro');
+
+      // Em tela pequena e com fonte grande a logo continua inteira
+      tester.view.physicalSize = const Size(320, 568) * tester.view.devicePixelRatio;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(LogoBetFriends), findsOneWidget);
+    });
+
     testWidgets('sem sessão exibe o Login', (tester) async {
       await abrirApp(tester, FakeAuthService());
 
@@ -90,7 +117,7 @@ void main() {
 
       await tester.enterText(find.byType(TextField).at(0), 'teste@example.com');
       await tester.enterText(find.byType(TextField).at(1), 'senha-fake');
-      await tester.tap(find.text('ENTRAR'));
+      await tester.tap(find.byKey(const Key('login_entrar')));
       await avancar(tester);
 
       expect(auth.signInCalls, 1);
@@ -109,9 +136,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(CadastroPage), findsOneWidget);
 
-      // CADASTRAR com o formulário vazio não cria conta nem sai da tela (KAN-25)
-      await tester.ensureVisible(find.text('CADASTRAR'));
-      await tester.tap(find.text('CADASTRAR'));
+      // Cadastrar com o formulário vazio não cria conta nem sai da tela (KAN-25)
+      await tester.ensureVisible(find.text('Cadastrar'));
+      await tester.tap(find.text('Cadastrar'));
       await tester.pumpAndSettle();
       expect(find.byType(CadastroPage), findsOneWidget);
       expect(auth.signUpCalls, 0);

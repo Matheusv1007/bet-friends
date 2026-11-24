@@ -234,7 +234,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(PerfilScreen), findsNothing);
-      expect(find.text('ENTRAR'), findsOneWidget);
+      expect(find.byKey(const Key('login_entrar')), findsOneWidget);
     });
   });
 }

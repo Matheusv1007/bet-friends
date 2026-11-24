@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:betfriends/app.dart';
+import 'package:betfriends/telas_autenticacao/login_page.dart';
 import 'package:betfriends/tema/tema.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -140,7 +141,7 @@ void main() {
     expect(app.themeMode, ThemeMode.dark);
     expect(app.theme, same(TemaApp.escuro));
     expect(app.darkTheme, same(TemaApp.escuro));
-    final contexto = tester.element(find.text('BetFriends'));
+    final contexto = tester.element(find.byType(LoginPage));
     expect(Theme.of(contexto).colorScheme.primary, CoresApp.primario);
   });
 }
