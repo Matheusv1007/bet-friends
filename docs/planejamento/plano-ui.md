@@ -1,10 +1,10 @@
 # Plano da rodada de melhoria visual
 
-**Data:** 23/11/2026 · **Base:** `qas` em `607a2ea` · **Situação:** proposta, **não executada** e aguardando as decisões abaixo. Origem: [`auditoria-visual.md`](auditoria-visual.md) e [`direcao-visual.md`](direcao-visual.md).
+**Data:** 23/11/2026 · **Base:** `qas` em `607a2ea` · **Situação:** implementada e integrada localmente em `feature/correcao-pos-mvp`. Origem: [`auditoria-visual.md`](auditoria-visual.md) e [`direcao-visual.md`](direcao-visual.md).
 
-## Execução proposta
+## Execução realizada
 
-Uma rodada, com branches independentes e merge local numa branch de integração, como nas rodadas anteriores. A branch 1 vem antes das outras, porque define o tema que as demais usam.
+Tema integrado primeiro; telas e marca desenvolvidas em branches independentes e mescladas localmente. A etapa 7 e os ajustes finais de integração foram concluídos diretamente em `feature/correcao-pos-mvp`. Sem push, PR ou deploy.
 
 | # | Branch | Escopo | Achados |
 |---|---|---|---|
@@ -14,25 +14,25 @@ Uma rodada, com branches independentes e merge local numa branch de integração
 | 4 | `feature/ui-formularios` | Login, Cadastro e diálogos com campos únicos e erro inline | 7 |
 | 5 | `feature/ui-telas-novas` | Extrato, Histórico e Perfil no padrão das demais | 5, 12 |
 | 6 | `feature/ui-marca` | Ícone, splash, nome do app, transições e esqueletos | 9, 15 |
-| 7 | `feature/ui-acessibilidade` | Semântica, tamanho mínimo de fonte e teste de estouros | 10 |
+| 7 | Etapa na branch de integração | Semântica, tamanho mínimo de fonte e teste de estouros | 10 |
 
-Navegação (achado 6) depende da decisão 3.
+Navegação (achado 6): aba renomeada para **Desafiar**, preservando a abertura de Criar desafio.
 
-**Verificação:** o harness de renderização é reaproveitado para comparar antes e depois, com as mesmas telas e tamanhos, além de `flutter analyze` e `flutter test`. Sem dispositivo Android, a validação visual final é do responsável no emulador.
+**Verificação:** `flutter analyze` sem problemas; `flutter test`: **644 testes passando**. Harness descartável: **64 capturas sem registros de erro**, em 360×800 e 320×568, incluindo 320×568 com texto 2×. Regressão permanente: 12 telas em 320/360 dp e texto 1×/2× (48 cenários), com a fonte real. A branch de marca também gerou um APK debug. Sem aparelho ou emulador: ícone, splash nativo e escudos de rede ainda precisam de conferência no Android.
 
 ## Regras de trabalho
 
 Iguais às das rodadas anteriores: commits em português, sem co-autor, sem push; merges locais só por autorização explícita; deploys só se o responsável permitir (esta rodada não altera o backend).
 
-## Decisões pendentes
+## Decisões aplicadas
 
 | # | Pergunta | Sugestão | Resposta |
 |---|---|---|---|
-| 1 | Direção visual e fonte | Primeira e segunda rodadas viraram registro: o responsável quer manter a paleta atual sem neon. Protótipo em [`evolucao.md`](evolucao.md): confirmar a direção Evolução e a fonte (A: Schibsted Grotesk, sugerida; B: Bricolage com Instrument Sans) | Em avaliação |
-| 2 | Pode reorganizar a ordem da Home e reduzir a carteira? É a mudança que mais altera o que a equipe já conhece | Sim | Pendente |
-| 3 | Aba "Desafios": renomear ou criar uma tela de desafios de verdade (a segunda opção é maior) | Renomear primeiro | Pendente |
-| 4 | Existe arte de marca (logo e ícone)? Sem ela, uma versão simples feita com formas, só para trocar o ícone padrão | Versão simples | Pendente |
-| 5 | Escudos: manter o quadro branco atrás deles ou usar um fundo neutro | Avaliar com escudos reais no emulador | Pendente |
+| 1 | Direção visual e fonte | Evolução; fonte A | Implementado com Schibsted Grotesk embutida |
+| 2 | Ordem da Home e carteira compacta | Sim | Sugestão aplicada: saldo → pendências → partidas → desafios |
+| 3 | Aba de criação de desafios | Renomear primeiro | Sugestão aplicada: Desafiar, sem criar uma tela adicional |
+| 4 | Marca | Kit fornecido pelo responsável | Logos aparados em 1×/2×/3×; monograma BF no ícone adaptativo e na abertura escura; nome BetFriends |
+| 5 | Fundo dos escudos | Neutro | Círculo neutro; fallback com cor e sigla do clube. Conferência de escudos reais no Android não realizada |
 
 ## Fora do escopo
 

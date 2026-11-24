@@ -1,8 +1,8 @@
 # Direção "Evolução": a paleta atual, sem neon, com a interface melhorada
 
-**Data:** 23/11/2026 · **Situação:** protótipo em avaliação pelo responsável · **Origem:** depois das duas rodadas anteriores ([`direcao-visual.md`](direcao-visual.md), com neon, e [`direcoes-v2.md`](direcoes-v2.md), com paletas novas), o responsável decidiu **manter mais ou menos a paleta atual**, tirar o neon e melhorar a interface. Esta direção parte do app como ele é hoje e corrige os achados de [`auditoria-visual.md`](auditoria-visual.md).
+**Data:** 23/11/2026 · **Situação:** direção implementada; imagens do protótipo preservadas como referência · **Origem:** depois das duas rodadas anteriores ([`direcao-visual.md`](direcao-visual.md), com neon, e [`direcoes-v2.md`](direcoes-v2.md), com paletas novas), o responsável decidiu **manter mais ou menos a paleta atual**, tirar o neon e melhorar a interface. Esta direção parte do app como ele é hoje e corrige os achados de [`auditoria-visual.md`](auditoria-visual.md).
 
-É **só protótipo visual em imagens estáticas**. Nada no app foi alterado.
+As imagens abaixo são o **protótipo aprovado**, não screenshots. A implementação está registrada ao fim deste documento e no [`plano-ui.md`](plano-ui.md).
 
 ## Antes e depois
 
@@ -56,7 +56,7 @@ O contraste é a razão WCAG sobre o fundo, a superfície 1 e a superfície 2.
 | Saldo | 36 / 700 tabular |
 | Raios | 4 (tag), 8 (chip, tabela), 10 (botão, campo), 12 (cartão, grupo) |
 
-Hoje o app tem 21 tamanhos de fonte e 11 raios; a escala acima os reduz a 7 tamanhos (12, 13, 15, 18, 20, 22 e 36) e 4 raios.
+Antes havia 21 tamanhos de fonte e 11 raios; o sistema define uma escala-alvo de 7 tamanhos (12, 13, 15, 18, 20, 22 e 36) e 4 raios.
 
 ### Fontes lado a lado
 
@@ -91,16 +91,16 @@ A diferença é sutil. **A** (Schibsted, uma família só) é mais neutra, mais 
 - O palpite mostra o nome dos times ("Internacional · Empate · Vitória"), em vez de "Mandante" e "Visitante".
 - O "Prêmio" é o ganho líquido (+100 para aposta de 100), coerente com "Você venceu! +100 BetCoins" e com a regra sem taxa.
 
-## O que muda no comportamento do app (a decidir)
+## Comportamentos implementados
 
-O protótipo é só visual, mas dois itens vão além da aparência e precisam de decisão:
+Ao iniciar a implementação, foram aplicadas as sugestões do protótipo:
 
-1. **"Recusar" direto na lista de recebidos.** Hoje o app abre o modal de aceite, com "Recusar desafio" lá dentro. Se o botão sair para a lista, deve manter uma confirmação.
-2. **"Prêmio" exibido em cada desafio.** O app hoje não mostra o prêmio na lista; o protótipo o calcula a partir do valor.
+1. **Recusar direto na lista de recebidos**, sempre com confirmação. A recusa no modal continua disponível; ambas usam a mesma rotina de serviço.
+2. **Prêmio líquido em cada desafio**: +100 para aposta de 100, sem alterar as regras de BetCoins.
 
 Os demais pontos reorganizam a Home e a navegação, e são as decisões 2 e 3 do [`plano-ui.md`](plano-ui.md).
 
-## Limitações
+## Limitações das imagens do protótipo
 
 - Imagens estáticas, sem estados de carregamento, sem animação e sem teste com fonte do sistema ampliada.
 - Os clubes aparecem como discos com sigla, não como escudos reais.
@@ -109,4 +109,25 @@ Os demais pontos reorganizam a Home e a navegação, e são as decisões 2 e 3 d
 
 ## Decisão
 
-Pendente. Registrar aqui se a direção Evolução é a escolhida, qual fonte (A ou B) e as respostas às decisões 2 a 5 do plano.
+Implementação autorizada pelo responsável, com ajuste de logo deixado a critério técnico. Aplicados: Evolução, fonte A (Schibsted Grotesk), reorganização da Home, aba Desafiar, kit original aparado e fundo neutro dos escudos. As sugestões não respondidas individualmente foram adotadas como padrão; ver o quadro do plano.
+
+## Evidências da implementação
+
+Telas reais renderizadas com a fonte embutida, sem Firebase e sem acesso à rede. Os discos com siglas são o fallback; escudos reais continuam vindo do provedor. Ícone e splash nativos precisam de conferência no Android.
+
+| Tela | Antes | Implementação |
+|---|---|---|
+| Home | [Auditoria](imagens/auditoria/01-home-topo.png) | [Home](imagens/implementacao/home.png) · [320 dp, texto 2×](imagens/implementacao/home-320-texto2x.png) |
+| Login | [Auditoria](imagens/auditoria/07-login-erro.png) | [Login](imagens/implementacao/login.png) |
+| Cadastro | [Auditoria](imagens/auditoria/09-cadastro.png) | [Cadastro](imagens/implementacao/cadastro.png) |
+| Criar desafio | [Auditoria](imagens/auditoria/05-criar-desafio-pagina-inteira.png) | [Criar desafio](imagens/implementacao/criar-desafio.png) |
+| Partida | [Auditoria](imagens/auditoria/10-detalhes-da-partida.png) | [Bottom sheet](imagens/implementacao/partida.png) |
+| Aceitar desafio | [Auditoria](imagens/auditoria/11-modal-aceitar-desafio.png) | [Aceite](imagens/implementacao/aceitar.png) |
+| Perfil | [Auditoria](imagens/auditoria/14-perfil.png) | [Perfil](imagens/implementacao/perfil.png) |
+| Extrato | [Auditoria](imagens/auditoria/12-extrato.png) | [Extrato](imagens/implementacao/extrato.png) |
+| Histórico | [Auditoria](imagens/auditoria/13-historico.png) | [Histórico](imagens/implementacao/historico.png) |
+| Amigos | [Auditoria](imagens/auditoria/16-amigos-lista.png) | [Amigos](imagens/implementacao/amigos.png) |
+| Busca | [Auditoria](imagens/auditoria/17-amigos-buscar.png) | [Busca](imagens/implementacao/buscar.png) |
+| Solicitações | — | [Solicitações](imagens/implementacao/solicitacoes.png) |
+
+Verificação integrada: análise estática sem problemas, **644 testes passando**, incluindo 48 cenários de layout em 320/360 dp com texto 1×/2×. Harness descartável: **64 capturas sem erros registrados**. Não houve deploy nem alteração das regras do backend.

@@ -8,7 +8,7 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 
 - **Quatro campeonatos (`BSA`, `PL`, `SA`, `PD`):** `syncMatches` sincroniza, em série e com estado próprio por competição (`system/matchSync_{código}`), o Brasileirão, a Premier League, a Serie A e La Liga; o app lista as quatro com o nome do campeonato nos cards e nos detalhes e tem filtro por liga em Criar Desafio. Lista configurável por `PARTIDAS_SYNC_COMPETICOES`; ver [`docs/campeonatos.md`](docs/campeonatos.md).
 - **Login por e-mail ou username.** Nova callable pública `resolveLoginEmail` (limite de 10 consultas por minuto por IP); username inexistente falha como credencial inválida.
-- **Escudos dos times** na Home, nos detalhes da partida e na escolha de partida do desafio, a partir da URL do provedor (PNG ou SVG, `flutter_svg`), com ícone padrão quando não há imagem. A tela de créditos informa a origem.
+- **Escudos dos times** na Home, nos detalhes da partida e na escolha de partida do desafio, a partir da URL do provedor (PNG ou SVG, `flutter_svg`), com disco e sigla do clube quando não há imagem. A tela de créditos informa a origem.
 - **Criar desafio:** lista as 5 primeiras partidas elegíveis, com "Mostrar mais".
 - **Resultado oficial e efeito nos BetCoins** nos desafios finalizados.
 - **Bônus de recuperação (RF-020):** ação na Home, visível só quando há direito ao bônus, com a hora do próximo resgate no intervalo de 24 horas.
@@ -24,6 +24,8 @@ Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/)
 - **T-05 (parcial):** nomes dos adversários são recarregados e lembrados; quem nunca foi visto aparece como "Jogador". Resolver o nome de um ex-amigo nunca visto exige consulta pública por UID no backend.
 
 ### Alterado
+
+- **Interface Evolução:** tema escuro centralizado, Schibsted Grotesk embutida, componentes compartilhados, erros inline e layouts responsivos. Home com saldo compacto, aviso único, prêmio líquido e recusa com confirmação; aba **Desafiar**; partidas em duas linhas; Perfil agrupado; Extrato, Histórico e Amigos no mesmo padrão. Marca aplicada ao app, ícone adaptativo e abertura Android escura. Evidências e decisões em [`docs/planejamento/plano-ui.md`](docs/planejamento/plano-ui.md).
 
 - `createChallenge` passa a atualizar `updatedAt` da amizade na mesma transação, para serializar com a remoção de amizade.
 - Operações de amizade, desafio, reserva, criação de perfil e busca consultam a guarda `accountDeletions/{uid}` durante a exclusão de conta.
