@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:betfriends/data/firestore/friendship_repository.dart';
 import 'package:betfriends/data/firestore/user_profile_repository.dart';
 import 'package:betfriends/models/challenge_model.dart';
+import 'package:betfriends/widgets/componentes.dart';
 import 'package:betfriends/models/friendship_model.dart';
 import 'package:betfriends/models/partida_model.dart';
 import 'package:betfriends/models/user_profile.dart';
@@ -142,12 +143,13 @@ void main() {
 
       // AppBar e título
       expect(find.byKey(const Key('appbar_informacoes_creditos')), findsOneWidget);
-      expect(find.text('Informações e Créditos'), findsOneWidget);
+      expect(find.text('Informações e créditos'), findsOneWidget);
       expect(find.byTooltip('Voltar'), findsOneWidget);
 
       // Nome do app e versão mínima do MVP
+      // O nome do app vem no logo do kit de marca (asset próprio, com rótulo semântico)
       expect(find.byKey(const Key('app_nome')), findsOneWidget);
-      expect(find.text('BetFriends'), findsOneWidget);
+      expect(find.byType(LogoBetFriends), findsOneWidget);
       expect(find.byKey(const Key('app_versao')), findsOneWidget);
       expect(find.text('Versão 1.0.0 (MVP)'), findsOneWidget);
     });
@@ -232,8 +234,12 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // A tela não carrega Image.network nem imagens externas não confirmadas
-        expect(find.byType(Image), findsNothing);
+        // A tela não carrega Image.network nem imagens de terceiros: só o logo próprio (asset)
+        expect(
+          find.byWidgetPredicate((w) => w is Image && w.image is NetworkImage),
+          findsNothing,
+        );
+        expect(find.byType(Image), findsOneWidget);
 
         // O texto sobre licenciamento e escudos está presente
         expect(find.byKey(const Key('texto_licenciamento_escudos')), findsOneWidget);
@@ -316,6 +322,8 @@ void main() {
 
       final btnCreditos = find.byKey(const Key('perfil_informacoes_creditos'));
       await tester.scrollUntilVisible(btnCreditos, 200);
+      await tester.ensureVisible(btnCreditos);
+      await tester.pump();
       expect(btnCreditos, findsOneWidget);
 
       await tester.tap(btnCreditos);
