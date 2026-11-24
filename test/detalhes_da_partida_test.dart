@@ -1,6 +1,6 @@
 import 'package:betfriends/models/partida_model.dart';
 import 'package:betfriends/widgets_home_page/card_de_partidas.dart';
-import 'package:betfriends/widgets_home_page/detalhes_da_partida_dialog.dart';
+import 'package:betfriends/widgets_home_page/detalhes_da_partida_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -24,7 +24,7 @@ void main() {
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
-                onPressed: () => DetalhesDaPartidaDialog.exibir(context, partidaAgendada),
+                onPressed: () => DetalhesDaPartidaSheet.exibir(context, partidaAgendada),
                 child: const Text('ABRIR'),
               ),
             ),
@@ -73,7 +73,7 @@ void main() {
       // Fecha o diálogo
       await tester.tap(find.byKey(const Key('btn_fechar_detalhes_partida')));
       await tester.pumpAndSettle();
-      expect(find.byType(DetalhesDaPartidaDialog), findsNothing);
+      expect(find.byType(DetalhesDaPartidaSheet), findsNothing);
     });
 
     testWidgets('2. Detalhe de partida finalizada exibe mandante, visitante, placar e resultado normalizado', (tester) async {
@@ -97,7 +97,7 @@ void main() {
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
-                onPressed: () => DetalhesDaPartidaDialog.exibir(context, partidaFinalizada),
+                onPressed: () => DetalhesDaPartidaSheet.exibir(context, partidaFinalizada),
                 child: const Text('ABRIR'),
               ),
             ),
@@ -153,7 +153,7 @@ void main() {
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
-                onPressed: () => DetalhesDaPartidaDialog.exibir(context, partidaEmpate),
+                onPressed: () => DetalhesDaPartidaSheet.exibir(context, partidaEmpate),
                 child: const Text('ABRIR'),
               ),
             ),
@@ -192,7 +192,7 @@ void main() {
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
-                onPressed: () => DetalhesDaPartidaDialog.exibir(context, partidaVisitante),
+                onPressed: () => DetalhesDaPartidaSheet.exibir(context, partidaVisitante),
                 child: const Text('ABRIR'),
               ),
             ),
@@ -233,7 +233,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Diálogo de detalhes deve ser aberto
-      expect(find.byType(DetalhesDaPartidaDialog), findsOneWidget);
+      expect(find.byType(DetalhesDaPartidaSheet), findsOneWidget);
       expect(find.text('Detalhes da Partida'), findsOneWidget);
       expect(find.text('Cruzeiro'), findsAtLeastNWidgets(1));
       expect(find.text('Atlético-MG'), findsAtLeastNWidgets(1));
@@ -399,7 +399,7 @@ void main() {
         home: Scaffold(
           body: Builder(
             builder: (context) => ElevatedButton(
-              onPressed: () => DetalhesDaPartidaDialog.exibir(context, pl),
+              onPressed: () => DetalhesDaPartidaSheet.exibir(context, pl),
               child: const Text('ABRIR'),
             ),
           ),
