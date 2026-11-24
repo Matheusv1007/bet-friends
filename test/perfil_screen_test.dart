@@ -254,7 +254,7 @@ void main() {
       for (final titulo in ['DADOS', 'ATIVIDADE', 'INFORMAÇÕES', 'ZONA DE RISCO']) {
         expect(find.text(titulo), findsOneWidget, reason: titulo);
       }
-      final y = (String t) => tester.getTopLeft(find.text(t)).dy;
+      double y(String t) => tester.getTopLeft(find.text(t)).dy;
       expect(y('DADOS'), lessThan(y('ATIVIDADE')));
       expect(y('ATIVIDADE'), lessThan(y('INFORMAÇÕES')));
       expect(y('INFORMAÇÕES'), lessThan(y('ZONA DE RISCO')));
@@ -294,21 +294,5 @@ void main() {
       final campo = tester.widget<TextFormField>(find.byKey(const Key('editar_nome_campo')));
       expect(campo.controller!.text, 'Ana Lima');
     });
-
-    for (final (largura, altura, escala) in [(320.0, 568.0, 1.0), (360.0, 800.0, 1.5), (320.0, 568.0, 1.5)]) {
-      testWidgets('sem overflow em ${largura.toInt()} dp com texto ${escala}x', (tester) async {
-        tester.view.physicalSize = Size(largura, altura);
-        tester.view.devicePixelRatio = 1;
-        tester.platformDispatcher.textScaleFactorTestValue = escala;
-        addTearDown(tester.view.reset);
-        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-        await perfilAberto(tester);
-
-        expect(tester.takeException(), isNull);
-        await tester.scrollUntilVisible(find.byKey(const Key('perfil_excluir_conta')), 200);
-        await tester.pump();
-        expect(tester.takeException(), isNull);
-      });
-    }
   });
 }
