@@ -8,8 +8,10 @@ import '../models/desafio_encerrado.dart';
 import '../models/partida_model.dart';
 import '../services/historico_de_desafios_service.dart';
 import '../services/registro_de_erros.dart';
+import '../tela_extrato/formato_betcoins.dart';
+import '../tema/tema.dart';
+import '../widgets/componentes.dart';
 import '../widgets_home_page/apresentacao_desafios.dart';
-import '../widgets_home_page/desafios_finalizados_secao.dart';
 import '../widgets_home_page/detalhes_do_desafio_dialog.dart';
 
 class TelaHistoricoDesafios extends StatefulWidget {
@@ -145,65 +147,210 @@ class _TelaHistoricoDesafiosState extends State<TelaHistoricoDesafios> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: const Color(0xFF0B111D),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF0B111D),
-          foregroundColor: Colors.white,
+          leading: IconButton(
+            tooltip: 'Voltar',
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.maybePop(context),
+          ),
           title: const Text('Histórico de desafios'),
         ),
-        body: _apresentar(ListView(
-          key: const Key('lista_historico_desafios'),
-          padding: const EdgeInsets.all(16),
-          children: [
-            DesafiosFinalizadosSecao(
-              desafios: _itens,
-              currentUserId: widget.currentUserId,
-              exibirCabecalho: false,
-              onDetalhes: _detalhes,
+        body: SafeArea(
+          child: _apresentar(ListView(
+            key: const Key('lista_historico_desafios'),
+            padding: const EdgeInsets.fromLTRB(
+              EspacosApp.margemDaTela, EspacosApp.e8, EspacosApp.margemDaTela, EspacosApp.e32,
             ),
-            if (_carregando)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator(
-                  key: Key('historico_carregando'),
-                  color: Color(0xFF00D084),
-                )),
-              )
-            else if (_erro != null) ...[
-              Text(_erro!, key: const Key('historico_erro'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF8E9CAB))),
-              TextButton(
-                key: const Key('historico_tentar_novamente'),
-                onPressed: _carregar,
-                style: _estiloBotao,
-                child: const Text('Tentar novamente'),
-              ),
-            ] else if (_itens.isEmpty && !_temMais)
-              const Text('Você ainda não tem desafios encerrados',
-                key: Key('historico_vazio'),
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF8E9CAB)))
-            else if (_temMais)
-              TextButton(
-                key: const Key('historico_carregar_mais'),
-                onPressed: _carregar,
-                style: _estiloBotao,
-                child: const Text('Carregar mais'),
-              )
-            else
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('Fim do histórico', key: Key('historico_fim'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Color(0xFF8E9CAB))),
-              ),
-          ],
-        )),
+            children: [
+              if (_itens.isNotEmpty) ...[
+                Semantics(
+                  header: true,
+                  child: Text.rich(TextSpan(children: [
+                    const TextSpan(text: 'FINALIZADOS', style: TextoApp.secao),
+                    if (!_temMais)
+                      TextSpan(
+                        text: '   ${_itens.length} ${_itens.length == 1 ? 'desafio' : 'desafios'}',
+                        style: TextoApp.secundario.copyWith(fontSize: 12),
+                      ),
+                  ])),
+                ),
+                const SizedBox(height: EspacosApp.e8),
+                Card(
+                  margin: EdgeInsets.zero,
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < _itens.length; i++) ...[
+                        if (i > 0) const Divider(),
+                        _LinhaDoHistorico(
+                          desafio: _itens[i],
+                          onTap: () => _detalhes(_itens[i]),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+              if (_carregando)
+                const Padding(
+                  padding: EdgeInsets.all(EspacosApp.e24),
+                  child: Center(child: CircularProgressIndicator(key: Key('historico_carregando'))),
+                )
+              else if (_erro != null) ...[
+                const SizedBox(height: EspacosApp.e12),
+                AvisoInline(_erro!, Tom.destrutivo, key: const Key('historico_erro')),
+                Center(
+                  child: BotaoTexto(
+                    key: const Key('historico_tentar_novamente'),
+                    rotulo: 'Tentar novamente',
+                    onPressed: _carregar,
+                  ),
+                ),
+              ] else if (_itens.isEmpty && !_temMais)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: EspacosApp.e24),
+                  child: Text(
+                    'Você ainda não tem desafios encerrados',
+                    key: Key('historico_vazio'),
+                    textAlign: TextAlign.center,
+                    style: TextoApp.secundario,
+                  ),
+                )
+              else if (_temMais)
+                Center(
+                  child: BotaoTexto(
+                    key: const Key('historico_carregar_mais'),
+                    rotulo: 'Carregar mais',
+                    onPressed: _carregar,
+                  ),
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.all(EspacosApp.e16),
+                  child: Text(
+                    'Fim do histórico',
+                    key: Key('historico_fim'),
+                    textAlign: TextAlign.center,
+                    style: TextoApp.secundario,
+                  ),
+                ),
+            ],
+          )),
+        ),
       );
+}
 
-  ButtonStyle get _estiloBotao => TextButton.styleFrom(
-        foregroundColor: const Color(0xFF00D084),
-        minimumSize: const Size(48, 48),
-      );
+/// Desfecho do desafio para o usuário: rótulo, valor e cor (verde só na
+/// vitória, coral só na perda; o resto é neutro).
+({String rotulo, String valor, Color cor}) resultadoDoHistorico(
+  ChallengeModel c,
+  String? uid,
+  String Function(String) nome,
+) {
+  const neutro = CoresApp.textoSuave;
+  switch (c.status) {
+    case StatusDesafio.finished:
+      final vencedor = c.winnerId;
+      if (vencedor == null) {
+        return (rotulo: 'Ninguém acertou', valor: '0', cor: neutro);
+      }
+      if (uid == null || !c.temParticipante(uid)) {
+        return (rotulo: 'Vencedor: ${nome(vencedor)}', valor: '0', cor: neutro);
+      }
+      final valor = formatarBetCoins(c.amount);
+      return vencedor == uid
+          ? (rotulo: 'Você venceu', valor: '+$valor', cor: CoresApp.primario)
+          : (rotulo: 'Você perdeu', valor: '−$valor', cor: CoresApp.destrutivo);
+    case StatusDesafio.rejected:
+      return (rotulo: 'Recusado', valor: '0', cor: neutro);
+    case StatusDesafio.expired:
+      return (rotulo: 'Expirado', valor: '0', cor: neutro);
+    default:
+      return (rotulo: c.motivoDoCancelamento ?? c.status.label, valor: '0', cor: neutro);
+  }
+}
+
+class _LinhaDoHistorico extends StatelessWidget {
+  final ChallengeModel desafio;
+  final VoidCallback onTap;
+
+  const _LinhaDoHistorico({required this.desafio, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final dados = ApresentacaoDesafios.of(context);
+    final c = desafio;
+    String nome(String uid) => dados?.nome(uid) ?? 'Jogador';
+    final partida = dados?.partidas[c.matchId];
+    final confronto = partida == null
+        ? 'Partida indisponível'
+        : partida.golsMandante != null && partida.golsVisitante != null
+            ? '${partida.timeMandante} ${partida.golsMandante} x ${partida.golsVisitante} ${partida.timeVisitante}'
+            : '${partida.timeMandante} x ${partida.timeVisitante}';
+    final data = (c.finishedAt ?? c.createdAt).toLocal();
+    String dois(int n) => n.toString().padLeft(2, '0');
+    final meta = [
+      if (partida != null) partida.nomeDoCampeonato,
+      '${dois(data.day)}/${dois(data.month)}',
+      'aposta ${formatarBetCoins(c.amount)}',
+    ].join(' · ');
+    final resultado = resultadoDoHistorico(c, dados?.currentUserId, nome);
+
+    return Container(
+      key: Key('card_desafio_finalizado_${c.id}'),
+      child: InkWell(
+        key: Key('btn_detalhes_desafio_finalizado_${c.id}'),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: EspacosApp.alvoDeToque),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: EspacosApp.e16, vertical: EspacosApp.e12,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${nome(c.challengerId)} x ${nome(c.challengedId)}',
+                        style: TextoApp.corpoForte.copyWith(color: CoresApp.texto),
+                      ),
+                      const SizedBox(height: EspacosApp.e4),
+                      Text(confronto, style: TextoApp.corpo.copyWith(color: CoresApp.texto)),
+                      Text(meta, style: TextoApp.secundario),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: EspacosApp.e12),
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        resultado.rotulo,
+                        textAlign: TextAlign.end,
+                        style: TextoApp.secundario.copyWith(color: resultado.cor),
+                      ),
+                      Text(
+                        resultado.valor,
+                        style: TextoApp.placar.copyWith(
+                          color: resultado.cor == CoresApp.textoSuave ? CoresApp.texto : resultado.cor,
+                          fontFeatures: const [],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
