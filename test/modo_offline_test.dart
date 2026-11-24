@@ -70,7 +70,11 @@ final _banner = find.byKey(const Key('perfil_sem_conexao'));
 final _editar = find.byKey(const Key('perfil_editar_nome'));
 final _campo = find.byKey(const Key('editar_nome_campo'));
 final _salvar = find.byKey(const Key('editar_nome_salvar'));
-final _erroDialogo = find.byKey(const Key('editar_nome_erro'));
+// O erro de falha ao salvar é um AvisoInline; este é o texto dele
+final _erroDialogo = find.descendant(
+  of: find.byKey(const Key('editar_nome_erro')),
+  matching: find.byType(Text),
+);
 
 String _nomeExibido(WidgetTester tester) =>
     tester.widget<Text>(find.byKey(const Key('perfil_display_name'))).data!;

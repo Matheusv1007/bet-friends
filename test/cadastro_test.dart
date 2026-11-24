@@ -357,7 +357,7 @@ void main() {
       // Sob o campo; o aviso do topo diz que só falta o perfil
       expect(erroDoCampo(tester, 'cadastro_username'), 'Este username já está em uso. Escolha outro.');
       expect(find.byKey(const Key('cadastro_conta_criada')), findsOneWidget);
-      expect(find.text('Concluir cadastro'), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('cadastro_enviar')), matching: find.text('Concluir cadastro')), findsOneWidget);
       expect(habilitado(tester, 'cadastro_email'), isFalse);
       expect(habilitado(tester, 'cadastro_senha'), isFalse);
       expect(auth.currentUser?.uid, 'uid-lucas@example.com');
