@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:betfriends/data/firestore/friendship_repository.dart';
 import 'package:betfriends/data/firestore/user_profile_repository.dart';
 import 'package:betfriends/models/challenge_model.dart';
+import 'package:betfriends/widgets/componentes.dart';
 import 'package:betfriends/models/friendship_model.dart';
 import 'package:betfriends/models/partida_model.dart';
 import 'package:betfriends/models/user_profile.dart';
@@ -39,8 +40,7 @@ import 'support/fake_auth.dart';
 class _FakeUserProfileRepository implements UserProfileRepository {
   final _controller = StreamController<PerfilObservado>.broadcast();
 
-  void emitir(UserProfile? perfil) =>
-      _controller.add(PerfilObservado(perfil));
+  void emitir(UserProfile? perfil) => _controller.add(PerfilObservado(perfil));
 
   @override
   Stream<PerfilObservado> observarPorUid(String uid) => _controller.stream;
@@ -53,7 +53,8 @@ class _FakeUserProfileRepository implements UserProfileRepository {
 }
 
 class _FakeChallengeService implements ChallengeService {
-  final _desafiosController = StreamController<List<ChallengeModel>>.broadcast();
+  final _desafiosController =
+      StreamController<List<ChallengeModel>>.broadcast();
 
   @override
   Stream<List<ChallengeModel>> observarDesafios() async* {
@@ -76,23 +77,23 @@ class _FakeChallengeService implements ChallengeService {
     required String matchId,
     required Palpite challengerPrediction,
     required int amount,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
   Future<AceitarDesafioResponse> aceitarDesafio({
     required String challengeId,
     required Palpite challengedPrediction,
-  }) async =>
-      throw UnimplementedError();
+  }) async => throw UnimplementedError();
 
   @override
-  Future<EncerrarDesafioResponse> recusarDesafio({required String challengeId}) async =>
-      throw UnimplementedError();
+  Future<EncerrarDesafioResponse> recusarDesafio({
+    required String challengeId,
+  }) async => throw UnimplementedError();
 
   @override
-  Future<EncerrarDesafioResponse> cancelarDesafio({required String challengeId}) async =>
-      throw UnimplementedError();
+  Future<EncerrarDesafioResponse> cancelarDesafio({
+    required String challengeId,
+  }) async => throw UnimplementedError();
 }
 
 class _FakePartidasService extends PartidasService {
@@ -130,35 +131,36 @@ class _FakeFriendshipRepository implements FriendshipRepository {
 
 void main() {
   group('TelaInformacoesCreditos (KAN-54)', () {
-    testWidgets('exibe tela de informações e créditos com dados mínimos do app', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: TelaInformacoesCreditos(),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'exibe tela de informações e créditos com dados mínimos do app',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(home: TelaInformacoesCreditos()),
+        );
+        await tester.pumpAndSettle();
 
-      // AppBar e título
-      expect(find.byKey(const Key('appbar_informacoes_creditos')), findsOneWidget);
-      expect(find.text('Informações e Créditos'), findsOneWidget);
-      expect(find.byTooltip('Voltar'), findsOneWidget);
+        // AppBar e título
+        expect(
+          find.byKey(const Key('appbar_informacoes_creditos')),
+          findsOneWidget,
+        );
+        expect(find.text('Informações e créditos'), findsOneWidget);
+        expect(find.byTooltip('Voltar'), findsOneWidget);
 
-      // Nome do app e versão mínima do MVP
-      expect(find.byKey(const Key('app_nome')), findsOneWidget);
-      expect(find.text('BetFriends'), findsOneWidget);
-      expect(find.byKey(const Key('app_versao')), findsOneWidget);
-      expect(find.text('Versão 1.0.0 (MVP)'), findsOneWidget);
-    });
+        // Nome do app e versão mínima do MVP
+        // O nome do app vem no logo do kit de marca (asset próprio, com rótulo semântico)
+        expect(find.byKey(const Key('app_nome')), findsOneWidget);
+        expect(find.byType(LogoBetFriends), findsOneWidget);
+        expect(find.byKey(const Key('app_versao')), findsOneWidget);
+        expect(find.text('Versão 1.0.0 (MVP)'), findsOneWidget);
+      },
+    );
 
     testWidgets(
       'texto visível contém exatamente: Dados fornecidos por football-data.org (RNF-011)',
       (tester) async {
         await tester.pumpWidget(
-          const MaterialApp(
-            home: TelaInformacoesCreditos(),
-          ),
+          const MaterialApp(home: TelaInformacoesCreditos()),
         );
         await tester.pumpAndSettle();
 
@@ -183,9 +185,7 @@ void main() {
       (tester) async {
         // A tela é puramente estática e não efetua chamadas à rede ou API externa
         await tester.pumpWidget(
-          const MaterialApp(
-            home: TelaInformacoesCreditos(),
-          ),
+          const MaterialApp(home: TelaInformacoesCreditos()),
         );
         await tester.pumpAndSettle();
 
@@ -204,9 +204,7 @@ void main() {
       'tela não adiciona funcionalidades além das informações e créditos necessários (D-015)',
       (tester) async {
         await tester.pumpWidget(
-          const MaterialApp(
-            home: TelaInformacoesCreditos(),
-          ),
+          const MaterialApp(home: TelaInformacoesCreditos()),
         );
         await tester.pumpAndSettle();
 
@@ -217,7 +215,10 @@ void main() {
         expect(find.text('Feed'), findsNothing);
 
         // Cards informativos legítimos
-        expect(find.byKey(const Key('card_propriedade_intelectual')), findsOneWidget);
+        expect(
+          find.byKey(const Key('card_propriedade_intelectual')),
+          findsOneWidget,
+        );
         expect(find.byKey(const Key('card_escopo_mvp')), findsOneWidget);
       },
     );
@@ -226,17 +227,22 @@ void main() {
       'a tela de créditos não carrega imagens e informa que os escudos vêm do provedor (RNF-012)',
       (tester) async {
         await tester.pumpWidget(
-          const MaterialApp(
-            home: TelaInformacoesCreditos(),
-          ),
+          const MaterialApp(home: TelaInformacoesCreditos()),
         );
         await tester.pumpAndSettle();
 
-        // A tela não carrega Image.network nem imagens externas não confirmadas
-        expect(find.byType(Image), findsNothing);
+        // A tela não carrega Image.network nem imagens de terceiros: só o logo próprio (asset)
+        expect(
+          find.byWidgetPredicate((w) => w is Image && w.image is NetworkImage),
+          findsNothing,
+        );
+        expect(find.byType(Image), findsOneWidget);
 
         // O texto sobre licenciamento e escudos está presente
-        expect(find.byKey(const Key('texto_licenciamento_escudos')), findsOneWidget);
+        expect(
+          find.byKey(const Key('texto_licenciamento_escudos')),
+          findsOneWidget,
+        );
       },
     );
 
@@ -257,9 +263,7 @@ void main() {
 
         await tester.pumpWidget(
           MaterialApp(
-            home: Scaffold(
-              body: Carddepartidas(partida: partidaSemEscudos),
-            ),
+            home: Scaffold(body: Carddepartidas(partida: partidaSemEscudos)),
           ),
         );
         await tester.pumpAndSettle();
@@ -267,10 +271,11 @@ void main() {
         // Renderiza os nomes dos clubes e placar normalmente
         expect(find.text('Flamengo'), findsOneWidget);
         expect(find.text('Fluminense'), findsOneWidget);
-        expect(find.text('2 - 1'), findsOneWidget);
+        expect(find.text('2'), findsOneWidget);
+        expect(find.text('1'), findsOneWidget);
 
-        // Utiliza ícones de escudo estilizados de fallback sem estourar exceções
-        expect(find.byIcon(Icons.shield), findsNWidgets(2));
+        expect(find.text('FLA'), findsOneWidget);
+        expect(find.text('FLU'), findsOneWidget);
       },
     );
 
@@ -278,9 +283,7 @@ void main() {
       tester,
     ) async {
       final fakeRepo = _FakeUserProfileRepository();
-      final auth = FakeAuthService(
-        usuarioInicial: FakeUser('user-teste'),
-      );
+      final auth = FakeAuthService(usuarioInicial: FakeUser('user-teste'));
       final profileService = UserProfileService(
         repository: fakeRepo,
         authService: auth,
@@ -296,9 +299,7 @@ void main() {
             Provider<UserProfileService>.value(value: profileService),
             Provider<FriendshipService>.value(value: friendshipService),
           ],
-          child: const MaterialApp(
-            home: PerfilScreen(),
-          ),
+          child: const MaterialApp(home: PerfilScreen()),
         ),
       );
 
@@ -316,6 +317,8 @@ void main() {
 
       final btnCreditos = find.byKey(const Key('perfil_informacoes_creditos'));
       await tester.scrollUntilVisible(btnCreditos, 200);
+      await tester.ensureVisible(btnCreditos);
+      await tester.pump();
       expect(btnCreditos, findsOneWidget);
 
       await tester.tap(btnCreditos);
@@ -333,9 +336,7 @@ void main() {
       tester,
     ) async {
       final fakeRepo = _FakeUserProfileRepository();
-      final auth = FakeAuthService(
-        usuarioInicial: FakeUser('user-teste'),
-      );
+      final auth = FakeAuthService(usuarioInicial: FakeUser('user-teste'));
       final profileService = UserProfileService(
         repository: fakeRepo,
         authService: auth,

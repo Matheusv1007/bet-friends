@@ -13,12 +13,28 @@ Os dois AVDs já existem nesta máquina (`flutter emulators`). Em outra máquina
 
 ## 0. Antes de começar
 
+Execute `flutter pub get` e `flutter run` na pasta **`bet-friends`**, onde está o `pubspec.yaml`. Se o terminal estiver em `Projeto-Final`, entre com `cd bet-friends`. Abrir o emulador não muda a pasta do terminal. A ausência do Chrome no `flutter doctor` não impede executar no Android.
+
 ```bash
 flutter pub get
 flutter doctor        # Flutter e Android toolchain sem problemas
 ```
 
 Tenha **duas contas de teste que sejam amigas** ou que possam virar amigas durante a demonstração (e-mails fictícios; combine com a equipe antes de criar contas novas). Sem amizade aceita, o desafio não pode ser enviado.
+
+### 0.1 Erro de recurso Android após atualizar o app
+
+Se o build falhar com `resource drawable/launch_background not found` após a mudança do splash, mesmo com `android/app/src/main/res/drawable/launch_background.xml` presente, o cache incremental pode ainda apontar para a antiga variante `drawable-v21`.
+
+Encerre os `flutter run` dos dois terminais antes de limpar a pasta de build compartilhada. Na raiz do projeto, execute **uma vez**:
+
+```bash
+flutter clean
+flutter pub get
+flutter run -d emulator-5554
+```
+
+Espere a primeira instância abrir antes de iniciar a segunda. A limpeza remove artefatos gerados, não contas, dados do Firebase ou emuladores. Não é necessário trocar o Java/Kotlin por causa desse erro de recurso.
 
 ## 1. Abrir os dois emuladores
 
@@ -65,7 +81,7 @@ Em cada terminal: `r` hot reload, `R` hot restart, `q` encerra só aquela instâ
 
 ## 4. Roteiro da demonstração com as duas contas
 
-Faça login na **conta A** no emulador 1 e na **conta B** no emulador 2. A barra inferior tem **Home / Desafios / Perfil**.
+Faça login na **conta A** no emulador 1 e na **conta B** no emulador 2. A barra inferior tem **Home / Desafiar / Perfil**.
 
 | # | Onde | Ação | O que mostrar |
 |---|---|---|---|
@@ -73,8 +89,8 @@ Faça login na **conta A** no emulador 1 e na **conta B** no emulador 2. A barra
 | 2 | A | Perfil → **BUSCAR AMIGOS** → buscar por nome ou `@username` da B → enviar solicitação | Pedido de amizade criado |
 | 3 | B | Perfil → **SOLICITAÇÕES DE AMIZADE** → **Aceitar** | Aparece "Agora você e {nome} são amigos!" |
 | 4 | A e B | Perfil → **MEUS AMIGOS** | Cada um vê o outro na lista |
-| 5 | A | Criar um desafio (Home → "Desafio Rápido 1v1", ou **DESAFIAR NESTA PARTIDA** na partida): escolher amigo (B), partida, palpite e valor → **ENVIAR DESAFIO** | Desafio enviado; aparece como pendente enviado na Home da A |
-| 6 | B | Home → desafios **recebidos** pendentes → abrir → **Aceitar Desafio** (ou **RECUSAR DESAFIO**) | O desafio passa a ativo para os dois; o saldo reflete a reserva |
+| 5 | A | **Novo desafio** na Home, aba **Desafiar**, ou **Desafiar nesta partida** nos detalhes: escolher amigo (B), partida, palpite e valor → **Enviar desafio** | Desafio enviado; aparece como pendente enviado na Home da A |
+| 6 | B | Home → recebidos → **Responder** → **Confirmar e aceitar** (ou **Recusar**, com confirmação, na lista) | O desafio passa a ativo para os dois; o saldo reflete a reserva |
 | 7 | A e B | Home → desafios ativos → detalhes do desafio | Os dois lados veem o mesmo desafio |
 
 > Os nomes dos botões vêm do código em `lib/` (`tela_amigos/`, `tela_criar_desafio/`, `widgets_home_page/`), mas **este roteiro não foi ensaiado ponta a ponta**. Faça um ensaio antes de apresentar e ajuste a tabela ao que a tela realmente mostra. O estado real de cada funcionalidade está em [`entrega-2/funcionalidades.md`](entrega-2/funcionalidades.md), com data de 01/11, anterior ao código atual da `qas`.

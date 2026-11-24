@@ -22,8 +22,13 @@ import 'support/fake_auth.dart';
 class _RepositorioControlado implements UserProfileRepository {
   final _emissoes = StreamController<PerfilObservado>.broadcast();
 
-  void emitir(UserProfile? perfil, {Carteira? carteira, bool doCache = false}) =>
-      _emissoes.add(PerfilObservado(perfil, carteira: carteira, doCache: doCache));
+  void emitir(
+    UserProfile? perfil, {
+    Carteira? carteira,
+    bool doCache = false,
+  }) => _emissoes.add(
+    PerfilObservado(perfil, carteira: carteira, doCache: doCache),
+  );
 
   void falhar(UserProfileException erro) => _emissoes.addError(erro);
 
@@ -39,12 +44,12 @@ class _RepositorioControlado implements UserProfileRepository {
 }
 
 UserProfile _perfil(String displayName) => UserProfile(
-      uid: 'uid-ana',
-      displayName: displayName,
-      username: 'AnaL',
-      usernameNormalized: 'anal',
-      email: 'ana@example.com',
-    );
+  uid: 'uid-ana',
+  displayName: displayName,
+  username: 'AnaL',
+  usernameNormalized: 'anal',
+  email: 'ana@example.com',
+);
 
 String _saudacao(WidgetTester tester) =>
     tester.widget<Text>(find.byKey(const Key('home_saudacao'))).data!;
@@ -62,33 +67,48 @@ void main() {
 
   Future<void> abrirHome(WidgetTester tester) async {
     final auth = FakeAuthService(usuarioInicial: FakeUser('uid-ana'));
-    await tester.pumpWidget(App(
-      authService: auth,
-      partidasService: CountingPartidasService(),
-      userProfileService: UserProfileService(authService: auth, repository: repositorio),
-    ));
+    await tester.pumpWidget(
+      App(
+        authService: auth,
+        partidasService: CountingPartidasService(),
+        userProfileService: UserProfileService(
+          authService: auth,
+          repository: repositorio,
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(Homepage), findsOneWidget);
   }
 
   // Descarta a Home e o timer de atualização das partidas
-  Future<void> encerrar(WidgetTester tester) => tester.pumpWidget(const SizedBox());
+  Future<void> encerrar(WidgetTester tester) =>
+      tester.pumpWidget(const SizedBox());
 
   group('barra de navegação', () {
     testWidgets('tem só Home, Desafios e Perfil, sem Ranking', (tester) async {
       await abrirHome(tester);
 
-      final barra = tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar));
-      expect(barra.items.map((i) => i.label), ['Home', 'Desafios', 'Perfil']);
+      final barra = tester.widget<BottomNavigationBar>(
+        find.byType(BottomNavigationBar),
+      );
+      expect(barra.items.map((i) => i.label), ['Home', 'Desafiar', 'Perfil']);
       expect(find.text('Ranking'), findsNothing);
 
       await encerrar(tester);
     });
 
-    testWidgets('Desafios abre Criar Desafio e Voltar retorna à Home', (tester) async {
+    testWidgets('Desafios abre Criar Desafio e Voltar retorna à Home', (
+      tester,
+    ) async {
       await abrirHome(tester);
 
-      await tester.tap(find.text('Desafios'));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(BottomNavigationBar),
+          matching: find.text('Desafiar'),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.byType(CriarDesafioScreen), findsOneWidget);
 
@@ -118,26 +138,38 @@ void main() {
       await tester.tap(find.text('Home'));
       await tester.pumpAndSettle();
       expect(find.byType(Homepage), findsOneWidget);
-      expect(tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar)).currentIndex, 0);
+      expect(
+        tester
+            .widget<BottomNavigationBar>(find.byType(BottomNavigationBar))
+            .currentIndex,
+        0,
+      );
 
       await encerrar(tester);
     });
   });
 
   group('cabeçalho', () {
-    testWidgets('sem valores fixos: nada de "Olá, Pedro" nem "1.500 fichas"', (tester) async {
+    testWidgets('sem valores fixos: nada de "Olá, Pedro" nem "1.500 fichas"', (
+      tester,
+    ) async {
       await abrirHome(tester);
 
       expect(find.text('Olá, Pedro'), findsNothing);
       expect(find.textContaining('1.500'), findsNothing);
       expect(find.textContaining('1.000'), findsNothing);
       expect(find.textContaining('fichas'), findsNothing);
-      expect(tester.widget<Text>(find.byKey(const Key('home_saldo'))).data, 'Saldo indisponível');
+      expect(
+        tester.widget<Text>(find.byKey(const Key('home_saldo'))).data,
+        'Saldo indisponível',
+      );
 
       await encerrar(tester);
     });
 
-    testWidgets('mostra o nome de exibição do perfil quando disponível', (tester) async {
+    testWidgets('mostra o nome de exibição do perfil quando disponível', (
+      tester,
+    ) async {
       await abrirHome(tester);
       expect(_saudacao(tester), 'Olá!', reason: 'neutra enquanto carrega');
 
@@ -153,7 +185,9 @@ void main() {
       await encerrar(tester);
     });
 
-    testWidgets('perfil inexistente: saudação neutra, sem criar perfil', (tester) async {
+    testWidgets('perfil inexistente: saudação neutra, sem criar perfil', (
+      tester,
+    ) async {
       await abrirHome(tester);
       repositorio.emitir(null);
       await entregar(tester);
@@ -164,37 +198,54 @@ void main() {
       await encerrar(tester);
     });
 
-    testWidgets('perfil indisponível (sem conexão): saudação neutra, sem erro na Home', (tester) async {
+    testWidgets(
+      'perfil indisponível (sem conexão): saudação neutra, sem erro na Home',
+      (tester) async {
+        await abrirHome(tester);
+        repositorio.emitir(_perfil('Ana Lima'));
+        await entregar(tester);
+        repositorio.falhar(
+          const UserProfileException(UserProfileErrorCode.unavailable, 'x'),
+        );
+        await entregar(tester);
+
+        expect(_saudacao(tester), 'Olá!');
+        expect(find.text('PARTIDAS'), findsOneWidget);
+
+        await encerrar(tester);
+      },
+    );
+
+    testWidgets(
+      'sem o serviço de perfil, a Home funciona com saudação neutra',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ChangeNotifierProvider(
+              create: (_) =>
+                  PartidasProvider(partidasService: CountingPartidasService()),
+              child: const Homepage(),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(_saudacao(tester), 'Olá!');
+        expect(
+          tester.widget<Text>(find.byKey(const Key('home_saldo'))).data,
+          'Saldo indisponível',
+        );
+
+        await encerrar(tester);
+      },
+    );
+
+    testWidgets('mostra saldo, reserva e total da carteira', (tester) async {
       await abrirHome(tester);
-      repositorio.emitir(_perfil('Ana Lima'));
-      await entregar(tester);
-      repositorio.falhar(const UserProfileException(UserProfileErrorCode.unavailable, 'x'));
-      await entregar(tester);
-
-      expect(_saudacao(tester), 'Olá!');
-      expect(find.text('PARTIDAS'), findsOneWidget);
-
-      await encerrar(tester);
-    });
-
-    testWidgets('sem o serviço de perfil, a Home funciona com saudação neutra', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: ChangeNotifierProvider(
-          create: (_) => PartidasProvider(partidasService: CountingPartidasService()),
-          child: const Homepage(),
-        ),
-      ));
-      await tester.pump();
-
-      expect(_saudacao(tester), 'Olá!');
-      expect(tester.widget<Text>(find.byKey(const Key('home_saldo'))).data, 'Saldo indisponível');
-
-      await encerrar(tester);
-    });
-
-    testWidgets('mostra o saldo da carteira quando disponível e abre os detalhes', (tester) async {
-      await abrirHome(tester);
-      expect(tester.widget<Text>(find.byKey(const Key('home_saldo'))).data, 'Saldo indisponível');
+      expect(
+        tester.widget<Text>(find.byKey(const Key('home_saldo'))).data,
+        'Saldo indisponível',
+      );
 
       repositorio.emitir(
         _perfil('Ana Lima'),
@@ -202,12 +253,16 @@ void main() {
       );
       await entregar(tester);
 
-      expect(tester.widget<Text>(find.byKey(const Key('home_saldo'))).data, '750 BetCoins');
-      expect(find.byKey(const Key('card_carteira_container')), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('home_saldo')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('carteira_saldo_disponivel')), findsWidgets);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('home_saldo'))).data,
+        '750',
+      );
+      expect(find.byKey(const Key('home_bloco_saldo')), findsOneWidget);
+      final apoio = tester.widget<Text>(
+        find.byKey(const Key('home_saldo_reservado_total')),
+      );
+      expect(apoio.textSpan!.toPlainText(), contains('250'));
+      expect(apoio.textSpan!.toPlainText(), contains('1.000'));
 
       await encerrar(tester);
     });
@@ -224,13 +279,22 @@ void main() {
     });
   });
 
-  testWidgets('falha de desafios mostra mensagem e retry, nunca dados demonstrativos', (tester) async {
-    await abrirHome(tester);
+  testWidgets(
+    'falha de desafios mostra mensagem e retry, nunca dados demonstrativos',
+    (tester) async {
+      await abrirHome(tester);
 
-    await tester.scrollUntilVisible(find.text('Não foi possível carregar os desafios.'), 300);
-    expect(find.text('Tentar novamente'), findsOneWidget);
-    expect(find.byKey(const Key('desafios_ativos_demonstrativo')), findsNothing);
+      await tester.scrollUntilVisible(
+        find.text('Não foi possível carregar os desafios.'),
+        300,
+      );
+      expect(find.text('Tentar novamente'), findsOneWidget);
+      expect(
+        find.byKey(const Key('desafios_ativos_demonstrativo')),
+        findsNothing,
+      );
 
-    await encerrar(tester);
-  });
+      await encerrar(tester);
+    },
+  );
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/user_profile.dart';
+import '../tema/tema.dart';
 
 class CabecalhoDoPerfil extends StatelessWidget {
   final UserProfile perfil;
@@ -9,51 +10,46 @@ class CabecalhoDoPerfil extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primaryGreen = Color(0xFF00D084);
-    const textMuted = Color(0xFF8E9CAB);
     final inicial = perfil.displayName.trim().characters.first.toUpperCase();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
       children: [
-        Center(
-          child: Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: primaryGreen, width: 2),
+        Container(
+          width: 56,
+          height: 56,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: CoresApp.superficie2,
+          ),
+          child: ExcludeSemantics(
+            child: Text(
+              inicial,
+              style: TextoApp.tituloDeTela.copyWith(color: CoresApp.texto),
             ),
-            child: CircleAvatar(
-              radius: 44,
-              backgroundColor: const Color(0xFF334155),
-              child: Text(
-                inicial,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                ),
+          ),
+        ),
+        const SizedBox(width: EspacosApp.e16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                perfil.displayName,
+                key: const Key('perfil_display_name'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextoApp.tituloDeTela.copyWith(color: CoresApp.texto),
               ),
-            ),
+              Text(
+                '@${perfil.username}',
+                key: const Key('perfil_username'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextoApp.corpo.copyWith(color: CoresApp.textoSuave),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          perfil.displayName,
-          key: const Key('perfil_display_name'),
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '@${perfil.username}',
-          key: const Key('perfil_username'),
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: textMuted, fontSize: 15),
         ),
       ],
     );

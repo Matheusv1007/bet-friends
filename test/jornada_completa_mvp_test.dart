@@ -96,7 +96,11 @@ class _ControladorDePerfis implements UserProfileRepository {
     _emitir(uid);
   }
 
-  void atualizarCarteira(String uid, {required int disponivel, required int reservado}) {
+  void atualizarCarteira(
+    String uid, {
+    required int disponivel,
+    required int reservado,
+  }) {
     _carteiras[uid] = Carteira(
       saldoTotal: disponivel + reservado,
       saldoReservado: reservado,
@@ -116,7 +120,9 @@ class _ControladorDePerfis implements UserProfileRepository {
     if (controller != null && !controller.isClosed) {
       final perfil = _perfis[uid];
       final carteira = _carteiras[uid];
-      controller.add(PerfilObservado(perfil, carteira: carteira, doCache: _offline));
+      controller.add(
+        PerfilObservado(perfil, carteira: carteira, doCache: _offline),
+      );
     }
   }
 
@@ -125,7 +131,10 @@ class _ControladorDePerfis implements UserProfileRepository {
     final perfil = _perfis[uid];
     final carteira = _carteiras[uid];
     yield PerfilObservado(perfil, carteira: carteira, doCache: _offline);
-    final controller = _streams.putIfAbsent(uid, () => StreamController<PerfilObservado>.broadcast());
+    final controller = _streams.putIfAbsent(
+      uid,
+      () => StreamController<PerfilObservado>.broadcast(),
+    );
     yield* controller.stream;
   }
 
@@ -192,30 +201,33 @@ class _ControladorDeAmizades implements FriendshipRepository {
   }
 
   @override
-  Future<ResultadoAceiteAmizade> aceitarSolicitacaoAmizade(String solicitacaoId) async =>
-      ResultadoAceiteAmizade(
-        friendshipId: solicitacaoId,
-        userAId: 'origem',
-        userBId: _uidAtual ?? '',
-        status: FriendshipStatus.accepted,
-      );
+  Future<ResultadoAceiteAmizade> aceitarSolicitacaoAmizade(
+    String solicitacaoId,
+  ) async => ResultadoAceiteAmizade(
+    friendshipId: solicitacaoId,
+    userAId: 'origem',
+    userBId: _uidAtual ?? '',
+    status: FriendshipStatus.accepted,
+  );
 
   @override
-  Future<ResultadoRecusaAmizade> recusarSolicitacaoAmizade(String solicitacaoId) async =>
-      ResultadoRecusaAmizade(
-        friendshipId: solicitacaoId,
-        userAId: 'origem',
-        userBId: _uidAtual ?? '',
-        status: FriendshipStatus.rejected,
-      );
+  Future<ResultadoRecusaAmizade> recusarSolicitacaoAmizade(
+    String solicitacaoId,
+  ) async => ResultadoRecusaAmizade(
+    friendshipId: solicitacaoId,
+    userAId: 'origem',
+    userBId: _uidAtual ?? '',
+    status: FriendshipStatus.rejected,
+  );
 
   @override
-  Future<ResultadoEnvioAmizade> enviarSolicitacaoAmizade(String toUserId) async =>
-      const ResultadoEnvioAmizade(
-        friendshipId: 'solic-nova',
-        status: FriendshipStatus.pending,
-        autoAccepted: false,
-      );
+  Future<ResultadoEnvioAmizade> enviarSolicitacaoAmizade(
+    String toUserId,
+  ) async => const ResultadoEnvioAmizade(
+    friendshipId: 'solic-nova',
+    status: FriendshipStatus.pending,
+    autoAccepted: false,
+  );
 }
 
 class _ControladorDeBusca implements UserSearchRepository {
@@ -230,7 +242,8 @@ class _ControladorDeBusca implements UserSearchRepository {
     final t = termo.trim().toLowerCase().replaceFirst('@', '');
     return bancoUsuarios.where((u) {
       if (u.userId == usuarioAtualUid) return false;
-      return u.username.toLowerCase().contains(t) || u.displayName.toLowerCase().contains(t);
+      return u.username.toLowerCase().contains(t) ||
+          u.displayName.toLowerCase().contains(t);
     }).toList();
   }
 }
@@ -256,7 +269,10 @@ class _FakeChallengeRepository implements ChallengeRepository {
   Stream<List<ChallengeModel>> observarDesafiosDoUsuario(String uid) async* {
     final lista = _desafios.where((c) => c.temParticipante(uid)).toList();
     yield List.from(lista);
-    final controller = _streams.putIfAbsent(uid, () => StreamController<List<ChallengeModel>>.broadcast());
+    final controller = _streams.putIfAbsent(
+      uid,
+      () => StreamController<List<ChallengeModel>>.broadcast(),
+    );
     yield* controller.stream;
   }
 
@@ -274,13 +290,21 @@ class _FakeChallengeRepository implements ChallengeRepository {
   Future<List<AmigoItem>> listarAmigosAceitos(String uid) async {
     return (_perfis._perfis.values)
         .where((p) => p.uid != uid)
-        .map((p) => AmigoItem(uid: p.uid, displayName: p.displayName, username: p.username))
+        .map(
+          (p) => AmigoItem(
+            uid: p.uid,
+            displayName: p.displayName,
+            username: p.username,
+          ),
+        )
         .toList();
   }
 
   @override
   Future<CriarDesafioResponse> criarDesafio(CriarDesafioRequest request) async {
-    final criadorUid = request.challengedId == 'b9Wx4k6J1nTs' ? 'a7Qz2r8P0xLm' : 'b9Wx4k6J1nTs';
+    final criadorUid = request.challengedId == 'b9Wx4k6J1nTs'
+        ? 'a7Qz2r8P0xLm'
+        : 'b9Wx4k6J1nTs';
     final saldoAtual = _perfis._carteiras[criadorUid];
     if (saldoAtual != null) {
       _perfis.atualizarCarteira(
@@ -317,7 +341,9 @@ class _FakeChallengeRepository implements ChallengeRepository {
   }
 
   @override
-  Future<AceitarDesafioResponse> aceitarDesafio(AceitarDesafioRequest request) async {
+  Future<AceitarDesafioResponse> aceitarDesafio(
+    AceitarDesafioRequest request,
+  ) async {
     final index = _desafios.indexWhere((c) => c.id == request.challengeId);
     final desafio = _desafios[index];
     final desafiadoUid = desafio.challengedId;
@@ -383,7 +409,10 @@ class _FakeChallengeRepository implements ChallengeRepository {
       updatedAt: DateTime.now(),
     );
     notificar();
-    return EncerrarDesafioResponse(challengeId: challengeId, status: StatusDesafio.rejected);
+    return EncerrarDesafioResponse(
+      challengeId: challengeId,
+      status: StatusDesafio.rejected,
+    );
   }
 
   @override
@@ -411,7 +440,10 @@ class _FakeChallengeRepository implements ChallengeRepository {
       updatedAt: DateTime.now(),
     );
     notificar();
-    return EncerrarDesafioResponse(challengeId: challengeId, status: StatusDesafio.cancelled);
+    return EncerrarDesafioResponse(
+      challengeId: challengeId,
+      status: StatusDesafio.cancelled,
+    );
   }
 
   void resolverPartidaEFinalizarDesafio({
@@ -540,12 +572,20 @@ void main() {
     // Ana tem Bia como amiga aceita
     amizadesRepo.adicionarAmizadeAceita(
       'a7Qz2r8P0xLm',
-      const UsuarioPublico(userId: 'b9Wx4k6J1nTs', displayName: 'Bia Rocha', username: 'BiaR'),
+      const UsuarioPublico(
+        userId: 'b9Wx4k6J1nTs',
+        displayName: 'Bia Rocha',
+        username: 'BiaR',
+      ),
     );
     // Bia tem Ana como amiga aceita
     amizadesRepo.adicionarAmizadeAceita(
       'b9Wx4k6J1nTs',
-      const UsuarioPublico(userId: 'a7Qz2r8P0xLm', displayName: 'Ana Lima', username: 'AnaL'),
+      const UsuarioPublico(
+        userId: 'a7Qz2r8P0xLm',
+        displayName: 'Ana Lima',
+        username: 'AnaL',
+      ),
     );
   });
 
@@ -580,7 +620,10 @@ void main() {
       // Home carrega com a saudação de Ana e carteira de Ana
       expect(find.text('Olá, Ana Lima'), findsOneWidget);
       expect(find.byKey(const Key('home_saldo')), findsOneWidget);
-      expect(tester.widget<Text>(find.byKey(const Key('home_saldo'))).data, '1000 BetCoins');
+      expect(
+        tester.widget<Text>(find.byKey(const Key('home_saldo'))).data,
+        '1.000',
+      );
 
       // ----------------------------------------------------------------------
       // PASSO 2: Navegação Home -> Perfil -> Meus Amigos
@@ -591,7 +634,7 @@ void main() {
 
       expect(find.byType(PerfilScreen), findsOneWidget);
       expect(find.text('Ana Lima'), findsWidgets);
-      expect(find.text('@AnaL'), findsOneWidget);
+      expect(find.text('@AnaL'), findsNWidgets(2)); // cabeçalho e grupo Dados
 
       // Abre a lista de amigos a partir do Perfil
       await tester.tap(find.byKey(const Key('perfil_meus_amigos')));
@@ -604,7 +647,9 @@ void main() {
       // ----------------------------------------------------------------------
       // PASSO 3: Clicar em "DESAFIAR" no card de Bia -> Abre CriarDesafioScreen com Bia pré-selecionada
       // ----------------------------------------------------------------------
-      final btnDesafiarBia = find.byKey(const Key('btn_desafiar_amigo_b9Wx4k6J1nTs'));
+      final btnDesafiarBia = find.byKey(
+        const Key('btn_desafiar_amigo_b9Wx4k6J1nTs'),
+      );
       expect(btnDesafiarBia, findsOneWidget);
       await tester.tap(btnDesafiarBia);
       await tester.pumpAndSettle();
@@ -653,10 +698,16 @@ void main() {
       expect(find.byType(Homepage), findsOneWidget);
 
       // Carteira de Ana foi atualizada: 900 BetCoins disponíveis (100 reservadas)
-      expect(tester.widget<Text>(find.byKey(const Key('home_saldo'))).data, '900 BetCoins');
+      expect(
+        tester.widget<Text>(find.byKey(const Key('home_saldo'))).data,
+        '900',
+      );
 
       // Na Home de Ana, a seção de Desafios Enviados exibe o desafio pendente
-      expect(find.text('DESAFIOS ENVIADOS'), findsOneWidget);
+      expect(
+        find.byKey(const Key('card_desafio_enviado_desafio-1')),
+        findsOneWidget,
+      );
       expect(find.text('Aguardando Bia Rocha'), findsOneWidget);
 
       // ----------------------------------------------------------------------
@@ -684,17 +735,26 @@ void main() {
       amizadesRepo.definirUidAtual('b9Wx4k6J1nTs');
       await tester.enterText(find.byType(TextField).first, 'bia@example.com');
       await tester.enterText(find.byType(TextField).last, 'senha123');
-      await tester.tap(find.widgetWithText(ElevatedButton, 'ENTRAR'));
+      await tester.tap(find.byKey(const Key('login_entrar')));
       await tester.pumpAndSettle();
 
       // Home agora é a de Bia Rocha
       expect(find.byType(Homepage), findsOneWidget);
       expect(find.text('Olá, Bia Rocha'), findsOneWidget);
-      expect(tester.widget<Text>(find.byKey(const Key('home_saldo'))).data, '1000 BetCoins'); // Saldo disponível de Bia
+      expect(
+        tester.widget<Text>(find.byKey(const Key('home_saldo'))).data,
+        '1.000',
+      ); // Saldo disponível de Bia
 
       // Home de Bia destaca o desafio recebido de Ana!
-      expect(find.text('DESAFIOS RECEBIDOS'), findsOneWidget);
-      expect(find.byKey(const Key('btn_responder_desafio_desafio-1')), findsOneWidget);
+      expect(
+        find.byKey(const Key('home_desafios_recebidos_pendentes')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('btn_responder_desafio_desafio-1')),
+        findsOneWidget,
+      );
 
       // ----------------------------------------------------------------------
       // PASSO 6: Bia abre o modal e aceita o desafio
@@ -703,11 +763,19 @@ void main() {
         find.byKey(const Key('btn_responder_desafio_desafio-1')),
         200,
       );
-      await tester.tap(find.byKey(const Key('btn_responder_desafio_desafio-1')));
+      await tester.tap(
+        find.byKey(const Key('btn_responder_desafio_desafio-1')),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byType(ModalAceitarDesafio), findsOneWidget);
-      expect(find.text('Valor apostado: 100 BetCoins'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('modal_aceitar_valor')),
+          matching: find.text('100 BetCoins'),
+        ),
+        findsOneWidget,
+      );
 
       // Seleciona o palpite permitido (Vitória Visitante)
       final palpiteVisitante = find.text('Vitória Visitante');
@@ -716,7 +784,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Confirma e aceita o desafio
-      final btnConfirmarAceite = find.text('CONFIRMAR E ACEITAR');
+      final btnConfirmarAceite = find.byKey(const Key('btn_confirmar_aceite'));
       expect(btnConfirmarAceite, findsOneWidget);
       await tester.tap(btnConfirmarAceite);
       await tester.pumpAndSettle();
@@ -726,12 +794,18 @@ void main() {
       expect(find.byType(Homepage), findsOneWidget);
 
       // Carteira de Bia foi atualizada: 100 reservadas, 900 disponíveis
-      expect(tester.widget<Text>(find.byKey(const Key('home_saldo'))).data, '900 BetCoins');
+      expect(
+        tester.widget<Text>(find.byKey(const Key('home_saldo'))).data,
+        '900',
+      );
 
       // O desafio evoluiu para Aceito e foi para a seção "DESAFIOS EM ABERTO"
       expect(find.byKey(const Key('home_desafios_em_aberto')), findsOneWidget);
-      expect(find.text('DESAFIOS EM ABERTO'), findsOneWidget);
-      expect(find.text('Aceito'), findsOneWidget);
+      expect(find.byKey(const Key('home_desafios_em_aberto')), findsOneWidget);
+      expect(
+        find.byKey(const Key('card_desafio_aberto_desafio-1')),
+        findsOneWidget,
+      );
 
       // ----------------------------------------------------------------------
       // PASSO 7: Encerramento do desafio e validação dos resultados
@@ -745,8 +819,14 @@ void main() {
       await tester.pumpAndSettle();
 
       // Na Home de Bia, o desafio aparece na seção de DESAFIOS FINALIZADOS
-      expect(find.byKey(const Key('home_desafios_finalizados')), findsOneWidget);
-      expect(find.text('DESAFIOS FINALIZADOS'), findsOneWidget);
+      expect(
+        find.byKey(const Key('home_desafios_finalizados')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('home_desafios_finalizados')),
+        findsOneWidget,
+      );
 
       // ----------------------------------------------------------------------
       // PASSO 8: Navegação até Informações e Créditos (RNF-011, RNF-012, D-015)
@@ -765,7 +845,10 @@ void main() {
 
       expect(find.byType(TelaInformacoesCreditos), findsOneWidget);
       // Validar atribuição exata e obrigatória
-      expect(find.text('Dados fornecidos por football-data.org'), findsOneWidget);
+      expect(
+        find.text('Dados fornecidos por football-data.org'),
+        findsOneWidget,
+      );
 
       // Retorna em segurança
       await tester.tap(find.byTooltip('Voltar'));

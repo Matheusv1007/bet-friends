@@ -1,8 +1,14 @@
 import 'package:betfriends/models/partida_model.dart';
+import 'package:betfriends/tema/tema.dart';
+import 'package:betfriends/widgets/componentes.dart';
 import 'package:betfriends/widgets_home_page/card_de_partidas.dart';
 import 'package:flutter/material.dart';
 
 /// Estados de carregamento e lista de partidas exibidos na Home.
+///
+/// As partidas formam um grupo único em superfície 1, com filetes entre as
+/// linhas. Sem [mostrarTodas] aparecem as 3 primeiras; o controle que alterna
+/// é o "Ver todas" do cabeçalho da seção (`Appbardaspartidas`).
 class ListaPartidasHome extends StatelessWidget {
   final List<PartidaModel> partidas;
   final bool isLoading;
@@ -11,7 +17,6 @@ class ListaPartidasHome extends StatelessWidget {
   final String? refreshErrorMessage;
   final bool mostrarTodas;
   final VoidCallback onRecarregar;
-  final VoidCallback onAlternarPartidas;
 
   const ListaPartidasHome({
     super.key,
@@ -22,261 +27,185 @@ class ListaPartidasHome extends StatelessWidget {
     required this.refreshErrorMessage,
     required this.mostrarTodas,
     required this.onRecarregar,
-    required this.onAlternarPartidas,
+  });
+
+  /// Partidas visíveis sem "Ver todas".
+  static const int partidasIniciais = 3;
+
+  @override
+  Widget build(BuildContext context) {
+    // 1. Carregando
+    if (isLoading && partidas.isEmpty) {
+      return Semantics(
+        label: 'Carregando partidas',
+        liveRegion: true,
+        child: ExcludeSemantics(
+          child: _Grupo(
+            child: Column(
+              children: [
+                for (var linha = 0; linha < 3; linha++)
+                  Padding(
+                    padding: const EdgeInsets.all(EspacosApp.e16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var time = 0; time < 2; time++) ...[
+                          const SizedBox(height: EspacosApp.e8),
+                          FractionallySizedBox(
+                            widthFactor: time == 0 ? .75 : .6,
+                            child: const DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: CoresApp.superficie2,
+                                borderRadius: RaiosApp.bordaTag,
+                              ),
+                              child: SizedBox(height: EspacosApp.e20),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 2. Erro
+    if (errorMessage != null && partidas.isEmpty) {
+      return _EstadoDaLista(
+        icone: Icons.error_outline,
+        corDoIcone: CoresApp.destrutivo,
+        titulo: 'Erro ao carregar partidas',
+        mensagem: errorMessage!,
+        acao: BotaoSecundario(
+          rotulo: 'Tentar novamente',
+          icone: Icons.refresh,
+          pequeno: true,
+          onPressed: onRecarregar,
+        ),
+      );
+    }
+
+    // 3. Vazio
+    if (partidas.isEmpty) {
+      return _EstadoDaLista(
+        icone: Icons.sports_soccer,
+        corDoIcone: CoresApp.textoSuave,
+        titulo: 'Nenhuma partida disponível',
+        mensagem: 'Não encontramos partidas disponíveis no momento.',
+        acao: BotaoSecundario(
+          rotulo: 'Atualizar',
+          icone: Icons.refresh,
+          pequeno: true,
+          onPressed: onRecarregar,
+        ),
+      );
+    }
+
+    // 4. Partidas
+    final exibidas = mostrarTodas
+        ? partidas
+        : partidas.take(partidasIniciais).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (hasRefreshError) ...[
+          AvisoInline(
+            refreshErrorMessage ?? 'Falha ao atualizar dados mais recentes.',
+            Tom.atencao,
+            acao: BotaoTexto(
+              rotulo: 'Recarregar',
+              pequeno: true,
+              onPressed: onRecarregar,
+            ),
+          ),
+          const SizedBox(height: EspacosApp.e12),
+        ],
+        _Grupo(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < exibidas.length; i++) ...[
+                if (i > 0)
+                  const Divider(
+                    height: 1,
+                    indent: EspacosApp.e16,
+                    endIndent: EspacosApp.e16,
+                  ),
+                Carddepartidas(partida: exibidas[i]),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Superfície 1 com raio de cartão; recorta o realce do toque das linhas.
+class _Grupo extends StatelessWidget {
+  final Widget child;
+
+  const _Grupo({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: CoresApp.superficie1,
+      borderRadius: RaiosApp.bordaCartao,
+      clipBehavior: Clip.antiAlias,
+      child: child,
+    );
+  }
+}
+
+class _EstadoDaLista extends StatelessWidget {
+  final IconData icone;
+  final Color corDoIcone;
+  final String titulo;
+  final String mensagem;
+  final Widget acao;
+
+  const _EstadoDaLista({
+    required this.icone,
+    required this.corDoIcone,
+    required this.titulo,
+    required this.mensagem,
+    required this.acao,
   });
 
   @override
   Widget build(BuildContext context) {
-    // 1. Estado de carregando
-    if (isLoading &&
-        partidas.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32.0),
-          child: CircularProgressIndicator(
-            color: Color(0xFF00D084),
-          ),
-        ),
-      );
-    }
-
-    // 2. Estado de erro
-    if (errorMessage != null &&
-        partidas.isEmpty) {
-      return Container(
-        width: double.infinity,
+    return _Grupo(
+      child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 24,
-        ),
-        decoration: BoxDecoration(
-          color: const Color(0xFF151E2E),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.05),
-            width: 1,
-          ),
+          horizontal: EspacosApp.e20,
+          vertical: EspacosApp.e24,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline,
-              color: Color(0xFFEF4444),
-              size: 36,
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              "Erro ao carregar partidas",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-              ),
-            ),
-            const SizedBox(height: 6),
+            Icon(icone, color: corDoIcone, size: 32),
+            const SizedBox(height: EspacosApp.e12),
             Text(
-              errorMessage!,
+              titulo,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF8E9CAB),
-                fontSize: 12,
-              ),
+              style: TextoApp.corpoForte.copyWith(color: CoresApp.texto),
             ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: onRecarregar,
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text(
-                "TENTAR NOVAMENTE",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00D084),
-                foregroundColor: const Color(0xFF062319),
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+            const SizedBox(height: EspacosApp.e4),
+            Text(
+              mensagem,
+              textAlign: TextAlign.center,
+              style: TextoApp.secundario,
             ),
+            const SizedBox(height: EspacosApp.e16),
+            acao,
           ],
         ),
-      );
-    }
-
-    // 3. Estado vazio (nenhuma partida encontrada)
-    if (partidas.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 24,
-        ),
-        decoration: BoxDecoration(
-          color: const Color(0xFF151E2E),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.05),
-            width: 1,
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.sports_soccer,
-              color: Color(0xFF94A3B8),
-              size: 36,
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              "Nenhuma partida disponível",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              "Não encontramos partidas disponíveis no momento.",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Color(0xFF8E9CAB),
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: onRecarregar,
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text(
-                "ATUALIZAR",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00D084),
-                foregroundColor: const Color(0xFF062319),
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // 4. Partidas carregadas com sucesso
-    final baseList = partidas;
-    final listaParaExibir = mostrarTodas
-        ? baseList
-        : baseList.take(3).toList();
-
-    return Column(
-      children: [
-        if (hasRefreshError) ...[
-          Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 10,
-            ),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2A1C14),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: const Color(0xFFF59E0B)
-                    .withValues(alpha: 0.3),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.sync_problem,
-                  color: Color(0xFFF59E0B),
-                  size: 18,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    refreshErrorMessage ??
-                        "Falha ao atualizar dados mais recentes.",
-                    style: const TextStyle(
-                      color: Color(0xFFFDE68A),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                TextButton(
-                        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-                  onPressed: onRecarregar,
-                  child: const Text(
-                    "Recarregar",
-                    style: TextStyle(
-                      color: Color(0xFFF59E0B),
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-        ...listaParaExibir.map((partida) {
-          return Carddepartidas(partida: partida);
-        }),
-        if (baseList.length > 3) ...[
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: onAlternarPartidas,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00D084),
-                foregroundColor: const Color(0xFF062319),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              child: Text(
-                mostrarTodas
-                    ? "MOSTRAR MENOS"
-                    : "MAIS PARTIDAS",
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
+      ),
     );
   }
 }

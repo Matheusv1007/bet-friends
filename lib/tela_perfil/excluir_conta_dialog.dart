@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../provider/auth_provider.dart';
 import '../services/auth_service.dart';
+import '../tema/tema.dart';
+import '../widgets/componentes.dart';
 
 class ExcluirContaDialog extends StatefulWidget {
   final String username;
@@ -16,9 +18,19 @@ class ExcluirContaDialog extends StatefulWidget {
 class _ExcluirContaDialogState extends State<ExcluirContaDialog> {
   final _username = TextEditingController();
   final _senha = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
   bool _excluindo = false;
+
+  /// Erros sob cada campo; somem ao editar o campo.
+  String? _erroUsername;
+  String? _erroSenha;
+
+  /// Falha sem campo correspondente (conexão, desafio ativo, sessão).
   String? _erro;
+
+  static bool _senhaIncorreta(String code) =>
+      code == 'wrong-password' ||
+      code == 'invalid-credential' ||
+      code == 'invalid-login-credentials';
 
   @override
   void dispose() {
@@ -30,13 +42,22 @@ class _ExcluirContaDialogState extends State<ExcluirContaDialog> {
 
   Future<void> _excluir() async {
     if (_excluindo) return;
-    if (!_formKey.currentState!.validate()) {
+    final usernameConfere = _username.text == widget.username;
+    final senhaPreenchida = _senha.text.isNotEmpty;
+    if (!usernameConfere || !senhaPreenchida) {
       _senha.clear();
+      setState(() {
+        _erroUsername =
+            usernameConfere ? null : 'Digite seu username exatamente como exibido.';
+        _erroSenha = senhaPreenchida ? null : 'Informe sua senha atual.';
+      });
       return;
     }
     setState(() {
       _excluindo = true;
       _erro = null;
+      _erroUsername = null;
+      _erroSenha = null;
     });
     try {
       final exclusao = context.read<AuthProvider>().deleteAccount(
@@ -50,9 +71,13 @@ class _ExcluirContaDialogState extends State<ExcluirContaDialog> {
       if (!mounted) return;
       setState(() {
         _excluindo = false;
-        _erro = e is DeleteAccountException
-            ? e.message
-            : 'Não foi possível excluir a conta. Tente novamente.';
+        if (e is DeleteAccountException && _senhaIncorreta(e.code)) {
+          _erroSenha = e.message;
+        } else {
+          _erro = e is DeleteAccountException
+              ? e.message
+              : 'Não foi possível excluir a conta. Tente novamente.';
+        }
       });
     } finally {
       if (mounted) _senha.clear();
@@ -61,116 +86,74 @@ class _ExcluirContaDialogState extends State<ExcluirContaDialog> {
 
   @override
   Widget build(BuildContext context) {
-    const alerta = Color(0xFFEF4444);
-    const textoSecundario = Color(0xFF94A3B8);
-    const campo = InputDecoration(
-      filled: true,
-      fillColor: Color(0xFF0B111D),
-      border: OutlineInputBorder(),
-      labelStyle: TextStyle(color: textoSecundario),
-      errorMaxLines: 3,
-    );
-
     return PopScope(
       canPop: !_excluindo,
       child: AlertDialog(
-        backgroundColor: const Color(0xFF151E2E),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        scrollable: true,
+        // Margens menores para as duas ações caberem numa linha em 320 dp
+        insetPadding: const EdgeInsets.symmetric(horizontal: EspacosApp.e16, vertical: EspacosApp.e24),
+        actionsPadding: const EdgeInsets.fromLTRB(EspacosApp.e16, 0, EspacosApp.e16, EspacosApp.e16),
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: alerta),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Excluir conta',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            ),
+            Icon(Icons.warning_amber_rounded, color: CoresApp.destrutivo),
+            SizedBox(width: EspacosApp.e12),
+            Expanded(child: Text('Excluir conta')),
           ],
         ),
-        content: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Esta ação é permanente. Seu perfil, amizades e pedidos de '
-                  'amizade serão apagados. Seu username ficará livre. '
-                  'O extrato e os desafios encerrados permanecerão sem dados pessoais. '
-                  'A exclusão exige conexão com o servidor.',
-                  style: TextStyle(color: textoSecundario, height: 1.4),
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  key: const Key('excluir_conta_username'),
-                  controller: _username,
-                  enabled: !_excluindo,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: campo.copyWith(
-                    labelText: 'Digite seu username: ${widget.username}',
-                  ),
-                  validator: (valor) => valor == widget.username
-                      ? null
-                      : 'Digite seu username exatamente como exibido.',
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  key: const Key('excluir_conta_senha'),
-                  controller: _senha,
-                  enabled: !_excluindo,
-                  obscureText: true,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: campo.copyWith(labelText: 'Senha atual'),
-                  validator: (valor) => valor == null || valor.isEmpty
-                      ? 'Informe sua senha atual.'
-                      : null,
-                  onFieldSubmitted: (_) => _excluir(),
-                ),
-                if (_erro != null) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    _erro!,
-                    key: const Key('excluir_conta_erro'),
-                    style: const TextStyle(color: alerta),
-                  ),
-                ],
-              ],
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Esta ação é permanente. Seu perfil, amizades e pedidos de '
+              'amizade serão apagados. Seu username ficará livre. '
+              'O extrato e os desafios encerrados permanecerão sem dados pessoais. '
+              'A exclusão exige conexão com o servidor.',
+              style: TextoApp.secundario.copyWith(fontSize: 14),
             ),
-          ),
+            const SizedBox(height: EspacosApp.e20),
+            CampoDeTexto(
+              key: const Key('excluir_conta_username'),
+              rotulo: 'Digite seu username para confirmar',
+              ajuda: 'Seu username: ${widget.username}',
+              controller: _username,
+              enabled: !_excluindo,
+              textInputAction: TextInputAction.next,
+              erro: _erroUsername,
+              onChanged: (_) {
+                if (_erroUsername != null) setState(() => _erroUsername = null);
+              },
+            ),
+            const SizedBox(height: EspacosApp.e16),
+            CampoDeTexto(
+              key: const Key('excluir_conta_senha'),
+              rotulo: 'Senha atual',
+              controller: _senha,
+              senha: true,
+              enabled: !_excluindo,
+              erro: _erroSenha,
+              onChanged: (_) {
+                if (_erroSenha != null) setState(() => _erroSenha = null);
+              },
+              onSubmitted: (_) => _excluir(),
+            ),
+            if (_erro != null) ...[
+              const SizedBox(height: EspacosApp.e16),
+              AvisoInline(_erro!, Tom.destrutivo, key: const Key('excluir_conta_erro')),
+            ],
+          ],
         ),
         actions: [
-          TextButton(
+          BotaoTexto(
             key: const Key('excluir_conta_cancelar'),
+            rotulo: 'Cancelar',
             onPressed: _excluindo ? null : () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              minimumSize: const Size(48, 48),
-              foregroundColor: textoSecundario,
-            ),
-            child: const Text('Cancelar'),
           ),
-          ElevatedButton(
+          BotaoDestrutivo(
             key: const Key('excluir_conta_confirmar'),
-            onPressed: _excluindo ? null : _excluir,
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(48, 48),
-              backgroundColor: alerta,
-              foregroundColor: const Color(0xFF0B111D),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: _excluindo
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Excluir definitivamente'),
+            rotulo: 'Excluir conta',
+            carregando: _excluindo,
+            onPressed: _excluir,
           ),
         ],
       ),

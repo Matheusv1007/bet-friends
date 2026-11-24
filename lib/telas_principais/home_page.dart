@@ -3,14 +3,17 @@ import 'dart:async';
 import 'package:betfriends/data/firestore/user_profile_repository.dart';
 import 'package:betfriends/provider/auth_provider.dart';
 import 'package:betfriends/provider/partidas_provider.dart';
+import 'package:betfriends/services/extrato_service.dart';
 import 'package:betfriends/services/user_profile_service.dart';
 import 'package:betfriends/services/registro_de_erros.dart';
 import 'package:betfriends/tela_criar_desafio/tela_criar_desafio.dart';
+import 'package:betfriends/tela_extrato/tela_extrato.dart';
 import 'package:betfriends/tela_perfil/tela_perfil.dart';
+import 'package:betfriends/tema/tema.dart';
+import 'package:betfriends/widgets/componentes.dart';
 import 'package:betfriends/widgets_home_page/appbar_das_partidas.dart';
-import 'package:betfriends/widgets_home_page/card_de_desafio.dart';
+import 'package:betfriends/widgets_home_page/bloco_de_saldo.dart';
 import 'package:betfriends/widgets_home_page/card_de_desafios_ativos.dart';
-import 'package:betfriends/widgets_home_page/card_de_carteira.dart';
 import 'package:betfriends/widgets_home_page/bonus_recuperacao.dart';
 import 'package:betfriends/models/challenge_model.dart';
 import 'package:betfriends/services/auth_service.dart';
@@ -46,38 +49,12 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
   Timer? _realTimeTimer;
   bool _mostrarTodas = false;
 
-  /// Perfil do usuário logado, usado só na saudação; `null` se indisponível.
+  /// Seção "Recebidos", alvo do "Responder" do aviso de pendência.
+  final _chaveRecebidos = GlobalKey();
+
+  /// Perfil do usuário logado (saudação e carteira); `null` se indisponível.
   Stream<PerfilObservado>? _perfil;
   Stream<List<ChallengeModel>>? _desafios;
-
-  // Lista de fallback com o design original (comentada, mantida apenas para testes futuros)
-  /*
-  final List<PartidaModel> _mockDesignPartidas = [
-    PartidaModel(
-      id: 'mock-1',
-      timeMandante: 'Flamengo',
-      timeVisitante: 'Vasco',
-      golsMandante: 2,
-      golsVisitante: 0,
-      status: 'FINALIZADO',
-    ),
-    PartidaModel(
-      id: 'mock-2',
-      timeMandante: 'Vasco',
-      timeVisitante: 'Fluminense',
-      golsMandante: 1,
-      golsVisitante: 1,
-      status: 'EM ANDAMENTO',
-    ),
-    PartidaModel(
-      id: 'mock-3',
-      timeMandante: 'Volta Redonda',
-      timeVisitante: 'SCCP',
-      status: 'PRÓXIMO JOGO',
-      horario: 'Amanhã 19:00',
-    ),
-  ];
-  */
 
   @override
   void initState() {
@@ -157,162 +134,171 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  String? _uidAtual(BuildContext context) =>
+      context.watch<AuthProvider?>()?.currentUser?.uid ??
+      widget.authService?.currentUser?.uid ??
+      context.read<AuthService?>()?.currentUser?.uid;
+
+  ChallengeService? get _challengeService =>
+      widget.challengeService ?? context.read<ChallengeService?>();
+
+  void _abrirCriarDesafio() {
+    final service = _challengeService;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CriarDesafioScreen(challengeService: service),
+      ),
+    );
+  }
+
+  void _abrirExtrato() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TelaExtrato(extratoService: context.read<ExtratoService?>()),
+      ),
+    );
+  }
+
+  void _rolarParaRecebidos() {
+    final alvo = _chaveRecebidos.currentContext;
+    if (alvo == null) return;
+    Scrollable.ensureVisible(
+      alvo,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B111D),
-      body: Container(
-        decoration: const BoxDecoration(
-          // Gradiente sutil com leve aura esmeralda no topo esquerdo
-          gradient: RadialGradient(
-            center: Alignment(-0.85, -0.9),
-            radius: 1.2,
-            colors: [Color(0xFF0F2624), Color(0xFF0B111D), Color(0xFF0B111D)],
-            stops: [0.0, 0.45, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: RefreshIndicator(
-            color: const Color(0xFF00D084),
-            backgroundColor: const Color(0xFF151E2E),
-            onRefresh: () =>
-                context.read<PartidasProvider>().carregarPartidas(forcar: true),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // CABEÇALHO PERSONALIZADO (Avatar, Saudação, Fichas e Logo)
-                  CabecalhoHome(
-                    perfil: _perfil,
-                    // Leitura opcional: a Home também é montada isoladamente em widget tests.
-                    saindo: context.watch<AuthProvider?>()?.isSigningOut ?? false,
-                    onLogout: _confirmarLogout,
-                  ),
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: CoresApp.primario,
+          backgroundColor: CoresApp.superficie1,
+          onRefresh: () =>
+              context.read<PartidasProvider>().carregarPartidas(forcar: true),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(
+              EspacosApp.margemDaTela, EspacosApp.e8, EspacosApp.margemDaTela, EspacosApp.e24,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // CABEÇALHO: logo, avatar da conta, saudação e data
+                CabecalhoHome(
+                  perfil: _perfil,
+                  // Leitura opcional: a Home também é montada isoladamente em widget tests.
+                  saindo: context.watch<AuthProvider?>()?.isSigningOut ?? false,
+                  onLogout: _confirmarLogout,
+                ),
 
-                  const SizedBox(height: 20),
+                const SizedBox(height: EspacosApp.e16),
 
-                  // CARD DESAFIO RÁPIDO 1V1
-                  const Carddedesafio(),
-
-                  const SizedBox(height: 18),
-
-                  // CARTEIRA BETCOINS REAL (KAN-69; RF-003, RN-BET-004)
-                  StreamBuilder<PerfilObservado>(
-                    stream: _perfil,
-                    builder: (context, snapshot) {
-                      final carteira = snapshot.hasError ? null : snapshot.data?.carteira;
-                      if (carteira == null) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 18.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Carddecarteira(
-                              carteira: carteira,
-                              semConexao: snapshot.data?.doCache ?? false,
-                            ),
-                            BonusRecuperacaoCard(carteira: carteira),
-                          ],
+                // SALDO E BÔNUS DE RECUPERAÇÃO (KAN-69; RF-003, RN-BET-004)
+                StreamBuilder<PerfilObservado>(
+                  stream: _perfil,
+                  builder: (context, snapshot) {
+                    final carteira = snapshot.hasError ? null : snapshot.data?.carteira;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        BlocoDeSaldo(
+                          carteira: carteira,
+                          semConexao: !snapshot.hasError && (snapshot.data?.doCache ?? false),
+                          onExtrato: _abrirExtrato,
+                          onNovoDesafio: _abrirCriarDesafio,
                         ),
-                      );
-                    },
-                  ),
+                        if (carteira != null) BonusRecuperacaoCard(carteira: carteira),
+                      ],
+                    );
+                  },
+                ),
 
-                  // ALERTA DESTAQUE: DESAFIOS RECEBIDOS AGUARDANDO RESPOSTA (D-003, Plano Mestre v3.2)
-                  StreamBuilder<List<ChallengeModel>>(
-                    stream: _desafios,
-                    builder: (context, snapshot) {
-                      final desafios = snapshot.hasError ? null : snapshot.data;
-                      final authProvider = context.watch<AuthProvider?>();
-                      final currentUid = authProvider?.currentUser?.uid ??
-                          widget.authService?.currentUser?.uid ??
-                          context.read<AuthService?>()?.currentUser?.uid;
+                // AVISO ÚNICO: DESAFIOS RECEBIDOS AGUARDANDO RESPOSTA (D-003, Plano Mestre v3.2)
+                StreamBuilder<List<ChallengeModel>>(
+                  stream: _desafios,
+                  builder: (context, snapshot) {
+                    final desafios = snapshot.hasError ? null : snapshot.data;
+                    final currentUid = _uidAtual(context);
 
-                      final pendentesRecebidos = desafios?.where((c) {
-                        final isPending = c.status == StatusDesafio.pending;
-                        final isChallenged = currentUid == null || c.challengedId == currentUid;
-                        return isPending && isChallenged;
-                      }).toList() ?? [];
+                    final pendentesRecebidos = desafios?.where((c) {
+                      final isPending = c.status == StatusDesafio.pending;
+                      final isChallenged = currentUid == null || c.challengedId == currentUid;
+                      return isPending && isChallenged;
+                    }).length ?? 0;
 
-                      if (pendentesRecebidos.isEmpty) return const SizedBox.shrink();
+                    if (pendentesRecebidos == 0) return const SizedBox.shrink();
 
-                      return AlertaDesafiosPendentesHome(
-                        quantidade: pendentesRecebidos.length,
-                      );
-                    },
-                  ),
+                    return Padding(
+                      padding: const EdgeInsets.only(top: EspacosApp.e12),
+                      child: AlertaDesafiosPendentesHome(
+                        quantidade: pendentesRecebidos,
+                        onResponder: _rolarParaRecebidos,
+                      ),
+                    );
+                  },
+                ),
 
-                  // TÍTULO "PARTIDAS" E "Ver todas" (Com indicador de tempo real e última atualização)
-                  Consumer<PartidasProvider>(
-                    builder: (context, provider, _) {
-                      return Appbardaspartidas(
-                        ultimaAtualizacao: provider.ultimaAtualizacaoFormatada,
-                        onVerTodasPressed: () {
-                          setState(() {
-                            _mostrarTodas = !_mostrarTodas;
-                          });
-                        },
-                      );
-                    },
-                  ),
+                const SizedBox(height: EspacosApp.e16),
 
-                  const SizedBox(height: 12),
+                // TÍTULO "PARTIDAS" E "Ver todas" (Com indicador de tempo real e última atualização)
+                Consumer<PartidasProvider>(
+                  builder: (context, provider, _) {
+                    return Appbardaspartidas(
+                      ultimaAtualizacao: provider.ultimaAtualizacaoFormatada,
+                      onVerTodasPressed: () {
+                        setState(() {
+                          _mostrarTodas = !_mostrarTodas;
+                        });
+                      },
+                    );
+                  },
+                ),
 
-                  // LISTA DINÂMICA DE PARTIDAS EM TEMPO REAL
-                  Consumer<PartidasProvider>(
-                    builder: (context, partidasProvider, child) {
-                      return ListaPartidasHome(
-                        partidas: partidasProvider.partidasDaHome,
-                        isLoading: partidasProvider.isLoading,
-                        errorMessage: partidasProvider.errorMessage,
-                        hasRefreshError: partidasProvider.hasRefreshError,
-                        refreshErrorMessage: partidasProvider.refreshErrorMessage,
-                        mostrarTodas: _mostrarTodas,
-                        onRecarregar: () => context
-                            .read<PartidasProvider>()
-                            .carregarPartidas(forcar: true),
-                        onAlternarPartidas: () {
-                          setState(() {
-                            _mostrarTodas = !_mostrarTodas;
-                          });
-                        },
-                      );
-                    },
-                  ),
+                const SizedBox(height: EspacosApp.e8),
 
-                  const SizedBox(height: 24),
+                // LISTA DINÂMICA DE PARTIDAS EM TEMPO REAL
+                Consumer<PartidasProvider>(
+                  builder: (context, partidasProvider, child) {
+                    return ListaPartidasHome(
+                      partidas: partidasProvider.partidasDaHome,
+                      isLoading: partidasProvider.isLoading,
+                      errorMessage: partidasProvider.errorMessage,
+                      hasRefreshError: partidasProvider.hasRefreshError,
+                      refreshErrorMessage: partidasProvider.refreshErrorMessage,
+                      mostrarTodas: _mostrarTodas,
+                      onRecarregar: () => context
+                          .read<PartidasProvider>()
+                          .carregarPartidas(forcar: true),
+                    );
+                  },
+                ),
 
-                  // SEÇÃO DESAFIOS ATIVOS
-                  // SEÇÃO DESAFIOS RESUMO (D-003, Plano Mestre v3.2)
-                  StreamBuilder<List<ChallengeModel>>(
-                    stream: _desafios,
-                    builder: (context, snapshot) {
-                      final authProvider = context.watch<AuthProvider?>();
-                      final currentUid = authProvider?.currentUser?.uid ??
-                          widget.authService?.currentUser?.uid ??
-                          context.read<AuthService?>()?.currentUser?.uid;
+                const SizedBox(height: EspacosApp.e24),
 
-                      final service = widget.challengeService ?? context.read<ChallengeService?>();
-
-                      return DesafiosAtivosWidget(
-                        desafios: snapshot.hasError ? null : snapshot.data ?? const [],
-                        carregando: _desafios != null &&
-                            snapshot.connectionState == ConnectionState.waiting && !snapshot.hasError,
-                        erro: snapshot.hasError,
-                        onTentarNovamente: () => setState(() {
-                          _desafios = _observarDesafios();
-                        }),
-                        currentUserId: currentUid,
-                        challengeService: service,
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 20),
-                ],
-              ),
+                // DESAFIOS: RECEBIDOS, ENVIADOS, EM ABERTO E FINALIZADOS (D-003, Plano Mestre v3.2)
+                StreamBuilder<List<ChallengeModel>>(
+                  stream: _desafios,
+                  builder: (context, snapshot) {
+                    return DesafiosAtivosWidget(
+                      desafios: snapshot.hasError ? null : snapshot.data ?? const [],
+                      carregando: _desafios != null &&
+                          snapshot.connectionState == ConnectionState.waiting && !snapshot.hasError,
+                      erro: snapshot.hasError,
+                      onTentarNovamente: () => setState(() {
+                        _desafios = _observarDesafios();
+                      }),
+                      currentUserId: _uidAtual(context),
+                      challengeService: _challengeService,
+                      chaveRecebidos: _chaveRecebidos,
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         ),
@@ -323,15 +309,7 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
         currentIndex: _currentNavIndex,
         onTap: (index) {
           if (index == 1) {
-            final service = widget.challengeService ?? context.read<ChallengeService?>();
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => CriarDesafioScreen(
-                  challengeService: service,
-                ),
-              ),
-            );
+            _abrirCriarDesafio();
           } else if (index == 2) {
             Navigator.push(
               context,
@@ -353,35 +331,20 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
     final confirmou = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF151E2E),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
-        title: const Text(
-          'Sair da conta?',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        content: const Text(
+        title: const Text('Sair da conta?'),
+        content: Text(
           'Você precisará entrar novamente para acessar o BetFriends.',
-          style: TextStyle(color: Color(0xFF94A3B8)),
+          style: TextoApp.corpo.copyWith(color: CoresApp.textoSuave),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(color: Color(0xFF94A3B8)),
-            ),
+            child: const Text('Cancelar'),
           ),
           TextButton(
+            style: TextButton.styleFrom(foregroundColor: CoresApp.destrutivo),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text(
-              'Sair',
-              style: TextStyle(
-                color: Color(0xFFF87171),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: const Text('Sair'),
           ),
         ],
       ),
@@ -394,14 +357,11 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
     } catch (e, s) {
       registrarErro('Sair da conta', e, s);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Não foi possível sair da conta. Tente novamente.',
-          ),
-        ),
+      mostrarAviso(
+        context,
+        'Não foi possível sair da conta. Tente novamente.',
+        tom: Tom.destrutivo,
       );
     }
   }
-
 }

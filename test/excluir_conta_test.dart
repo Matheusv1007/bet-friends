@@ -112,8 +112,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  String senhaNoCampo(WidgetTester tester) =>
-      tester.widget<TextFormField>(_senha).controller!.text;
+  TextFormField campoDa(WidgetTester tester, Finder campo) =>
+      tester.widget<TextFormField>(find.descendant(of: campo, matching: find.byType(TextFormField)));
+
+  String senhaNoCampo(WidgetTester tester) => campoDa(tester, _senha).controller!.text;
+
+  bool bloqueado(WidgetTester tester, Finder botao) => tester
+      .widget<AbsorbPointer>(find.descendant(of: botao, matching: find.byType(AbsorbPointer)).first)
+      .absorbing;
 
   testWidgets('explica consequências e usa senha protegida e alvos de 48px', (tester) async {
     await abrirPerfil(tester);
@@ -135,6 +141,55 @@ void main() {
     expect(auth.exclusoes, 0);
   });
 
+  testWidgets('campos com rótulo; username como ajuda sem truncar; ação destrutiva e ações numa linha só',
+      (tester) async {
+    await abrirDialogo(tester);
+
+    expect(find.descendant(of: _username, matching: find.text('Digite seu username para confirmar')), findsOneWidget);
+    expect(find.descendant(of: _username, matching: find.text('Seu username: AnaL')), findsOneWidget);
+    expect(find.descendant(of: _senha, matching: find.text('Senha atual')), findsOneWidget);
+    expect(find.descendant(of: find.byType(AlertDialog), matching: find.byIcon(Icons.warning_amber_rounded)), findsOneWidget);
+    expect(find.descendant(of: _confirmar, matching: find.byType(OutlinedButton)), findsOneWidget);
+    expect(find.descendant(of: find.byType(AlertDialog), matching: find.text('Excluir conta')), findsNWidgets(2)); // título e ação
+
+    final cancelar = tester.getRect(_cancelar);
+    final excluir = tester.getRect(_confirmar);
+    expect(cancelar.center.dy, closeTo(excluir.center.dy, 0.5));
+    expect(cancelar.right, lessThan(excluir.left));
+    expect(tester.getRect(find.descendant(of: find.byType(Dialog), matching: find.byType(Material)).first).right - excluir.right, lessThanOrEqualTo(24));
+  });
+
+  testWidgets('erros sob os campos somem ao editar', (tester) async {
+    await abrirDialogo(tester);
+    await preencher(tester, username: 'Outro');
+    await confirmar(tester);
+    expect(find.text('Digite seu username exatamente como exibido.'), findsOneWidget);
+
+    await tester.enterText(_username, 'AnaL');
+    await tester.pumpAndSettle();
+    expect(find.text('Digite seu username exatamente como exibido.'), findsNothing);
+  });
+
+  for (final (largura, escala) in [(320.0, 1.0), (320.0, 2.0), (360.0, 1.5), (360.0, 2.0)]) {
+    testWidgets('sem estouro em ${largura.toInt()} dp com fonte ${escala}x, com e sem erros', (tester) async {
+      tester.view.physicalSize = Size(largura, 568) * tester.view.devicePixelRatio;
+      tester.platformDispatcher.textScaleFactorTestValue = escala;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      auth.erro = DeleteAccountException.fromCode('desafio-ativo');
+
+      await abrirDialogo(tester);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(_confirmar, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      await preencher(tester);
+      await confirmar(tester);
+      expect(find.byKey(const Key('excluir_conta_erro')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('exclusão confirmada retorna ao login somente pelo AuthGate', (tester) async {
     await abrirDialogo(tester, appCompleto: true);
     await preencher(tester);
@@ -144,7 +199,7 @@ void main() {
     expect(auth.currentUser, isNull);
     expect(find.byType(ExcluirContaDialog), findsNothing);
     expect(find.byType(PerfilScreen), findsNothing);
-    expect(find.text('ENTRAR'), findsOneWidget);
+    expect(find.byKey(const Key('login_entrar')), findsOneWidget);
   });
 
   for (final username in ['', 'Outro', 'anal', '@AnaL', 'AnaL ']) {
@@ -152,7 +207,7 @@ void main() {
       await abrirDialogo(tester);
       await preencher(tester, username: username);
       await confirmar(tester);
-      expect(find.text('Digite seu username exatamente como exibido.'), findsOneWidget);
+      expect(find.descendant(of: _username, matching: find.text('Digite seu username exatamente como exibido.')), findsOneWidget);
       expect(auth.exclusoes, 0);
       expect(senhaNoCampo(tester), isEmpty);
     });
@@ -173,7 +228,7 @@ void main() {
   testWidgets('cancelar limpa senha no dispose', (tester) async {
     await abrirDialogo(tester);
     await preencher(tester);
-    final controller = tester.widget<TextFormField>(_senha).controller!;
+    final controller = campoDa(tester, _senha).controller!;
     var senhaApagada = false;
     controller.addListener(() {
       if (controller.text.isEmpty) senhaApagada = true;
@@ -201,11 +256,20 @@ void main() {
       await preencher(tester);
       await confirmar(tester);
       expect(find.text(mensagem), findsOneWidget);
+      // Senha incorreta fica sob o campo da senha; o resto, num aviso do diálogo
+      expect(
+        find.descendant(of: _senha, matching: find.text(mensagem)),
+        code == 'wrong-password' ? findsOneWidget : findsNothing,
+      );
+      expect(
+        find.descendant(of: find.byKey(const Key('excluir_conta_erro')), matching: find.text(mensagem)),
+        code == 'wrong-password' ? findsNothing : findsOneWidget,
+      );
       expect(auth.exclusoes, 1);
       expect(auth.signOutCalls, 0);
       expect(auth.currentUser, isNotNull);
       expect(senhaNoCampo(tester), isEmpty);
-      expect(tester.widget<ElevatedButton>(_confirmar).onPressed, isNotNull);
+      expect(bloqueado(tester, _confirmar), isFalse);
       await confirmar(tester);
       expect(auth.exclusoes, 1); // Uma nova senha é exigida em cada uso.
     });
@@ -232,9 +296,10 @@ void main() {
     await tester.pump();
     expect(auth.exclusoes, 1);
     expect(senhaNoCampo(tester), isEmpty);
-    expect(tester.widget<ElevatedButton>(_confirmar).onPressed, isNull);
-    expect(tester.widget<TextButton>(_cancelar).onPressed, isNull);
-    expect(tester.widget<TextFormField>(_senha).enabled, isFalse);
+    expect(bloqueado(tester, _confirmar), isTrue);
+    expect(find.descendant(of: _confirmar, matching: find.byType(CircularProgressIndicator)), findsOneWidget);
+    expect(tester.widget<TextButton>(find.descendant(of: _cancelar, matching: find.byType(TextButton))).onPressed, isNull);
+    expect(campoDa(tester, _senha).enabled, isFalse);
     await tester.binding.handlePopRoute();
     await tester.pump();
     expect(find.byType(ExcluirContaDialog), findsOneWidget);

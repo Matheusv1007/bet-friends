@@ -70,7 +70,11 @@ final _banner = find.byKey(const Key('perfil_sem_conexao'));
 final _editar = find.byKey(const Key('perfil_editar_nome'));
 final _campo = find.byKey(const Key('editar_nome_campo'));
 final _salvar = find.byKey(const Key('editar_nome_salvar'));
-final _erroDialogo = find.byKey(const Key('editar_nome_erro'));
+// O erro de falha ao salvar é um AvisoInline; este é o texto dele
+final _erroDialogo = find.descendant(
+  of: find.byKey(const Key('editar_nome_erro')),
+  matching: find.byType(Text),
+);
 
 String _nomeExibido(WidgetTester tester) =>
     tester.widget<Text>(find.byKey(const Key('perfil_display_name'))).data!;
@@ -117,7 +121,7 @@ void main() {
     await abrirPerfil(tester, doCache: true);
 
     expect(_nomeExibido(tester), 'Ana Lima');
-    expect(find.text('@AnaL'), findsOneWidget);
+    expect(find.text('@AnaL'), findsNWidgets(2)); // cabeçalho e grupo Dados
     expect(_banner, findsOneWidget);
     expect(find.textContaining('Sem conexão. Exibindo os últimos dados salvos'), findsOneWidget);
   });
@@ -151,7 +155,7 @@ void main() {
       find.text('Sem conexão com o servidor. Verifique sua internet e tente novamente.'),
       findsOneWidget,
     );
-    expect(find.text('TENTAR NOVAMENTE'), findsOneWidget);
+    expect(find.text('Tentar novamente'), findsOneWidget);
     expect(find.text('Perfil ainda não criado'), findsNothing);
   });
 

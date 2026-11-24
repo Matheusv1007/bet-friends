@@ -1,7 +1,19 @@
 import 'package:flutter/material.dart';
 
-class Appbardaspartidas extends StatelessWidget {
+import '../tema/tema.dart';
+import '../widgets/componentes.dart';
+
+/// Cabeçalho da seção de partidas da Home: "PARTIDAS", "atualizado às HH:MM"
+/// e o link que alterna entre as primeiras partidas e todas.
+///
+/// O link é o único controle da lista: cada toque chama [onVerTodasPressed]
+/// (que alterna `mostrarTodas` na Home) e troca o rótulo entre "Ver todas"
+/// e "Ver menos".
+class Appbardaspartidas extends StatefulWidget {
   final VoidCallback? onVerTodasPressed;
+
+  /// A lista se atualiza sozinha: o horário é anunciado aos leitores de tela
+  /// quando muda.
   final bool isLive;
   final String? ultimaAtualizacao;
 
@@ -13,69 +25,40 @@ class Appbardaspartidas extends StatelessWidget {
   });
 
   @override
+  State<Appbardaspartidas> createState() => _AppbardaspartidasState();
+}
+
+class _AppbardaspartidasState extends State<Appbardaspartidas> {
+  bool _mostrandoTodas = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
+    final atualizacao = widget.ultimaAtualizacao?.trim();
+    return Wrap(
+      spacing: EspacosApp.e12,
+      runSpacing: EspacosApp.e4,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      "PARTIDAS",
-                      style: TextStyle(
-                        color: Color(0xFF8E9CAE),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                    if (isLive) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF00D084),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                if (ultimaAtualizacao != null && ultimaAtualizacao!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    ultimaAtualizacao!,
-                    style: const TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
+        Semantics(
+          header: true,
+          child: const Text('PARTIDAS', style: TextoApp.secao),
         ),
-        TextButton(
-                        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-          onPressed: onVerTodasPressed ?? () {},
-          child: const Text(
-            "Ver todas",
-            style: TextStyle(
-              color: Color(0xFF00D084),
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+        if (atualizacao != null && atualizacao.isNotEmpty)
+          Semantics(
+            liveRegion: widget.isLive,
+            child: Text(
+              atualizacao[0].toLowerCase() + atualizacao.substring(1),
+              style: TextoApp.secundario,
             ),
           ),
+        BotaoTexto(
+          key: const Key('btn_ver_todas_partidas'),
+          rotulo: _mostrandoTodas ? 'Ver menos' : 'Ver todas',
+          pequeno: true,
+          onPressed: () {
+            setState(() => _mostrandoTodas = !_mostrandoTodas);
+            widget.onVerTodasPressed?.call();
+          },
         ),
       ],
     );

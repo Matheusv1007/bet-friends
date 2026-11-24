@@ -76,6 +76,14 @@ void main() {
       ),
     );
     await tester.pump();
+    // Com fonte grande o botão pode estar fora da lista construída
+    if (find.byKey(const Key('perfil_editar_nome')).evaluate().isEmpty) {
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('perfil_editar_nome')),
+        100,
+        scrollable: find.descendant(of: find.byType(PerfilScreen), matching: find.byType(Scrollable)).first,
+      );
+    }
     await tester.tap(find.byKey(const Key('perfil_editar_nome')));
     await tester.pumpAndSettle();
   }
@@ -90,8 +98,55 @@ void main() {
     await abrirEdicao(tester);
 
     expect(find.text('Editar nome de exibição'), findsOneWidget);
-    final campo = tester.widget<TextFormField>(find.byKey(const Key('editar_nome_campo')));
+    final campo = tester.widget<TextFormField>(
+      find.descendant(of: find.byKey(const Key('editar_nome_campo')), matching: find.byType(TextFormField)),
+    );
     expect(campo.controller!.text, 'Ana Lima');
+  });
+
+  testWidgets('campo com rótulo e ajuda; ações numa linha só, alinhadas à direita', (tester) async {
+    await abrirEdicao(tester);
+
+    final campo = find.byKey(const Key('editar_nome_campo'));
+    expect(find.descendant(of: campo, matching: find.text('Nome de exibição')), findsOneWidget);
+    expect(find.text('De 1 a 60 caracteres. O username não muda.'), findsOneWidget);
+
+    final cancelar = tester.getRect(find.byKey(const Key('editar_nome_cancelar')));
+    final salvar = tester.getRect(find.byKey(const Key('editar_nome_salvar')));
+    expect(cancelar.center.dy, closeTo(salvar.center.dy, 0.5));
+    expect(cancelar.right, lessThan(salvar.left));
+    final dialogo = tester.getRect(find.descendant(of: find.byType(Dialog), matching: find.byType(Material)).first);
+    expect(dialogo.right - salvar.right, lessThanOrEqualTo(24));
+    expect(salvar.height, greaterThanOrEqualTo(48));
+    expect(cancelar.height, greaterThanOrEqualTo(48));
+  });
+
+  for (final (largura, escala) in [(320.0, 1.0), (320.0, 2.0), (360.0, 1.5), (360.0, 2.0)]) {
+    testWidgets('sem estouro em ${largura.toInt()} dp com fonte ${escala}x, com e sem erro', (tester) async {
+      tester.view.physicalSize = Size(largura, 568) * tester.view.devicePixelRatio;
+      tester.platformDispatcher.textScaleFactorTestValue = escala;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await abrirEdicao(tester);
+      expect(tester.takeException(), isNull);
+
+      await digitarESalvar(tester, '');
+      await tester.pumpAndSettle();
+      expect(find.text('Informe um nome de exibição.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('o erro de validação some ao editar o campo', (tester) async {
+    await abrirEdicao(tester);
+    await digitarESalvar(tester, '');
+    await tester.pumpAndSettle();
+    expect(find.text('Informe um nome de exibição.'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('editar_nome_campo')), 'A');
+    await tester.pumpAndSettle();
+    expect(find.text('Informe um nome de exibição.'), findsNothing);
   });
 
   testWidgets('edição válida grava, fecha, confirma e atualiza a tela', (tester) async {
@@ -165,7 +220,7 @@ void main() {
 
     final salvar = find.byKey(const Key('editar_nome_salvar'));
     expect(find.descendant(of: salvar, matching: find.byType(CircularProgressIndicator)), findsOneWidget);
-    expect(tester.widget<ElevatedButton>(salvar).onPressed, isNull);
+    expect(tester.widget<AbsorbPointer>(find.descendant(of: salvar, matching: find.byType(AbsorbPointer)).first).absorbing, isTrue);
     expect(tester.widget<TextButton>(find.widgetWithText(TextButton, 'Cancelar')).onPressed, isNull);
 
     // Toques repetidos e Enter no campo não disparam outra gravação
@@ -227,6 +282,6 @@ void main() {
     expect(repositorio.perfil.uid, 'uid-ana');
     expect(repositorio.perfil.username, 'AnaL');
     expect(repositorio.perfil.email, 'ana@example.com');
-    expect(find.text('@AnaL'), findsOneWidget);
+    expect(find.text('@AnaL'), findsNWidgets(2)); // cabeçalho e grupo Dados
   });
 }

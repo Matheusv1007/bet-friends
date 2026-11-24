@@ -37,41 +37,54 @@ Widget buildTestableWidget({
 
 void main() {
   group('HomePage - Cenários de Interface', () {
-    testWidgets('Exibe mensagem amigável de erro e botão Tentar novamente quando ocorre falha', (tester) async {
-      final fakeService = FakeTestPartidasService(
-        error: FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied'),
-      );
-      final provider = PartidasProvider(partidasService: fakeService);
-      await provider.carregarPartidas();
+    testWidgets(
+      'Exibe mensagem amigável de erro e botão Tentar novamente quando ocorre falha',
+      (tester) async {
+        final fakeService = FakeTestPartidasService(
+          error: FirebaseException(
+            plugin: 'cloud_firestore',
+            code: 'permission-denied',
+          ),
+        );
+        final provider = PartidasProvider(partidasService: fakeService);
+        await provider.carregarPartidas();
 
-      await tester.pumpWidget(
-        buildTestableWidget(child: const Homepage(), provider: provider),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildTestableWidget(child: const Homepage(), provider: provider),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Erro ao carregar partidas'), findsOneWidget);
-      expect(
-        find.text('Não foi possível autorizar o acesso ao serviço de partidas.'),
-        findsOneWidget,
-      );
-      expect(find.text('TENTAR NOVAMENTE'), findsOneWidget);
-    });
+        expect(find.text('Erro ao carregar partidas'), findsOneWidget);
+        expect(
+          find.text(
+            'Não foi possível autorizar o acesso ao serviço de partidas.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Tentar novamente'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Exibe estado vazio com botão Atualizar quando lista vem vazia', (tester) async {
-      final fakeService = FakeTestPartidasService(matches: []);
-      final provider = PartidasProvider(partidasService: fakeService);
-      await provider.carregarPartidas();
+    testWidgets(
+      'Exibe estado vazio com botão Atualizar quando lista vem vazia',
+      (tester) async {
+        final fakeService = FakeTestPartidasService(matches: []);
+        final provider = PartidasProvider(partidasService: fakeService);
+        await provider.carregarPartidas();
 
-      await tester.pumpWidget(
-        buildTestableWidget(child: const Homepage(), provider: provider),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildTestableWidget(child: const Homepage(), provider: provider),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Nenhuma partida disponível'), findsOneWidget);
-      expect(find.text('ATUALIZAR'), findsOneWidget);
-    });
+        expect(find.text('Nenhuma partida disponível'), findsOneWidget);
+        expect(find.text('Atualizar'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Exibe lista de partidas quando a resposta é válida', (tester) async {
+    testWidgets('Exibe lista de partidas quando a resposta é válida', (
+      tester,
+    ) async {
       final fakeService = FakeTestPartidasService(
         matches: [
           PartidaModel(
@@ -98,37 +111,57 @@ void main() {
   });
 
   group('CriarDesafioScreen - Cenários de Interface', () {
-    testWidgets('Exibe erro amigável e botão de tentar novamente em CriarDesafioScreen', (tester) async {
-      final fakeService = FakeTestPartidasService(
-        error: FirebaseException(plugin: 'cloud_firestore', code: 'unavailable'),
-      );
-      final provider = PartidasProvider(partidasService: fakeService);
-      await provider.carregarPartidas();
+    testWidgets(
+      'Exibe erro amigável e botão de tentar novamente em CriarDesafioScreen',
+      (tester) async {
+        final fakeService = FakeTestPartidasService(
+          error: FirebaseException(
+            plugin: 'cloud_firestore',
+            code: 'unavailable',
+          ),
+        );
+        final provider = PartidasProvider(partidasService: fakeService);
+        await provider.carregarPartidas();
 
-      await tester.pumpWidget(
-        buildTestableWidget(child: const CriarDesafioScreen(), provider: provider),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildTestableWidget(
+            child: const CriarDesafioScreen(),
+            provider: provider,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Erro ao carregar partidas'), findsOneWidget);
-      expect(find.text('Tentar novamente'), findsOneWidget);
-    });
+        expect(find.text('Erro ao carregar partidas'), findsOneWidget);
+        expect(find.text('Tentar novamente'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Exibe estado vazio quando não há partidas em CriarDesafioScreen', (tester) async {
-      final fakeService = FakeTestPartidasService(matches: []);
-      final provider = PartidasProvider(partidasService: fakeService);
-      await provider.carregarPartidas();
+    testWidgets(
+      'Exibe estado vazio quando não há partidas em CriarDesafioScreen',
+      (tester) async {
+        final fakeService = FakeTestPartidasService(matches: []);
+        final provider = PartidasProvider(partidasService: fakeService);
+        await provider.carregarPartidas();
 
-      await tester.pumpWidget(
-        buildTestableWidget(child: const CriarDesafioScreen(), provider: provider),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildTestableWidget(
+            child: const CriarDesafioScreen(),
+            provider: provider,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Nenhuma partida encontrada no momento'), findsOneWidget);
-      expect(find.text('Carregar partidas'), findsOneWidget);
-    });
+        expect(
+          find.text('Nenhuma partida encontrada no momento'),
+          findsOneWidget,
+        );
+        expect(find.text('Carregar partidas'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Exibe partidas elegíveis para desafio em CriarDesafioScreen', (tester) async {
+    testWidgets('Exibe partidas elegíveis para desafio em CriarDesafioScreen', (
+      tester,
+    ) async {
       final fakeService = FakeTestPartidasService(
         matches: [
           PartidaModel(
@@ -150,7 +183,10 @@ void main() {
       await provider.carregarPartidas();
 
       await tester.pumpWidget(
-        buildTestableWidget(child: const CriarDesafioScreen(), provider: provider),
+        buildTestableWidget(
+          child: const CriarDesafioScreen(),
+          provider: provider,
+        ),
       );
       await tester.pumpAndSettle();
 

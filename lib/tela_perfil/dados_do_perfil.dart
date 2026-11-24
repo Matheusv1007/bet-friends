@@ -3,17 +3,20 @@ import 'package:provider/provider.dart';
 
 import '../models/user_profile.dart';
 import '../services/extrato_service.dart';
-import '../tela_extrato/tela_extrato.dart';
 import '../services/friendship_service.dart';
 import '../services/user_search_service.dart';
 import '../tela_amigos/tela_buscar_usuarios.dart';
 import '../tela_amigos/tela_comunicacoes_amizade.dart';
 import '../tela_amigos/tela_lista_amigos.dart';
+import '../tela_extrato/tela_extrato.dart';
 import '../tela_sobre/tela_informacoes_creditos.dart';
+import '../tema/tema.dart';
+import '../widgets/componentes.dart';
 import 'aviso_sem_conexao.dart';
 import 'cabecalho_do_perfil.dart';
 import 'editar_nome_dialog.dart';
 import 'excluir_conta_dialog.dart';
+import 'grupo_do_perfil.dart';
 import 'linha_do_perfil.dart';
 
 class DadosDoPerfil extends StatelessWidget {
@@ -24,212 +27,143 @@ class DadosDoPerfil extends StatelessWidget {
 
   const DadosDoPerfil({super.key, required this.perfil, required this.semConexao});
 
+  static const _chevron = Icon(Icons.chevron_right);
+
+  void _abrir(BuildContext context, Widget Function() tela) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => tela()));
+  }
+
   @override
   Widget build(BuildContext context) {
-    const cardBg = Color(0xFF151E2E);
-    const primaryGreen = Color(0xFF00D084);
-
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      padding: const EdgeInsets.fromLTRB(
+        EspacosApp.margemDaTela,
+        EspacosApp.e8,
+        EspacosApp.margemDaTela,
+        EspacosApp.e32,
+      ),
       children: [
         if (semConexao) ...[
           const AvisoSemConexao(),
-          const SizedBox(height: 20),
+          const SizedBox(height: EspacosApp.e16),
         ],
         CabecalhoDoPerfil(perfil: perfil),
-        const SizedBox(height: 28),
-        Container(
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-          ),
-          child: Column(
-            children: [
-              LinhaDoPerfil(
-                icone: Icons.badge_outlined,
-                rotulo: 'Nome de exibição',
-                valor: perfil.displayName,
+        const SizedBox(height: EspacosApp.e24),
+        GrupoDoPerfil(
+          titulo: 'Dados',
+          linhas: [
+            LinhaDoPerfil(
+              rotulo: 'Nome de exibição',
+              valor: perfil.displayName,
+              chaveDoValor: const Key('perfil_dados_nome'),
+              acao: BotaoTexto(
+                key: const Key('perfil_editar_nome'),
+                rotulo: 'Editar',
+                pequeno: true,
+                // Sem devolver o Future: o botão não deve ficar "ocupado" com o diálogo aberto
+                onPressed: () {
+                  _editarNome(context);
+                },
               ),
-              Divider(height: 1, color: Colors.white.withValues(alpha: 0.05)),
-              LinhaDoPerfil(
-                icone: Icons.alternate_email,
-                rotulo: 'Nome de usuário',
-                valor: perfil.username,
-              ),
-            ],
-          ),
+            ),
+            const Divider(),
+            LinhaDoPerfil(
+              rotulo: 'Nome de usuário',
+              valor: '@${perfil.username}',
+              chaveDoValor: const Key('perfil_dados_usuario'),
+            ),
+          ],
         ),
-        const SizedBox(height: 20),
-        SizedBox(
-          height: 48,
-          child: OutlinedButton.icon(
-            key: const Key('perfil_editar_nome'),
-            onPressed: () => _editarNome(context),
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            label: const Text(
-              'EDITAR NOME',
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: primaryGreen,
-              side: const BorderSide(color: primaryGreen, width: 1.2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+        const SizedBox(height: EspacosApp.e24),
+        GrupoDoPerfil(
+          titulo: 'Atividade',
+          linhas: [
+            LinhaDeLista(
+              key: const Key('perfil_extrato'),
+              leading: const Icon(Icons.receipt_long_outlined),
+              titulo: 'Extrato de BetCoins',
+              trailing: _chevron,
+              divisor: true,
+              onTap: () => _abrir(
+                context,
+                () => TelaExtrato(extratoService: context.read<ExtratoService?>()),
               ),
             ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 48,
-          child: ElevatedButton.icon(
-            key: const Key('perfil_extrato'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => TelaExtrato(
-                  extratoService: context.read<ExtratoService?>(),
-                ),
-              ),
-            ),
-            icon: const Icon(Icons.receipt_long_outlined, size: 18),
-            label: const Text('Extrato de BetCoins',
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: cardBg,
-              foregroundColor: primaryGreen,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: primaryGreen.withValues(alpha: 0.4)),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 48,
-          child: ElevatedButton.icon(
-            key: const Key('perfil_meus_amigos'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => TelaListaAmigos(
+            LinhaDeLista(
+              key: const Key('perfil_meus_amigos'),
+              leading: const Icon(Icons.people_alt_outlined),
+              titulo: 'Meus amigos',
+              trailing: _chevron,
+              divisor: true,
+              onTap: () => _abrir(
+                context,
+                () => TelaListaAmigos(
                   friendshipService: context.read<FriendshipService?>(),
                 ),
               ),
             ),
-            icon: const Icon(Icons.people_alt_outlined, size: 18),
-            label: const Text(
-              'MEUS AMIGOS',
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF151E2E),
-              foregroundColor: primaryGreen,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: primaryGreen.withValues(alpha: 0.4)),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 48,
-          child: ElevatedButton.icon(
-            key: const Key('perfil_buscar_usuarios'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => TelaBuscarUsuarios(
+            LinhaDeLista(
+              key: const Key('perfil_buscar_usuarios'),
+              leading: const Icon(Icons.person_search_outlined),
+              titulo: 'Buscar amigos',
+              trailing: _chevron,
+              divisor: true,
+              onTap: () => _abrir(
+                context,
+                () => TelaBuscarUsuarios(
                   friendshipService: context.read<FriendshipService?>(),
                   searchService: context.read<UserSearchService?>(),
                 ),
               ),
             ),
-            icon: const Icon(Icons.person_search, size: 18),
-            label: const Text(
-              'BUSCAR AMIGOS',
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF151E2E),
-              foregroundColor: primaryGreen,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: primaryGreen.withValues(alpha: 0.4)),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 48,
-          child: ElevatedButton.icon(
-            key: const Key('perfil_solicitacoes_amizade'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => TelaComunicacoesAmizade(
+            LinhaDeLista(
+              key: const Key('perfil_solicitacoes_amizade'),
+              leading: const Icon(Icons.mail_outline),
+              titulo: 'Solicitações de amizade',
+              trailing: _chevron,
+              onTap: () => _abrir(
+                context,
+                () => TelaComunicacoesAmizade(
                   friendshipService: context.read<FriendshipService?>(),
                 ),
               ),
             ),
-            icon: const Icon(Icons.mark_email_unread_outlined, size: 18),
-            label: const Text(
-              'SOLICITAÇÕES DE AMIZADE',
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
+          ],
+        ),
+        const SizedBox(height: EspacosApp.e24),
+        GrupoDoPerfil(
+          titulo: 'Informações',
+          linhas: [
+            LinhaDeLista(
+              key: const Key('perfil_informacoes_creditos'),
+              leading: const Icon(Icons.info_outline),
+              titulo: 'Informações e créditos',
+              trailing: _chevron,
+              onTap: () => _abrir(context, () => const TelaInformacoesCreditos()),
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF151E2E),
-              foregroundColor: primaryGreen,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: primaryGreen.withValues(alpha: 0.4)),
-              ),
-            ),
+          ],
+        ),
+        const SizedBox(height: EspacosApp.e32),
+        Semantics(
+          header: true,
+          child: Text(
+            'ZONA DE RISCO',
+            style: TextoApp.secao.copyWith(color: CoresApp.destrutivo),
           ),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 48,
-          child: TextButton.icon(
-            key: const Key('perfil_informacoes_creditos'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const TelaInformacoesCreditos(),
-              ),
-            ),
-            icon: const Icon(Icons.info_outline, size: 18),
-            label: const Text(
-              'INFORMAÇÕES E CRÉDITOS',
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
-            ),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF94A3B8),
-            ),
-          ),
+        const SizedBox(height: EspacosApp.e4),
+        const Text(
+          'Ação permanente: apaga seu perfil e suas amizades.',
+          style: TextoApp.secundario,
         ),
-        const SizedBox(height: 24),
-        SizedBox(
-          height: 48,
-          child: OutlinedButton.icon(
-            key: const Key('perfil_excluir_conta'),
-            onPressed: () => _excluirConta(context),
-            icon: const Icon(Icons.warning_amber_rounded, size: 20),
-            label: const Text(
-              'Excluir conta',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFFEF4444),
-              side: const BorderSide(color: Color(0xFFEF4444)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ),
+        const SizedBox(height: EspacosApp.e12),
+        BotaoDestrutivo(
+          key: const Key('perfil_excluir_conta'),
+          rotulo: 'Excluir conta',
+          larguraTotal: true,
+          onPressed: () {
+            _excluirConta(context);
+          },
         ),
       ],
     );
@@ -237,10 +171,10 @@ class DadosDoPerfil extends StatelessWidget {
 
   Future<void> _excluirConta(BuildContext context) async {
     if (semConexao) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sem conexão. Conecte-se à internet para excluir a conta.'),
-        ),
+      mostrarAviso(
+        context,
+        'Sem conexão. Conecte-se à internet para excluir a conta.',
+        tom: Tom.atencao,
       );
       return;
     }
@@ -256,10 +190,10 @@ class DadosDoPerfil extends StatelessWidget {
   Future<void> _editarNome(BuildContext context) async {
     // Atalho de usabilidade: a garantia de não gravar offline é do repositório
     if (semConexao) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sem conexão. Conecte-se à internet para alterar o nome.'),
-        ),
+      mostrarAviso(
+        context,
+        'Sem conexão. Conecte-se à internet para alterar o nome.',
+        tom: Tom.atencao,
       );
       return;
     }
@@ -269,9 +203,7 @@ class DadosDoPerfil extends StatelessWidget {
       builder: (_) => EditarNomeDialog(nomeAtual: perfil.displayName),
     );
     if (salvou == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nome de exibição atualizado.')),
-      );
+      mostrarAviso(context, 'Nome de exibição atualizado.', tom: Tom.sucesso);
     }
   }
 }

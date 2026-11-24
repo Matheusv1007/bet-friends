@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../provider/auth_provider.dart';
 import '../telas_principais/home_page.dart';
 import 'login_page.dart';
+import '../tema/tema.dart';
+import '../widgets/componentes.dart';
 
 /// Decide entre Login e Home a partir da sessão do Firebase.
 /// É a única responsável pela navegação entre as áreas autenticada e pública.
@@ -72,22 +74,25 @@ class _AuthGateState extends State<AuthGate> {
 }
 
 /// Exibida enquanto o Firebase restaura a sessão, evitando mostrar
-/// brevemente o Login para quem já está autenticado.
+/// brevemente o Login para quem já está autenticado. Mostra a logo e um
+/// indicador discreto, na continuidade da abertura do app.
 class _VerificandoSessao extends StatelessWidget {
   const _VerificandoSessao();
 
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: Color(0xFF0B111D),
       body: Center(
-        child: SizedBox(
-          width: 32,
-          height: 32,
-          child: CircularProgressIndicator(
-            color: Color(0xFF00D084),
-            strokeWidth: 3,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LogoBetFriends(variante: VarianteDoLogo.vertical, altura: 96),
+            SizedBox(height: EspacosApp.e32),
+            SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ],
         ),
       ),
     );

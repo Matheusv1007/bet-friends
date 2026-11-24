@@ -10,6 +10,7 @@ import 'services/friendship_service.dart';
 import 'services/historico_de_desafios_service.dart';
 import 'services/user_profile_service.dart';
 import 'services/user_search_service.dart';
+import 'tema/tema_app.dart';
 import 'telas_autenticacao/auth_gate.dart';
 
 class App extends StatelessWidget {
@@ -65,9 +66,13 @@ class App extends StatelessWidget {
               historicoService ?? HistoricoDeDesafiosService(authService: authService),
         ),
       ],
-      child: const MaterialApp(
+      child: MaterialApp(
+        title: 'BetFriends',
         debugShowCheckedModeBanner: false,
-        home: AuthGate(),
+        theme: TemaApp.escuro,
+        darkTheme: TemaApp.escuro,
+        themeMode: ThemeMode.dark,
+        home: const AuthGate(),
       ),
     );
   }
