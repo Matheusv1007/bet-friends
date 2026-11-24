@@ -152,11 +152,20 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || partidaId != selecionada) return;
       setState(() => partidaId = null);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('A partida selecionada não está mais disponível. Escolha outra partida.'),
-      ));
+      mostrarAviso(
+        context,
+        'A partida selecionada não está mais disponível. Escolha outra partida.',
+        tom: Tom.atencao,
+      );
     });
   }
+
+  void _avisarErro(String texto, {int segundos = 2}) => mostrarAviso(
+        context,
+        texto,
+        tom: Tom.destrutivo,
+        duracao: Duration(seconds: segundos),
+      );
 
   Future<void> _enviarDesafio() async {
     if (isSubmitting) return;
@@ -167,35 +176,17 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
       return;
     }
     if (partidaId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selecione uma partida válida para criar o desafio.'),
-          backgroundColor: Color(0xFFEF4444),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      _avisarErro('Selecione uma partida válida para criar o desafio.');
       return;
     }
 
     if (amigoId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selecione um amigo para desafiar.'),
-          backgroundColor: Color(0xFFEF4444),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      _avisarErro('Selecione um amigo para desafiar.');
       return;
     }
 
     if (valor < 10 || valor > 500) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('O valor deve ser entre 10 e 500 BetCoins.'),
-          backgroundColor: Color(0xFFEF4444),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      _avisarErro('O valor deve ser entre 10 e 500 BetCoins.');
       return;
     }
 
@@ -211,12 +202,11 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Desafio criado com sucesso! BetCoins reservadas.'),
-          backgroundColor: Color(0xFF00D084),
-          duration: Duration(seconds: 3),
-        ),
+      mostrarAviso(
+        context,
+        'Desafio criado com sucesso! BetCoins reservadas.',
+        tom: Tom.sucesso,
+        duracao: const Duration(seconds: 3),
       );
 
       if (Navigator.canPop(context)) {
@@ -230,23 +220,11 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
       }
     } on ChallengeException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: const Color(0xFFEF4444),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      _avisarErro(e.message, segundos: 3);
     } catch (e, s) {
       registrarErro('Criar desafio', e, s);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível criar o desafio. Tente novamente.'),
-          backgroundColor: Color(0xFFEF4444),
-          duration: Duration(seconds: 3),
-        ),
-      );
+      _avisarErro('Não foi possível criar o desafio. Tente novamente.', segundos: 3);
     } finally {
       if (mounted) {
         setState(() => isSubmitting = false);
@@ -254,219 +232,160 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
     }
   }
 
+  void _voltar() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const Homepage()),
+        (route) => false,
+      );
+    }
+  }
+
+  static const _entreSecoes = SizedBox(height: EspacosApp.e24);
+
   @override
   Widget build(BuildContext context) {
-    const bgScaffold = Color(0xFF0B111D);
-    const primaryGreen = Color(0xFF00D084);
-
     return Scaffold(
-      backgroundColor: bgScaffold,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            size: 18,
-            color: Colors.white,
-          ),
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const Homepage()),
-                (route) => false,
-              );
-            }
-          },
+          tooltip: 'Voltar',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _voltar,
         ),
-        title: const Text(
-          'Criar Desafio',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        bottom: const PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Divider(color: Color(0xFF1B2536), height: 1),
-        ),
+        title: const Text('Criar desafio'),
       ),
-      body: Container(
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(-0.85, -0.9),
-            radius: 1.2,
-            colors: [
-              Color(0xFF0F2624),
-              Color(0xFF0B111D),
-              Color(0xFF0B111D),
-            ],
-            stops: [0.0, 0.45, 1.0],
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            EspacosApp.margemDaTela,
+            EspacosApp.e8,
+            EspacosApp.margemDaTela,
+            EspacosApp.e24,
           ),
-        ),
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            children: [
-              // Card de Saldo Disponível
-              if (_erroSaldo == null)
-                SaldoDesafio(saldoDisponivel: saldoDisponivel)
-              else
-                Column(children: [
-                  Text(_erroSaldo!, style: const TextStyle(color: Colors.white)),
-                  TextButton(onPressed: _observarSaldo,
-                    child: const Text('Tentar novamente: saldo')),
-                ]),
-              const SizedBox(height: 22),
-
-              // Seção Escolha a Partida
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'ESCOLHA A PARTIDA',
-                    style: TextStyle(
-                      color: Color(0xFF8E9CAB),
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.8,
-                    ),
+          children: [
+            // Campeonato e partida
+            Consumer<PartidasProvider>(
+              builder: (context, partidasProvider, child) {
+                final partidas = partidasProvider.partidas;
+                final elegiveis = partidas.where((p) => p.podeCriarDesafio).toList();
+                if (!partidasProvider.isLoading && partidasProvider.errorMessage == null) {
+                  _reconciliarSelecao(elegiveis);
+                }
+                return SeletorPartidaDesafio(
+                  isLoading: partidasProvider.isLoading,
+                  errorMessage: partidasProvider.errorMessage,
+                  partidas: partidas,
+                  elegiveis: elegiveis,
+                  partidaId: partidaId,
+                  onRecarregar: () =>
+                      partidasProvider.carregarPartidas(forcar: true),
+                  onChanged: (id) => setState(() => partidaId = id),
+                  mostrarTodas: _mostrarTodasPartidas,
+                  onAlternarMostrarTodas: () => setState(
+                    () => _mostrarTodasPartidas = !_mostrarTodasPartidas,
                   ),
-                  Consumer<PartidasProvider>(
-                    builder: (context, provider, _) {
-                      if (provider.isLoading) {
-                        return const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: primaryGreen,
+                  filtro: _filtroCampeonato,
+                  onFiltroChanged: (campeonato) => setState(() {
+                    _filtroCampeonato = campeonato;
+                    _mostrarTodasPartidas = false;
+                  }),
+                  acaoDoTitulo: partidasProvider.isLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(EspacosApp.e12),
+                          child: SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           ),
-                        );
-                      }
-                      return TextButton(
-                        style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-                        onPressed: () => provider.carregarPartidas(forcar: true),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.refresh, size: 14, color: primaryGreen),
-                            SizedBox(width: 4),
-                            Text(
-                              'Atualizar',
-                              style: TextStyle(
-                                color: primaryGreen,
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                        )
+                      : BotaoTexto(
+                          rotulo: 'Atualizar',
+                          pequeno: true,
+                          onPressed: () =>
+                              partidasProvider.carregarPartidas(forcar: true),
                         ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
+                );
+              },
+            ),
+            _entreSecoes,
 
-              // Lista dinâmica com partidas
-              Consumer<PartidasProvider>(
-                builder: (context, partidasProvider, child) {
-                  final partidas = partidasProvider.partidas;
-                  final elegiveis = partidas.where((p) => p.podeCriarDesafio).toList();
-                  if (!partidasProvider.isLoading && partidasProvider.errorMessage == null) {
-                    _reconciliarSelecao(elegiveis);
+            // Palpite do criador (RN-PRD-001)
+            const TituloDeSecao('Seu palpite'),
+            const SizedBox(height: EspacosApp.e8),
+            Consumer<PartidasProvider>(
+              builder: (context, provider, _) {
+                PartidaModel? partidaAtual;
+                for (final partida in provider.partidas) {
+                  if (partida.id == partidaId) {
+                    partidaAtual = partida;
+                    break;
                   }
-                  return SeletorPartidaDesafio(
-                    isLoading: partidasProvider.isLoading,
-                    errorMessage: partidasProvider.errorMessage,
-                    partidas: partidas,
-                    elegiveis: elegiveis,
-                    partidaId: partidaId,
-                    onRecarregar: () =>
-                        partidasProvider.carregarPartidas(forcar: true),
-                    onChanged: (id) => setState(() => partidaId = id),
-                    mostrarTodas: _mostrarTodasPartidas,
-                    onAlternarMostrarTodas: () => setState(
-                      () => _mostrarTodasPartidas = !_mostrarTodasPartidas,
-                    ),
-                    filtro: _filtroCampeonato,
-                    onFiltroChanged: (campeonato) => setState(() {
-                      _filtroCampeonato = campeonato;
-                      _mostrarTodasPartidas = false;
-                    }),
-                  );
-                },
-              ),
-              const SizedBox(height: 18),
+                }
 
-              // Seção Palpite do Criador (RN-PRD-001)
-              const Text(
-                'SEU PALPITE NO JOGO',
-                style: TextStyle(
-                  color: Color(0xFF8E9CAB),
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.8,
+                return SeletorPalpiteDesafio(
+                  palpiteSelecionado: palpiteSelecionado,
+                  labelMandante: partidaAtual?.timeMandante ?? 'Mandante',
+                  labelVisitante: partidaAtual?.timeVisitante ?? 'Visitante',
+                  onChanged: (palpite) =>
+                      setState(() => palpiteSelecionado = palpite),
+                );
+              },
+            ),
+            _entreSecoes,
+
+            // Valor do desafio, com o saldo disponível ao lado
+            TituloDeSecao(
+              'Valor',
+              acao: _erroSaldo == null
+                  ? SaldoDesafio(saldoDisponivel: saldoDisponivel)
+                  : null,
+            ),
+            const SizedBox(height: EspacosApp.e8),
+            if (_erroSaldo != null) ...[
+              AvisoInline(
+                _erroSaldo!,
+                Tom.destrutivo,
+                acao: BotaoTexto(
+                  rotulo: 'Recarregar saldo',
+                  pequeno: true,
+                  onPressed: _observarSaldo,
                 ),
               ),
-              const SizedBox(height: 10),
-              Consumer<PartidasProvider>(
-                builder: (context, provider, _) {
-                  PartidaModel? partidaAtual;
-                  for (final partida in provider.partidas) {
-                    if (partida.id == partidaId) {
-                      partidaAtual = partida;
-                      break;
-                    }
-                  }
-
-                  final labelMandante = partidaAtual != null ? 'Vitória ${partidaAtual.timeMandante}' : 'Mandante';
-                  final labelVisitante = partidaAtual != null ? 'Vitória ${partidaAtual.timeVisitante}' : 'Visitante';
-
-                  return SeletorPalpiteDesafio(
-                    palpiteSelecionado: palpiteSelecionado,
-                    labelMandante: labelMandante,
-                    labelVisitante: labelVisitante,
-                    onChanged: (palpite) =>
-                        setState(() => palpiteSelecionado = palpite),
-                  );
-                },
-              ),
-              const SizedBox(height: 22),
-
-              // Seção Valor do Desafio
-              SeletorValorDesafio(
-                valor: valor,
-                onChanged: (novoValor) => setState(() => valor = novoValor),
-              ),
-              const SizedBox(height: 22),
-
-              // Seção Convidar Amigo
-              if (_erroAmigos != null)
-                Column(children: [
-                  Text(_erroAmigos!, style: const TextStyle(color: Colors.white)),
-                  TextButton(onPressed: _carregarAmigos,
-                    child: const Text('Tentar novamente: amigos')),
-                ]),
-              SeletorAmigoDesafio(
-                isLoadingAmigos: isLoadingAmigos,
-                amigosAceitos: amigosAceitos,
-                amigoId: amigoId,
-                amigoNome: amigoNome,
-                onChanged: (uid, nome) => setState(() {
-                  amigoId = uid;
-                  amigoNome = nome;
-                }),
-              ),
-              const SizedBox(height: 20),
+              const SizedBox(height: EspacosApp.e8),
             ],
-          ),
+            SeletorValorDesafio(
+              valor: valor,
+              onChanged: (novoValor) => setState(() => valor = novoValor),
+            ),
+            _entreSecoes,
+
+            // Amigo
+            if (_erroAmigos != null) ...[
+              AvisoInline(
+                _erroAmigos!,
+                Tom.destrutivo,
+                acao: BotaoTexto(
+                  rotulo: 'Recarregar amigos',
+                  pequeno: true,
+                  onPressed: _carregarAmigos,
+                ),
+              ),
+              const SizedBox(height: EspacosApp.e8),
+            ],
+            SeletorAmigoDesafio(
+              isLoadingAmigos: isLoadingAmigos,
+              amigosAceitos: amigosAceitos,
+              amigoId: amigoId,
+              amigoNome: amigoNome,
+              onChanged: (uid, nome) => setState(() {
+                amigoId = uid;
+                amigoNome = nome;
+              }),
+            ),
+          ],
         ),
       ),
       bottomNavigationBar: EnviarDesafio(
@@ -475,5 +394,4 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
       ),
     );
   }
-
 }

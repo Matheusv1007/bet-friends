@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../tema/tema.dart';
+import '../widgets/componentes.dart';
+
+/// Rodapé fixo de Criar Desafio com o botão "Enviar desafio".
 class EnviarDesafio extends StatelessWidget {
   final bool isSubmitting;
   final VoidCallback onPressed;
@@ -12,43 +16,22 @@ class EnviarDesafio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primaryGreen = Color(0xFF00D084);
-    return Container(
-      padding: const EdgeInsets.all(16),
+    return DecoratedBox(
       decoration: const BoxDecoration(
-        color: Color(0xFF0E1420),
-        border: Border(top: BorderSide(color: Color(0xFF1B2536), width: 1)),
+        color: CoresApp.fundo,
+        border: Border(top: BorderSide(color: CoresApp.filete)),
       ),
-      child: SizedBox(
-        height: 48,
-        child: ElevatedButton(
-          key: const Key('btn_enviar_desafio'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primaryGreen,
-            foregroundColor: const Color(0xFF062319),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(EspacosApp.margemDaTela),
+          child: BotaoPrimario(
+            key: const Key('btn_enviar_desafio'),
+            rotulo: 'Enviar desafio',
+            carregando: isSubmitting,
+            larguraTotal: true,
+            onPressed: onPressed,
           ),
-          onPressed: isSubmitting ? null : onPressed,
-          child: isSubmitting
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Color(0xFF062319),
-                  ),
-                )
-              : const Text(
-                  'ENVIAR DESAFIO',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.8,
-                  ),
-                ),
         ),
       ),
     );

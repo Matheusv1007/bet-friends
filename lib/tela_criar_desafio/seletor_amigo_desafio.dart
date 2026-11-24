@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../models/challenge_model.dart';
+import '../tema/tema.dart';
+import '../widgets/componentes.dart';
 import 'cartao_amigo_desafio.dart';
 
+/// Seção "Amigo" de Criar Desafio: lista de rádios num grupo de superfície 1.
 class SeletorAmigoDesafio extends StatelessWidget {
   final bool isLoadingAmigos;
   final List<AmigoItem> amigosAceitos;
@@ -21,63 +24,62 @@ class SeletorAmigoDesafio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const cardBg = Color(0xFF151E2E);
-    const primaryGreen = Color(0xFF00D084);
-    const textMuted = Color(0xFF8E9CAB);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'SELECIONE O AMIGO',
-          style: TextStyle(
-            color: textMuted,
-            fontSize: 11.5,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.8,
-          ),
+    final linhas = <Widget>[
+      if (amigoId != null && !amigosAceitos.any((a) => a.uid == amigoId))
+        CartaoAmigoDesafio(
+          uid: amigoId!,
+          onTap: () => onChanged(amigoId!, amigoNome ?? 'Amigo Selecionado'),
+          displayName: amigoNome ?? 'Amigo Selecionado',
+          isSelected: true,
         ),
-        const SizedBox(height: 10),
+      for (final amigo in amigosAceitos)
+        CartaoAmigoDesafio(
+          uid: amigo.uid,
+          onTap: () => onChanged(amigo.uid, amigo.displayName),
+          displayName: amigo.displayName,
+          username: amigo.username,
+          isSelected: amigoId == amigo.uid,
+        ),
+    ];
 
-        if (isLoadingAmigos)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: CircularProgressIndicator(color: primaryGreen),
-            ),
-          )
-        else if (amigosAceitos.isEmpty && amigoId == null)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Text(
-              'Você ainda não possui amigos aceitos. Adicione amigos na aba Amigos para poder criar desafios.',
-              style: TextStyle(color: textMuted, fontSize: 13),
-              textAlign: TextAlign.center,
-            ),
-          )
-        else ...[
-          if (amigoId != null && !amigosAceitos.any((a) => a.uid == amigoId))
-            CartaoAmigoDesafio(
-              uid: amigoId!,
-              onTap: () =>
-                  onChanged(amigoId!, amigoNome ?? 'Amigo Selecionado'),
-              displayName: amigoNome ?? 'Amigo Selecionado',
-              isSelected: true,
-            ),
-          ...amigosAceitos.map((amigo) {
-            final sel = amigoId == amigo.uid;
-            return CartaoAmigoDesafio(
-              uid: amigo.uid,
-              onTap: () => onChanged(amigo.uid, amigo.displayName),
-              displayName: amigo.displayName,
-              username: amigo.username,
-              isSelected: sel,
-            );
-          }),
+    final Widget conteudo;
+    if (isLoadingAmigos) {
+      conteudo = const Padding(
+        padding: EdgeInsets.all(EspacosApp.e24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    } else if (linhas.isEmpty) {
+      conteudo = const Padding(
+        padding: EdgeInsets.all(EspacosApp.e16),
+        child: Text(
+          'Você ainda não possui amigos aceitos. Adicione amigos na aba Amigos para poder criar desafios.',
+          style: TextoApp.secundario,
+          textAlign: TextAlign.center,
+        ),
+      );
+    } else {
+      conteudo = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < linhas.length; i++) ...[
+            if (i > 0) const Divider(height: 1),
+            linhas[i],
+          ],
         ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const TituloDeSecao('Amigo'),
+        const SizedBox(height: EspacosApp.e8),
+        Material(
+          color: CoresApp.superficie1,
+          borderRadius: RaiosApp.bordaCartao,
+          clipBehavior: Clip.antiAlias,
+          child: conteudo,
+        ),
       ],
     );
   }

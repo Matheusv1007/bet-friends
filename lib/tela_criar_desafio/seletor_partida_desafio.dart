@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../models/campeonato.dart';
 import '../models/partida_model.dart';
+import '../tema/tema.dart';
+import '../widgets/componentes.dart';
+import '../widgets/texto_sem_corte.dart';
 import '../widgets_home_page/escudo_do_time.dart';
 
+/// Seções "Campeonato" (chips de filtro) e "Partida" (lista de rádios) de
+/// Criar Desafio.
 class SeletorPartidaDesafio extends StatelessWidget {
   final bool isLoading;
   final String? errorMessage;
@@ -19,6 +24,9 @@ class SeletorPartidaDesafio extends StatelessWidget {
   final Campeonato? filtro;
   final ValueChanged<Campeonato?> onFiltroChanged;
 
+  /// Ação à direita do título "Partida" (o "Atualizar" da tela).
+  final Widget? acaoDoTitulo;
+
   const SeletorPartidaDesafio({
     super.key,
     required this.isLoading,
@@ -32,6 +40,7 @@ class SeletorPartidaDesafio extends StatelessWidget {
     required this.onAlternarMostrarTodas,
     required this.filtro,
     required this.onFiltroChanged,
+    this.acaoDoTitulo,
   });
 
   /// Quantas partidas o seletor lista antes de "Mostrar mais".
@@ -86,126 +95,87 @@ class SeletorPartidaDesafio extends StatelessWidget {
     ];
   }
 
+  Widget _tituloDaPartida() => Padding(
+        padding: const EdgeInsets.only(bottom: EspacosApp.e8),
+        child: TituloDeSecao('Partida', acao: acaoDoTitulo),
+      );
+
   @override
   Widget build(BuildContext context) {
-    const cardBg = Color(0xFF151E2E);
-    const primaryGreen = Color(0xFF00D084);
-    const textMuted = Color(0xFF8E9CAB);
-
     if (isLoading && partidas.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 32),
-          child: CircularProgressIndicator(color: primaryGreen),
-        ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _tituloDaPartida(),
+          const _Grupo(
+            child: Padding(
+              padding: EdgeInsets.all(EspacosApp.e32),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ),
+        ],
       );
     }
 
     if (errorMessage != null && partidas.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.wifi_off_rounded,
-              size: 40,
-              color: Color(0xFFEF4444),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Erro ao carregar partidas',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              errorMessage!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: textMuted, fontSize: 12.5),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _tituloDaPartida(),
+          _Estado(
+            icone: Icons.wifi_off_rounded,
+            corDoIcone: CoresApp.destrutivo,
+            titulo: 'Erro ao carregar partidas',
+            mensagem: errorMessage!,
+            acao: BotaoSecundario(
+              rotulo: 'Tentar novamente',
+              icone: Icons.refresh,
+              pequeno: true,
               onPressed: onRecarregar,
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Tentar novamente'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryGreen,
-                foregroundColor: const Color(0xFF062319),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
     if (partidas.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            const Icon(Icons.sports_soccer, size: 32, color: Color(0xFF94A3B8)),
-            const SizedBox(height: 8),
-            const Text(
-              'Nenhuma partida encontrada no momento',
-              style: TextStyle(color: textMuted, fontSize: 13),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _tituloDaPartida(),
+          _Estado(
+            icone: Icons.sports_soccer,
+            corDoIcone: CoresApp.textoSuave,
+            mensagem: 'Nenhuma partida encontrada no momento',
+            acao: BotaoSecundario(
+              rotulo: 'Carregar partidas',
+              icone: Icons.refresh,
+              pequeno: true,
               onPressed: onRecarregar,
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Carregar partidas'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryGreen,
-                foregroundColor: const Color(0xFF062319),
-              ),
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
     if (elegiveis.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Center(
-          child: Text(
-            'Nenhuma partida agendada disponível para apostas no momento.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: textMuted, fontSize: 13),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _tituloDaPartida(),
+          const _Estado(
+            icone: Icons.event_busy_outlined,
+            corDoIcone: CoresApp.textoSuave,
+            mensagem: 'Nenhuma partida agendada disponível para apostas no momento.',
           ),
-        ),
+        ],
       );
     }
-
-    final partidaAtivaId = partidaId;
 
     final doFiltro = filtradas(elegiveis, filtro);
     final visiveis = exibidas(
       elegiveis,
-      partidaAtivaId,
+      partidaId,
       mostrarTodas,
       filtro: filtro,
     );
@@ -215,142 +185,240 @@ class SeletorPartidaDesafio extends StatelessWidget {
         visiveis.where((p) => idsDoFiltro.contains(p.id)).length;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const TituloDeSecao('Campeonato'),
+        const SizedBox(height: EspacosApp.e8),
         _FiltroCampeonatos(filtro: filtro, onChanged: onFiltroChanged),
-        if (doFiltro.isEmpty)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              'Nenhuma partida agendada disponível em ${filtro!.nome} no momento.',
-              key: const Key('filtro_campeonato_vazio'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: textMuted, fontSize: 13),
+        const SizedBox(height: EspacosApp.e16),
+        _tituloDaPartida(),
+        if (doFiltro.isEmpty) ...[
+          _Estado(
+            icone: Icons.event_busy_outlined,
+            corDoIcone: CoresApp.textoSuave,
+            mensagem:
+                'Nenhuma partida agendada disponível em ${filtro!.nome} no momento.',
+            chaveDaMensagem: const Key('filtro_campeonato_vazio'),
+          ),
+          if (visiveis.isNotEmpty) const SizedBox(height: EspacosApp.e8),
+        ],
+        if (visiveis.isNotEmpty)
+          _Grupo(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < visiveis.length; i++) ...[
+                  if (i > 0) const Divider(height: 1),
+                  _LinhaDaPartida(
+                    partida: visiveis[i],
+                    selecionada: visiveis[i].id == partidaId,
+                    onTap: () => onChanged(visiveis[i].id),
+                  ),
+                ],
+              ],
             ),
           ),
-        ...visiveis.map((PartidaModel p) {
-          final sel = partidaAtivaId == p.id;
-          final horarioOuStatus = p.horario ?? p.status;
+        if (ocultas > 0 || (mostrarTodas && doFiltro.length > maxPartidas))
+          Align(
+            child: BotaoTexto(
+              key: const Key('btn_mostrar_mais_partidas'),
+              rotulo: mostrarTodas ? 'Mostrar menos' : 'Mostrar mais ($ocultas)',
+              icone: mostrarTodas ? Icons.expand_less : Icons.expand_more,
+              pequeno: true,
+              onPressed: onAlternarMostrarTodas,
+            ),
+          ),
+      ],
+    );
+  }
+}
 
-          return InkWell(
-            key: Key('partida_desafio_${p.id}'),
-            onTap: () => onChanged(p.id),
-            child: Container(
-              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              decoration: BoxDecoration(
-                color: sel ? const Color(0xFF0E2924) : cardBg,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: sel
-                      ? primaryGreen
-                      : Colors.white.withValues(alpha: 0.05),
-                  width: sel ? 1.5 : 1,
-                ),
+/// Superfície 1 com raio de cartão; recorta o realce do toque das linhas.
+class _Grupo extends StatelessWidget {
+  final Widget child;
+
+  const _Grupo({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: CoresApp.superficie1,
+      borderRadius: RaiosApp.bordaCartao,
+      clipBehavior: Clip.antiAlias,
+      child: child,
+    );
+  }
+}
+
+class _Estado extends StatelessWidget {
+  final IconData icone;
+  final Color corDoIcone;
+  final String? titulo;
+  final String mensagem;
+  final Key? chaveDaMensagem;
+  final Widget? acao;
+
+  const _Estado({
+    required this.icone,
+    required this.corDoIcone,
+    required this.mensagem,
+    this.titulo,
+    this.chaveDaMensagem,
+    this.acao,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _Grupo(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: EspacosApp.e20,
+          vertical: EspacosApp.e24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icone, size: 32, color: corDoIcone),
+            const SizedBox(height: EspacosApp.e12),
+            if (titulo != null) ...[
+              Text(
+                titulo!,
+                textAlign: TextAlign.center,
+                style: TextoApp.corpoForte.copyWith(color: CoresApp.texto),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: EspacosApp.e4),
+            ],
+            Text(
+              mensagem,
+              key: chaveDaMensagem,
+              textAlign: TextAlign.center,
+              style: TextoApp.secundario,
+            ),
+            if (acao != null) ...[
+              const SizedBox(height: EspacosApp.e16),
+              acao!,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Linha de rádio: liga e rodada, mandante e visitante (disco e nome em até
+/// 2 linhas) e o horário à direita.
+class _LinhaDaPartida extends StatelessWidget {
+  final PartidaModel partida;
+  final bool selecionada;
+  final VoidCallback onTap;
+
+  const _LinhaDaPartida({
+    required this.partida,
+    required this.selecionada,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = partida;
+    final rodada = p.matchday;
+    final horario = (p.horario ?? p.status).trim();
+    final corte = horario.lastIndexOf(' ');
+    final dia = corte > 0 ? horario.substring(0, corte) : horario;
+    final hora = corte > 0 ? horario.substring(corte + 1) : null;
+
+    return Semantics(
+      selected: selecionada,
+      inMutuallyExclusiveGroup: true,
+      child: Material(
+        color: selecionada ? CoresApp.superficie2 : CoresApp.superficie1,
+        child: InkWell(
+          key: Key('partida_desafio_${p.id}'),
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: EspacosApp.alvoDeToque),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: EspacosApp.e16,
+                vertical: EspacosApp.e12,
+              ),
+              child: Row(
                 children: [
-                  Text(
-                    p.nomeDoCampeonato,
-                    key: Key('partida_desafio_campeonato_${p.id}'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
+                  Icon(
+                    selecionada
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    size: 22,
+                    color: selecionada ? CoresApp.primario : CoresApp.textoSuave,
+                  ),
+                  const SizedBox(width: EspacosApp.e12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Wrap(
+                          spacing: EspacosApp.e4,
+                          children: [
+                            Text(
+                              p.nomeDoCampeonato,
+                              key: Key('partida_desafio_campeonato_${p.id}'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextoApp.secundario,
+                            ),
+                            if (rodada != null)
+                              Text('· Rodada $rodada', style: TextoApp.secundario),
+                          ],
+                        ),
+                        const SizedBox(height: EspacosApp.e4),
+                        _Time(nome: p.timeMandante, escudo: p.logoMandante),
+                        const SizedBox(height: EspacosApp.e4),
+                        _Time(nome: p.timeVisitante, escudo: p.logoVisitante),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Row(
+                  const SizedBox(width: EspacosApp.e12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      EscudoDoTime(
-                        url: p.logoMandante,
-                        nome: p.timeMandante,
-                        tamanho: 32,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          p.timeMandante,
-                          style: TextStyle(
-                            color: sel ? primaryGreen : Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13.5,
-                          ),
+                      Text(
+                        dia,
+                        style: TextoApp.secundario.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: CoresApp.texto,
                         ),
                       ),
-                      Column(
-                        children: [
-                          Text(
-                            'x',
-                            style: TextStyle(
-                              color: sel ? primaryGreen : textMuted,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            horarioOuStatus,
-                            style: const TextStyle(
-                              color: textMuted,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Expanded(
-                        child: Text(
-                          p.timeVisitante,
-                          textAlign: TextAlign.end,
-                          style: TextStyle(
-                            color: sel ? primaryGreen : Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13.5,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      EscudoDoTime(
-                        url: p.logoVisitante,
-                        nome: p.timeVisitante,
-                        tamanho: 32,
-                      ),
+                      if (hora != null) Text(hora, style: TextoApp.secundario),
                     ],
                   ),
                 ],
               ),
             ),
-          );
-        }),
-        if (ocultas > 0 || (mostrarTodas && doFiltro.length > maxPartidas))
-          Align(
-            alignment: Alignment.center,
-            child: TextButton.icon(
-              key: const Key('btn_mostrar_mais_partidas'),
-              style: TextButton.styleFrom(
-                foregroundColor: primaryGreen,
-                minimumSize: const Size(48, 48),
-              ),
-              onPressed: onAlternarMostrarTodas,
-              icon: Icon(
-                mostrarTodas ? Icons.expand_less : Icons.expand_more,
-                size: 20,
-              ),
-              label: Text(
-                mostrarTodas ? 'Mostrar menos' : 'Mostrar mais ($ocultas)',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Time extends StatelessWidget {
+  final String nome;
+  final String? escudo;
+
+  const _Time({required this.nome, required this.escudo});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        EscudoDoTime(url: escudo, nome: nome, tamanho: 22),
+        const SizedBox(width: EspacosApp.e8),
+        Expanded(
+          child: TextoSemCorte(
+            nome,
+            estilo: TextoApp.corpoForte.copyWith(color: CoresApp.texto, height: 1.25),
+          ),
+        ),
       ],
     );
   }
@@ -365,27 +433,24 @@ class _FiltroCampeonatos extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _chip(
+            key: const Key('filtro_campeonato_todos'),
+            rotulo: SeletorPartidaDesafio.rotuloFiltroTodos,
+            selecionado: filtro == null,
+            onTap: () => onChanged(null),
+          ),
+          for (final c in Campeonato.suportados)
             _chip(
-              key: const Key('filtro_campeonato_todos'),
-              rotulo: SeletorPartidaDesafio.rotuloFiltroTodos,
-              selecionado: filtro == null,
-              onTap: () => onChanged(null),
+              key: Key('filtro_campeonato_${c.codigo}'),
+              rotulo: SeletorPartidaDesafio.rotuloDoFiltro(c),
+              selecionado: filtro == c,
+              onTap: () => onChanged(c),
             ),
-            for (final c in Campeonato.suportados)
-              _chip(
-                key: Key('filtro_campeonato_${c.codigo}'),
-                rotulo: SeletorPartidaDesafio.rotuloDoFiltro(c),
-                selecionado: filtro == c,
-                onTap: () => onChanged(c),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -396,35 +461,34 @@ class _FiltroCampeonatos extends StatelessWidget {
     required bool selecionado,
     required VoidCallback onTap,
   }) {
-    const primaryGreen = Color(0xFF00D084);
     return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: InkWell(
-        key: key,
-        borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: selecionado
-                ? const Color(0xFF0E2924)
-                : const Color(0xFF151E2E),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: selecionado
-                  ? primaryGreen
-                  : Colors.white.withValues(alpha: 0.05),
-              width: selecionado ? 1.5 : 1,
+      padding: const EdgeInsets.only(right: EspacosApp.e8),
+      child: Semantics(
+        button: true,
+        selected: selecionado,
+        child: Material(
+          color: selecionado ? CoresApp.primarioSuave : CoresApp.superficie1,
+          shape: RoundedRectangleBorder(
+            borderRadius: RaiosApp.bordaChip,
+            side: BorderSide(
+              color: selecionado ? CoresApp.primario : CoresApp.filete,
             ),
           ),
-          child: Text(
-            rotulo,
-            style: TextStyle(
-              color: selecionado ? primaryGreen : const Color(0xFF8E9CAB),
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: key,
+            onTap: onTap,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: EspacosApp.e16),
+              child: Text(
+                rotulo,
+                style: TextoApp.corpo.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: selecionado ? CoresApp.texto : CoresApp.textoSuave,
+                ),
+              ),
             ),
           ),
         ),
