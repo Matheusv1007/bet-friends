@@ -108,6 +108,19 @@ class Carddepartidas extends StatelessWidget {
                       partida: p,
                       larguraMaxima: restricoes.maxWidth * 0.42,
                     );
+              if (lateral != null &&
+                  restricoes.maxWidth /
+                          MediaQuery.textScalerOf(context).scale(1) <
+                      280) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    times,
+                    const SizedBox(height: EspacosApp.e8),
+                    Align(alignment: Alignment.centerRight, child: lateral),
+                  ],
+                );
+              }
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [

@@ -46,38 +46,35 @@ class BlocoDeSaldo extends StatelessWidget {
 
     return Container(
       key: const Key('home_bloco_saldo'),
-      padding: const EdgeInsets.fromLTRB(EspacosApp.e16, EspacosApp.e4, EspacosApp.e4, EspacosApp.e16),
+      padding: const EdgeInsets.fromLTRB(
+        EspacosApp.e16,
+        EspacosApp.e4,
+        EspacosApp.e4,
+        EspacosApp.e16,
+      ),
       decoration: const BoxDecoration(
         color: CoresApp.superficie1,
         borderRadius: RaiosApp.bordaCartao,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: EspacosApp.e8,
+            runSpacing: EspacosApp.e4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(
-                child: Wrap(
-                  spacing: EspacosApp.e8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    const Text('SALDO DISPONÍVEL', style: TextoApp.secao),
-                    if (semConexao)
-                      Tooltip(
-                        message: 'Sem conexão: últimos dados salvos neste aparelho',
-                        child: Row(
-                          key: const Key('home_saldo_sem_conexao'),
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.cloud_off, size: 14, color: CoresApp.textoSuave),
-                            const SizedBox(width: EspacosApp.e4),
-                            Text('Sem conexão', style: TextoApp.minimo.copyWith(color: CoresApp.textoSuave)),
-                          ],
-                        ),
-                      ),
-                  ],
+              const Text('SALDO DISPONÍVEL', style: TextoApp.secao),
+              if (semConexao)
+                const Tooltip(
+                  message: 'Sem conexão: últimos dados salvos neste aparelho',
+                  child: Text(
+                    'Sem conexão',
+                    key: Key('home_saldo_sem_conexao'),
+                    style: TextoApp.secundario,
+                  ),
                 ),
-              ),
               BotaoTexto(
                 key: const Key('home_extrato'),
                 rotulo: 'Extrato',
@@ -98,25 +95,31 @@ class BlocoDeSaldo extends StatelessWidget {
                   Text(
                     'Saldo indisponível',
                     key: const Key('home_saldo'),
-                    style: TextoApp.corpoForte.copyWith(color: CoresApp.textoSuave),
+                    style: TextoApp.corpoForte.copyWith(
+                      color: CoresApp.textoSuave,
+                    ),
                   )
                 else
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: EspacosApp.e4,
                     children: [
                       Text(
                         formatar(carteira.saldoDisponivel),
                         key: const Key('home_saldo'),
                         // Tabular só sem o ponto de milhar, que ganharia largura de dígito
-                        style: (carteira.saldoDisponivel < 1000
-                                ? TextoApp.saldo
-                                : TextoApp.saldo.copyWith(fontFeatures: const []))
-                            .copyWith(color: CoresApp.texto),
+                        style:
+                            (carteira.saldoDisponivel < 1000
+                                    ? TextoApp.saldo
+                                    : TextoApp.saldo.copyWith(
+                                        fontFeatures: const [],
+                                      ))
+                                .copyWith(color: CoresApp.texto),
                       ),
-                      const SizedBox(width: EspacosApp.e4),
-                      Text('BetCoins', style: TextoApp.secundario.copyWith(fontSize: 15)),
+                      Text(
+                        'BetCoins',
+                        style: TextoApp.secundario.copyWith(fontSize: 15),
+                      ),
                     ],
                   ),
                 BotaoPrimario(
@@ -131,12 +134,20 @@ class BlocoDeSaldo extends StatelessWidget {
           ),
           if (carteira != null)
             Text.rich(
-              TextSpan(children: [
-                const TextSpan(text: 'Reservado '),
-                TextSpan(text: formatar(carteira.saldoReservado), style: apoioForte),
-                const TextSpan(text: '  ·  Total '),
-                TextSpan(text: formatar(carteira.saldoTotal), style: apoioForte),
-              ]),
+              TextSpan(
+                children: [
+                  const TextSpan(text: 'Reservado '),
+                  TextSpan(
+                    text: formatar(carteira.saldoReservado),
+                    style: apoioForte,
+                  ),
+                  const TextSpan(text: '  ·  Total '),
+                  TextSpan(
+                    text: formatar(carteira.saldoTotal),
+                    style: apoioForte,
+                  ),
+                ],
+              ),
               key: const Key('home_saldo_reservado_total'),
               style: apoio,
             ),

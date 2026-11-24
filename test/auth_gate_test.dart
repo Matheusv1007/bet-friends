@@ -28,7 +28,10 @@ Future<void> abrirApp(
   CountingPartidasService? partidas,
 }) async {
   await tester.pumpWidget(
-    App(authService: auth, partidasService: partidas ?? CountingPartidasService()),
+    App(
+      authService: auth,
+      partidasService: partidas ?? CountingPartidasService(),
+    ),
   );
   await avancar(tester);
 }
@@ -50,46 +53,63 @@ Future<void> encerrarApp(WidgetTester tester) async {
 
 void main() {
   group('AuthGate - verificação de sessão', () {
-    testWidgets('exibe carregamento enquanto a sessão é verificada, sem Login nem Home',
-        (tester) async {
-      final auth = FakeAuthService(sessaoPendente: true);
-      await tester.pumpWidget(App(authService: auth, partidasService: CountingPartidasService()));
-      await tester.pump();
+    testWidgets(
+      'exibe carregamento enquanto a sessão é verificada, sem Login nem Home',
+      (tester) async {
+        final auth = FakeAuthService(sessaoPendente: true);
+        await tester.pumpWidget(
+          App(authService: auth, partidasService: CountingPartidasService()),
+        );
+        await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.byType(LoginPage), findsNothing);
-      expect(find.byType(Homepage), findsNothing);
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.byType(LoginPage), findsNothing);
+        expect(find.byType(Homepage), findsNothing);
 
-      auth.resolverSessao(null);
-      await avancar(tester);
-      expect(find.byType(LoginPage), findsOneWidget);
-    });
+        auth.resolverSessao(null);
+        await avancar(tester);
+        expect(find.byType(LoginPage), findsOneWidget);
+      },
+    );
 
-    testWidgets('o carregamento mostra a logo centralizada e um indicador discreto, sobre o fundo do tema',
-        (tester) async {
-      final auth = FakeAuthService(sessaoPendente: true);
-      await tester.pumpWidget(App(authService: auth, partidasService: CountingPartidasService()));
-      await tester.pump();
+    testWidgets(
+      'o carregamento mostra a logo centralizada e um indicador discreto, sobre o fundo do tema',
+      (tester) async {
+        final auth = FakeAuthService(sessaoPendente: true);
+        await tester.pumpWidget(
+          App(authService: auth, partidasService: CountingPartidasService()),
+        );
+        await tester.pump();
 
-      final logo = find.byType(LogoBetFriends);
-      expect(logo, findsOneWidget);
-      expect(tester.widget<LogoBetFriends>(logo).variante, VarianteDoLogo.vertical);
-      final tela = tester.getRect(find.byType(Scaffold));
-      expect(tester.getCenter(logo).dx, closeTo(tela.center.dx, 0.5));
-      final indicador = tester.getSize(find.byType(CircularProgressIndicator));
-      expect(indicador.width, lessThanOrEqualTo(24));
-      expect(tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor, isNull,
-          reason: 'o fundo vem do tema escuro');
+        final logo = find.byType(LogoBetFriends);
+        expect(logo, findsOneWidget);
+        expect(
+          tester.widget<LogoBetFriends>(logo).variante,
+          VarianteDoLogo.vertical,
+        );
+        final tela = tester.getRect(find.byType(Scaffold));
+        expect(tester.getCenter(logo).dx, closeTo(tela.center.dx, 0.5));
+        final indicador = tester.getSize(
+          find.byType(CircularProgressIndicator),
+        );
+        expect(indicador.width, lessThanOrEqualTo(24));
+        expect(
+          tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+          isNull,
+          reason: 'o fundo vem do tema escuro',
+        );
 
-      // Em tela pequena e com fonte grande a logo continua inteira
-      tester.view.physicalSize = const Size(320, 568) * tester.view.devicePixelRatio;
-      tester.platformDispatcher.textScaleFactorTestValue = 2.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      await tester.pump();
-      expect(tester.takeException(), isNull);
-      expect(find.byType(LogoBetFriends), findsOneWidget);
-    });
+        // Em tela pequena e com fonte grande a logo continua inteira
+        tester.view.physicalSize =
+            const Size(320, 568) * tester.view.devicePixelRatio;
+        tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(LogoBetFriends), findsOneWidget);
+      },
+    );
 
     testWidgets('sem sessão exibe o Login', (tester) async {
       await abrirApp(tester, FakeAuthService());
@@ -98,8 +118,13 @@ void main() {
       expect(find.byType(Homepage), findsNothing);
     });
 
-    testWidgets('sessão já existente é restaurada direto na Home', (tester) async {
-      await abrirApp(tester, FakeAuthService(usuarioInicial: FakeUser('uid-1')));
+    testWidgets('sessão já existente é restaurada direto na Home', (
+      tester,
+    ) async {
+      await abrirApp(
+        tester,
+        FakeAuthService(usuarioInicial: FakeUser('uid-1')),
+      );
 
       expect(find.byType(Homepage), findsOneWidget);
       expect(find.byType(LoginPage), findsNothing);
@@ -110,51 +135,61 @@ void main() {
   });
 
   group('Login', () {
-    testWidgets('login bem-sucedido abre a Home uma única vez, sem rota para voltar',
-        (tester) async {
-      final auth = FakeAuthService();
-      await abrirApp(tester, auth);
+    testWidgets(
+      'login bem-sucedido abre a Home uma única vez, sem rota para voltar',
+      (tester) async {
+        final auth = FakeAuthService();
+        await abrirApp(tester, auth);
 
-      await tester.enterText(find.byType(TextField).at(0), 'teste@example.com');
-      await tester.enterText(find.byType(TextField).at(1), 'senha-fake');
-      await tester.tap(find.byKey(const Key('login_entrar')));
-      await avancar(tester);
+        await tester.enterText(
+          find.byType(TextField).at(0),
+          'teste@example.com',
+        );
+        await tester.enterText(find.byType(TextField).at(1), 'senha-fake');
+        await tester.tap(find.byKey(const Key('login_entrar')));
+        await avancar(tester);
 
-      expect(auth.signInCalls, 1);
-      expect(find.byType(Homepage), findsOneWidget);
-      expect(find.byType(LoginPage), findsNothing);
-      expect(podeVoltar(tester), isFalse);
+        expect(auth.signInCalls, 1);
+        expect(find.byType(Homepage), findsOneWidget);
+        expect(find.byType(LoginPage), findsNothing);
+        expect(podeVoltar(tester), isFalse);
 
-      await encerrarApp(tester);
-    });
+        await encerrarApp(tester);
+      },
+    );
 
-    testWidgets('"Entrar" no Cadastro volta ao Login existente sem empilhar outro', (tester) async {
-      final auth = FakeAuthService();
-      await abrirApp(tester, auth);
+    testWidgets(
+      '"Entrar" no Cadastro volta ao Login existente sem empilhar outro',
+      (tester) async {
+        final auth = FakeAuthService();
+        await abrirApp(tester, auth);
 
-      await tester.tap(find.text('Criar conta'));
-      await tester.pumpAndSettle();
-      expect(find.byType(CadastroPage), findsOneWidget);
+        await tester.tap(find.text('Criar conta'));
+        await tester.pumpAndSettle();
+        expect(find.byType(CadastroPage), findsOneWidget);
 
-      // Cadastrar com o formulário vazio não cria conta nem sai da tela (KAN-25)
-      await tester.ensureVisible(find.text('Cadastrar'));
-      await tester.tap(find.text('Cadastrar'));
-      await tester.pumpAndSettle();
-      expect(find.byType(CadastroPage), findsOneWidget);
-      expect(auth.signUpCalls, 0);
+        // Cadastrar com o formulário vazio não cria conta nem sai da tela (KAN-25)
+        await tester.ensureVisible(find.text('Cadastrar'));
+        await tester.tap(find.text('Cadastrar'));
+        await tester.pumpAndSettle();
+        expect(find.byType(CadastroPage), findsOneWidget);
+        expect(auth.signUpCalls, 0);
 
-      await tester.ensureVisible(find.text('Entrar'));
-      await tester.tap(find.text('Entrar'));
-      await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Entrar'));
+        await tester.tap(find.text('Entrar'));
+        await tester.pumpAndSettle();
 
-      expect(find.byType(CadastroPage), findsNothing);
-      expect(find.byType(LoginPage), findsOneWidget);
-      expect(podeVoltar(tester), isFalse);
-    });
+        expect(find.byType(CadastroPage), findsNothing);
+        expect(find.byType(LoginPage), findsOneWidget);
+        expect(podeVoltar(tester), isFalse);
+      },
+    );
   });
 
   group('Logout', () {
-    testWidgets('logout encerra a sessão e o AuthGate volta ao Login', (tester) async {
+    testWidgets('logout encerra a sessão e o AuthGate volta ao Login', (
+      tester,
+    ) async {
       final auth = FakeAuthService(usuarioInicial: FakeUser('uid-1'));
       await abrirApp(tester, auth);
 
@@ -165,7 +200,9 @@ void main() {
       expect(find.byType(Homepage), findsNothing);
     });
 
-    testWidgets('botão Voltar após o logout não retorna à Home', (tester) async {
+    testWidgets('botão Voltar após o logout não retorna à Home', (
+      tester,
+    ) async {
       final auth = FakeAuthService(usuarioInicial: FakeUser('uid-1'));
       await abrirApp(tester, auth);
       await sairPeloMenu(tester);
@@ -190,45 +227,53 @@ void main() {
       await encerrarApp(tester);
     });
 
-    testWidgets('falha no logout mantém a Home e informa o erro, sem simular sucesso',
-        (tester) async {
-      final auth = FakeAuthService(usuarioInicial: FakeUser('uid-1'))
-        ..signOutError = Exception('falha simulada');
-      await abrirApp(tester, auth);
+    testWidgets(
+      'falha no logout mantém a Home e informa o erro, sem simular sucesso',
+      (tester) async {
+        final auth = FakeAuthService(usuarioInicial: FakeUser('uid-1'))
+          ..signOutError = Exception('falha simulada');
+        await abrirApp(tester, auth);
 
-      await sairPeloMenu(tester);
+        await sairPeloMenu(tester);
 
-      expect(auth.signOutCalls, 1);
-      expect(find.text('Não foi possível sair da conta. Tente novamente.'), findsOneWidget);
-      expect(find.byType(Homepage), findsOneWidget);
-      expect(find.byType(LoginPage), findsNothing);
+        expect(auth.signOutCalls, 1);
+        expect(
+          find.text('Não foi possível sair da conta. Tente novamente.'),
+          findsOneWidget,
+        );
+        expect(find.byType(Homepage), findsOneWidget);
+        expect(find.byType(LoginPage), findsNothing);
 
-      await encerrarApp(tester);
-    });
+        await encerrarApp(tester);
+      },
+    );
 
-    testWidgets('durante o logout o menu fica bloqueado contra novas tentativas',
-        (tester) async {
-      final auth = FakeAuthService(usuarioInicial: FakeUser('uid-1'))
-        ..signOutEmAndamento = Completer<void>();
-      await abrirApp(tester, auth);
+    testWidgets(
+      'durante o logout o menu fica bloqueado contra novas tentativas',
+      (tester) async {
+        final auth = FakeAuthService(usuarioInicial: FakeUser('uid-1'))
+          ..signOutEmAndamento = Completer<void>();
+        await abrirApp(tester, auth);
 
-      await sairPeloMenu(tester);
-      expect(auth.signOutCalls, 1);
+        await sairPeloMenu(tester);
+        expect(auth.signOutCalls, 1);
 
-      // Nova tentativa enquanto o primeiro logout não terminou
-      await tester.tap(find.byKey(const Key('menu_conta')));
-      await avancar(tester);
-      expect(find.text('Sair da conta'), findsNothing);
+        // Nova tentativa enquanto o primeiro logout não terminou
+        await tester.tap(find.byKey(const Key('menu_conta')));
+        await avancar(tester);
+        expect(find.text('Sair da conta'), findsNothing);
 
-      auth.signOutEmAndamento!.complete();
-      await avancar(tester);
+        auth.signOutEmAndamento!.complete();
+        await avancar(tester);
 
-      expect(auth.signOutCalls, 1);
-      expect(find.byType(LoginPage), findsOneWidget);
-    });
+        expect(auth.signOutCalls, 1);
+        expect(find.byType(LoginPage), findsOneWidget);
+      },
+    );
 
-    testWidgets('logout descarta a Home e interrompe o polling de partidas',
-        (tester) async {
+    testWidgets('logout descarta a Home e interrompe o polling de partidas', (
+      tester,
+    ) async {
       final auth = FakeAuthService(usuarioInicial: FakeUser('uid-1'));
       final partidas = CountingPartidasService();
       await abrirApp(tester, auth, partidas: partidas);
@@ -246,22 +291,29 @@ void main() {
       expect(find.byType(Homepage), findsNothing);
     });
 
-    testWidgets('sessão encerrada fora do app remove telas protegidas empilhadas',
-        (tester) async {
-      final auth = FakeAuthService(usuarioInicial: FakeUser('uid-1'));
-      await abrirApp(tester, auth);
+    testWidgets(
+      'sessão encerrada fora do app remove telas protegidas empilhadas',
+      (tester) async {
+        final auth = FakeAuthService(usuarioInicial: FakeUser('uid-1'));
+        await abrirApp(tester, auth);
 
-      await tester.tap(find.text('Desafiar'));
-      await avancar(tester, 10);
-      expect(find.byType(CriarDesafioScreen), findsOneWidget);
+        await tester.tap(
+          find.descendant(
+            of: find.byType(BottomNavigationBar),
+            matching: find.text('Desafiar'),
+          ),
+        );
+        await avancar(tester, 10);
+        expect(find.byType(CriarDesafioScreen), findsOneWidget);
 
-      auth.encerrarSessaoExternamente();
-      await avancar(tester, 10);
+        auth.encerrarSessaoExternamente();
+        await avancar(tester, 10);
 
-      expect(find.byType(CriarDesafioScreen), findsNothing);
-      expect(find.byType(Homepage), findsNothing);
-      expect(find.byType(LoginPage), findsOneWidget);
-      expect(podeVoltar(tester), isFalse);
-    });
+        expect(find.byType(CriarDesafioScreen), findsNothing);
+        expect(find.byType(Homepage), findsNothing);
+        expect(find.byType(LoginPage), findsOneWidget);
+        expect(podeVoltar(tester), isFalse);
+      },
+    );
   });
 }

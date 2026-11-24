@@ -13,6 +13,8 @@ import '../services/registro_de_erros.dart';
 import '../services/user_profile_service.dart';
 import '../models/carteira.dart';
 import '../telas_principais/home_page.dart';
+import '../tema/tema.dart';
+import '../widgets/componentes.dart';
 import 'saldo_desafio.dart';
 import 'seletor_valor_desafio.dart';
 import 'enviar_desafio.dart';
@@ -95,23 +97,28 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
     _carteiraSubscription?.cancel();
     setState(() => _erroSaldo = null);
     try {
-      final service = widget.userProfileService ??
-          context.read<UserProfileService?>() ?? UserProfileService();
-      _carteiraSubscription = service.observarCarteiraAtual().listen((carteira) {
-        if (!mounted) return;
-        setState(() {
-          saldoDisponivel = carteira?.saldoDisponivel;
-          _erroSaldo = carteira == null ? 'Carteira indisponível.' : null;
-        });
-      }, onError: (Object e, StackTrace s) {
-        registrarErro('Observar saldo para criar desafio', e, s);
-        if (mounted) {
+      final service =
+          widget.userProfileService ??
+          context.read<UserProfileService?>() ??
+          UserProfileService();
+      _carteiraSubscription = service.observarCarteiraAtual().listen(
+        (carteira) {
+          if (!mounted) return;
           setState(() {
-            saldoDisponivel = null;
-            _erroSaldo = 'Não foi possível carregar o saldo.';
+            saldoDisponivel = carteira?.saldoDisponivel;
+            _erroSaldo = carteira == null ? 'Carteira indisponível.' : null;
           });
-        }
-      });
+        },
+        onError: (Object e, StackTrace s) {
+          registrarErro('Observar saldo para criar desafio', e, s);
+          if (mounted) {
+            setState(() {
+              saldoDisponivel = null;
+              _erroSaldo = 'Não foi possível carregar o saldo.';
+            });
+          }
+        },
+      );
     } catch (e, s) {
       registrarErro('Observar saldo para criar desafio', e, s);
       setState(() => _erroSaldo = 'Não foi possível carregar o saldo.');
@@ -119,7 +126,10 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
   }
 
   Future<void> _carregarAmigos() async {
-    setState(() { isLoadingAmigos = true; _erroAmigos = null; });
+    setState(() {
+      isLoadingAmigos = true;
+      _erroAmigos = null;
+    });
     try {
       final amigos = await _challengeService.listarAmigosAceitos();
       if (!mounted) return;
@@ -148,7 +158,9 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
 
   void _reconciliarSelecao(List<PartidaModel> elegiveis) {
     final selecionada = partidaId;
-    if (selecionada == null || elegiveis.any((p) => p.id == selecionada)) return;
+    if (selecionada == null || elegiveis.any((p) => p.id == selecionada)) {
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || partidaId != selecionada) return;
       setState(() => partidaId = null);
@@ -161,16 +173,19 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
   }
 
   void _avisarErro(String texto, {int segundos = 2}) => mostrarAviso(
-        context,
-        texto,
-        tom: Tom.destrutivo,
-        duracao: Duration(seconds: segundos),
-      );
+    context,
+    texto,
+    tom: Tom.destrutivo,
+    duracao: Duration(seconds: segundos),
+  );
 
   Future<void> _enviarDesafio() async {
     if (isSubmitting) return;
-    final elegiveis = context.read<PartidasProvider>().partidas
-        .where((p) => p.podeCriarDesafio).toList();
+    final elegiveis = context
+        .read<PartidasProvider>()
+        .partidas
+        .where((p) => p.podeCriarDesafio)
+        .toList();
     if (partidaId != null && !elegiveis.any((p) => p.id == partidaId)) {
       _reconciliarSelecao(elegiveis);
       return;
@@ -224,7 +239,10 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
     } catch (e, s) {
       registrarErro('Criar desafio', e, s);
       if (!mounted) return;
-      _avisarErro('Não foi possível criar o desafio. Tente novamente.', segundos: 3);
+      _avisarErro(
+        'Não foi possível criar o desafio. Tente novamente.',
+        segundos: 3,
+      );
     } finally {
       if (mounted) {
         setState(() => isSubmitting = false);
@@ -271,8 +289,11 @@ class _CriarDesafioScreenState extends State<CriarDesafioScreen> {
             Consumer<PartidasProvider>(
               builder: (context, partidasProvider, child) {
                 final partidas = partidasProvider.partidas;
-                final elegiveis = partidas.where((p) => p.podeCriarDesafio).toList();
-                if (!partidasProvider.isLoading && partidasProvider.errorMessage == null) {
+                final elegiveis = partidas
+                    .where((p) => p.podeCriarDesafio)
+                    .toList();
+                if (!partidasProvider.isLoading &&
+                    partidasProvider.errorMessage == null) {
                   _reconciliarSelecao(elegiveis);
                 }
                 return SeletorPartidaDesafio(

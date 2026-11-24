@@ -45,7 +45,10 @@ class DesafioResumoItem extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget conteudo = Padding(
       padding: const EdgeInsets.fromLTRB(
-        EspacosApp.e16, EspacosApp.e12, EspacosApp.e12, EspacosApp.e12,
+        EspacosApp.e16,
+        EspacosApp.e12,
+        EspacosApp.e12,
+        EspacosApp.e12,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -56,7 +59,11 @@ class DesafioResumoItem extends StatelessWidget {
               if (lateral != null && estreito(context, restricoes.maxWidth)) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [titulo, const SizedBox(height: EspacosApp.e4), lateral!],
+                  children: [
+                    titulo,
+                    const SizedBox(height: EspacosApp.e4),
+                    lateral!,
+                  ],
                 );
               }
               return Row(
@@ -143,8 +150,18 @@ class TabelaDoDesafio extends StatelessWidget {
     final colunaDoPalpite = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(rotuloDoPalpite, maxLines: 1, overflow: TextOverflow.ellipsis, style: rotulo),
-        Text(palpite, maxLines: 2, overflow: TextOverflow.ellipsis, style: forte),
+        Text(
+          rotuloDoPalpite,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: rotulo,
+        ),
+        Text(
+          palpite,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: forte,
+        ),
       ],
     );
     final valorEPremio = [
@@ -183,7 +200,10 @@ class TabelaDoDesafio extends StatelessWidget {
             children: [
               colunaDoPalpite,
               const SizedBox(height: EspacosApp.e8),
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: valorEPremio),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: valorEPremio,
+              ),
             ],
           );
         }
@@ -227,7 +247,11 @@ class DiscoDeIniciais extends StatelessWidget {
   const DiscoDeIniciais(this.nome, {super.key, this.tamanho = 32});
 
   static String iniciais(String nome) {
-    final partes = nome.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final partes = nome
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (partes.isEmpty) return '?';
     final primeira = partes.first.characters.first;
     final ultima = partes.length > 1 ? partes.last.characters.first : '';
@@ -241,10 +265,16 @@ class DiscoDeIniciais extends StatelessWidget {
         width: tamanho,
         height: tamanho,
         alignment: Alignment.center,
-        decoration: const BoxDecoration(color: CoresApp.superficie2, shape: BoxShape.circle),
+        decoration: const BoxDecoration(
+          color: CoresApp.superficie2,
+          shape: BoxShape.circle,
+        ),
         child: Text(
           iniciais(nome),
-          style: TextoApp.minimo.copyWith(fontWeight: FontWeight.w700, color: CoresApp.texto),
+          style: TextoApp.minimo.copyWith(
+            fontWeight: FontWeight.w700,
+            color: CoresApp.texto,
+          ),
         ),
       ),
     );
@@ -276,7 +306,10 @@ class CabecalhoDeDesafios extends StatelessWidget {
   Widget build(BuildContext context) {
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 40),
-      child: Row(
+      child: Wrap(
+        spacing: EspacosApp.e8,
+        runSpacing: EspacosApp.e4,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Semantics(
             header: true,
@@ -286,19 +319,12 @@ class CabecalhoDeDesafios extends StatelessWidget {
               style: TextoApp.secao.copyWith(color: corDoTitulo),
             ),
           ),
-          if (complemento != null) ...[
-            const SizedBox(width: EspacosApp.e8),
-            Expanded(
-              child: Text(
-                complemento!,
-                key: complementoKey,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextoApp.minimo.copyWith(color: corDoComplemento),
-              ),
+          if (complemento != null)
+            Text(
+              complemento!,
+              key: complementoKey,
+              style: TextoApp.minimo.copyWith(color: corDoComplemento),
             ),
-          ] else
-            const Spacer(),
           ?acao,
         ],
       ),

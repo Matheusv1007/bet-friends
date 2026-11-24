@@ -18,10 +18,6 @@ class ListaPartidasHome extends StatelessWidget {
   final bool mostrarTodas;
   final VoidCallback onRecarregar;
 
-  /// Alterna `mostrarTodas` na Home. A lista não tem controle próprio (o
-  /// "Ver todas" do cabeçalho faz o mesmo); fica no construtor, que a Home usa.
-  final VoidCallback onAlternarPartidas;
-
   const ListaPartidasHome({
     super.key,
     required this.partidas,
@@ -31,7 +27,6 @@ class ListaPartidasHome extends StatelessWidget {
     required this.refreshErrorMessage,
     required this.mostrarTodas,
     required this.onRecarregar,
-    required this.onAlternarPartidas,
   });
 
   /// Partidas visíveis sem "Ver todas".
@@ -41,10 +36,38 @@ class ListaPartidasHome extends StatelessWidget {
   Widget build(BuildContext context) {
     // 1. Carregando
     if (isLoading && partidas.isEmpty) {
-      return const _Grupo(
-        child: Padding(
-          padding: EdgeInsets.all(EspacosApp.e32),
-          child: Center(child: CircularProgressIndicator()),
+      return Semantics(
+        label: 'Carregando partidas',
+        liveRegion: true,
+        child: ExcludeSemantics(
+          child: _Grupo(
+            child: Column(
+              children: [
+                for (var linha = 0; linha < 3; linha++)
+                  Padding(
+                    padding: const EdgeInsets.all(EspacosApp.e16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var time = 0; time < 2; time++) ...[
+                          const SizedBox(height: EspacosApp.e8),
+                          FractionallySizedBox(
+                            widthFactor: time == 0 ? .75 : .6,
+                            child: const DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: CoresApp.superficie2,
+                                borderRadius: RaiosApp.bordaTag,
+                              ),
+                              child: SizedBox(height: EspacosApp.e20),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -173,7 +196,11 @@ class _EstadoDaLista extends StatelessWidget {
               style: TextoApp.corpoForte.copyWith(color: CoresApp.texto),
             ),
             const SizedBox(height: EspacosApp.e4),
-            Text(mensagem, textAlign: TextAlign.center, style: TextoApp.secundario),
+            Text(
+              mensagem,
+              textAlign: TextAlign.center,
+              style: TextoApp.secundario,
+            ),
             const SizedBox(height: EspacosApp.e16),
             acao,
           ],

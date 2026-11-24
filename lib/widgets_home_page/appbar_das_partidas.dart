@@ -34,25 +34,23 @@ class _AppbardaspartidasState extends State<Appbardaspartidas> {
   @override
   Widget build(BuildContext context) {
     final atualizacao = widget.ultimaAtualizacao?.trim();
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Wrap(
+      spacing: EspacosApp.e12,
+      runSpacing: EspacosApp.e4,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Semantics(header: true, child: const Text('PARTIDAS', style: TextoApp.secao)),
-        if (atualizacao != null && atualizacao.isNotEmpty) ...[
-          const SizedBox(width: EspacosApp.e8),
-          Expanded(
-            child: Semantics(
-              liveRegion: widget.isLive,
-              child: Text(
-                atualizacao[0].toLowerCase() + atualizacao.substring(1),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextoApp.secundario,
-              ),
+        Semantics(
+          header: true,
+          child: const Text('PARTIDAS', style: TextoApp.secao),
+        ),
+        if (atualizacao != null && atualizacao.isNotEmpty)
+          Semantics(
+            liveRegion: widget.isLive,
+            child: Text(
+              atualizacao[0].toLowerCase() + atualizacao.substring(1),
+              style: TextoApp.secundario,
             ),
           ),
-        ] else
-          const Spacer(),
         BotaoTexto(
           key: const Key('btn_ver_todas_partidas'),
           rotulo: _mostrandoTodas ? 'Ver menos' : 'Ver todas',

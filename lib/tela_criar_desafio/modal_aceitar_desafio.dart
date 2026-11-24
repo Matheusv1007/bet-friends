@@ -104,8 +104,9 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
   bool _isSubmitting = false;
 
   // Palpites permitidos para o desafiado: todos EXCETO o do criador (RN-PRD-003)
-  List<Palpite> get _opcoesPermitidas =>
-      Palpite.values.where((p) => p != widget.desafio.challengerPrediction).toList();
+  List<Palpite> get _opcoesPermitidas => Palpite.values
+      .where((p) => p != widget.desafio.challengerPrediction)
+      .toList();
 
   @override
   void initState() {
@@ -132,8 +133,9 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
     );
   }
 
-  Future<void> _recusar() =>
-      _executar(() => recusarDesafioComAviso(context, _challengeService, widget.desafio));
+  Future<void> _recusar() => _executar(
+    () => recusarDesafioComAviso(context, _challengeService, widget.desafio),
+  );
 
   /// Executa [acao] com os botões travados e fecha o modal com `true` em caso de sucesso.
   Future<void> _executar(Future<bool> Function() acao) async {
@@ -172,13 +174,17 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
                   Expanded(
                     child: Text(
                       'Aceitar desafio',
-                      style: TextoApp.tituloDeBarra.copyWith(color: CoresApp.texto),
+                      style: TextoApp.tituloDeBarra.copyWith(
+                        color: CoresApp.texto,
+                      ),
                     ),
                   ),
                   IconButton(
                     tooltip: 'Fechar',
                     icon: const Icon(Icons.close, color: CoresApp.textoSuave),
-                    onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => Navigator.of(context).pop(false),
                   ),
                 ],
               ),
@@ -201,11 +207,17 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
                       chave: const Key('modal_aceitar_valor'),
                     ),
                     _LinhaDoResumo(
-                      nome == null ? 'Palpite do criador' : 'Palpite de ${nome.split(' ').first}',
+                      nome == null
+                          ? 'Palpite do criador'
+                          : 'Palpite de ${nome.split(' ').first}',
                       d.challengerPrediction.label,
                       chave: const Key('modal_aceitar_palpite_criador'),
                     ),
-                    _LinhaDoResumo('Prêmio se acertar', '+${d.amount} BetCoins', divisor: false),
+                    _LinhaDoResumo(
+                      'Prêmio se acertar',
+                      '+${d.amount} BetCoins',
+                      divisor: false,
+                    ),
                   ],
                 ),
               ),
@@ -221,7 +233,9 @@ class _ModalAceitarDesafioState extends State<ModalAceitarDesafio> {
               _SeletorDePalpite(
                 opcoes: _opcoesPermitidas,
                 selecionado: _palpiteSelecionado,
-                onChanged: _isSubmitting ? null : (p) => setState(() => _palpiteSelecionado = p),
+                onChanged: _isSubmitting
+                    ? null
+                    : (p) => setState(() => _palpiteSelecionado = p),
               ),
               const SizedBox(height: EspacosApp.e24),
 
@@ -254,32 +268,56 @@ class _LinhaDoResumo extends StatelessWidget {
   final bool divisor;
   final Key? chave;
 
-  const _LinhaDoResumo(this.rotulo, this.valor, {this.divisor = true, this.chave});
+  const _LinhaDoResumo(
+    this.rotulo,
+    this.valor, {
+    this.divisor = true,
+    this.chave,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       key: chave,
       constraints: const BoxConstraints(minHeight: 44),
-      padding: const EdgeInsets.symmetric(horizontal: EspacosApp.e12, vertical: EspacosApp.e8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: EspacosApp.e12,
+        vertical: EspacosApp.e8,
+      ),
       decoration: divisor
-          ? const BoxDecoration(border: Border(bottom: BorderSide(color: CoresApp.filete)))
+          ? const BoxDecoration(
+              border: Border(bottom: BorderSide(color: CoresApp.filete)),
+            )
           : null,
-      child: Row(
-        children: [
-          Text(rotulo, style: TextoApp.secundario),
-          const SizedBox(width: EspacosApp.e12),
-          // Nomes e partidas longos quebram em até 2 linhas, sem estourar a linha
-          Expanded(
-            child: Text(
-              valor,
-              textAlign: TextAlign.end,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: TextoApp.corpoForte.copyWith(color: CoresApp.texto),
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, restricoes) {
+          final estreita =
+              restricoes.maxWidth / MediaQuery.textScalerOf(context).scale(1) <
+              240;
+          final label = Text(rotulo, style: TextoApp.secundario);
+          final conteudo = Text(
+            valor,
+            textAlign: estreita ? TextAlign.start : TextAlign.end,
+            style: TextoApp.corpoForte.copyWith(color: CoresApp.texto),
+          );
+          if (estreita) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                label,
+                const SizedBox(height: EspacosApp.e4),
+                conteudo,
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Flexible(child: label),
+              const SizedBox(width: EspacosApp.e12),
+              Expanded(child: conteudo),
+            ],
+          );
+        },
       ),
     );
   }
@@ -291,7 +329,11 @@ class _SeletorDePalpite extends StatelessWidget {
   final Palpite? selecionado;
   final ValueChanged<Palpite>? onChanged;
 
-  const _SeletorDePalpite({required this.opcoes, required this.selecionado, required this.onChanged});
+  const _SeletorDePalpite({
+    required this.opcoes,
+    required this.selecionado,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -311,23 +353,32 @@ class _SeletorDePalpite extends StatelessWidget {
                 selected: p == selecionado,
                 inMutuallyExclusiveGroup: true,
                 child: Material(
-                  color: p == selecionado ? CoresApp.primario : Colors.transparent,
+                  color: p == selecionado
+                      ? CoresApp.primario
+                      : Colors.transparent,
                   borderRadius: RaiosApp.bordaChip,
                   child: InkWell(
                     key: Key('palpite_aceite_${p.valor}'),
                     borderRadius: RaiosApp.bordaChip,
                     onTap: onChanged == null ? null : () => onChanged!(p),
                     child: Container(
-                      constraints: const BoxConstraints(minHeight: EspacosApp.alvoDeToque),
+                      constraints: const BoxConstraints(
+                        minHeight: EspacosApp.alvoDeToque,
+                      ),
                       alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(horizontal: EspacosApp.e8, vertical: EspacosApp.e4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: EspacosApp.e8,
+                        vertical: EspacosApp.e4,
+                      ),
                       child: Text(
                         p.label,
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextoApp.corpoForte.copyWith(
-                          color: p == selecionado ? CoresApp.sobrePrimario : CoresApp.texto,
+                          color: p == selecionado
+                              ? CoresApp.sobrePrimario
+                              : CoresApp.texto,
                         ),
                       ),
                     ),

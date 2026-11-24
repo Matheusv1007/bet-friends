@@ -65,48 +65,57 @@ class _CampoDeTextoState extends State<CampoDeTexto> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          widget.rotulo,
-          style: TextoApp.secundario.copyWith(
-            fontWeight: FontWeight.w600,
-            color: widget.enabled ? CoresApp.texto : CoresApp.textoSuave,
+        ExcludeSemantics(
+          child: Text(
+            widget.rotulo,
+            style: TextoApp.secundario.copyWith(
+              fontWeight: FontWeight.w600,
+              color: widget.enabled ? CoresApp.texto : CoresApp.textoSuave,
+            ),
           ),
         ),
         const SizedBox(height: EspacosApp.e8),
-        TextFormField(
-          controller: widget.controller,
-          focusNode: widget.focusNode,
-          enabled: widget.enabled,
-          autofocus: widget.autofocus,
-          keyboardType: widget.keyboardType,
-          textInputAction: widget.textInputAction,
-          textCapitalization: widget.textCapitalization,
-          autofillHints: widget.autofillHints,
-          inputFormatters: widget.inputFormatters,
-          obscureText: senha && !_senhaVisivel,
-          enableSuggestions: !senha,
-          autocorrect: !senha,
-          style: TextoApp.corpo.copyWith(color: CoresApp.texto),
-          onChanged: widget.onChanged,
-          onFieldSubmitted: widget.onSubmitted,
-          validator: widget.validator,
-          forceErrorText: widget.erro,
-          errorBuilder: (context, texto) => _ErroInline(texto),
-          decoration: InputDecoration(
-            hintText: widget.dica,
-            helperText: widget.ajuda,
-            helperMaxLines: 3,
-            suffixIcon: senha
-                ? IconButton(
-                    tooltip: _senhaVisivel ? 'Ocultar senha' : 'Mostrar senha',
-                    icon: Icon(
-                      _senhaVisivel
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                    ),
-                    onPressed: () => setState(() => _senhaVisivel = !_senhaVisivel),
-                  )
-                : null,
+        Semantics(
+          label: widget.rotulo,
+          child: TextFormField(
+            controller: widget.controller,
+            focusNode: widget.focusNode,
+            enabled: widget.enabled,
+            autofocus: widget.autofocus,
+            keyboardType: widget.keyboardType,
+            textInputAction: widget.textInputAction,
+            textCapitalization: widget.textCapitalization,
+            autofillHints: widget.autofillHints,
+            inputFormatters: widget.inputFormatters,
+            obscureText: senha && !_senhaVisivel,
+            enableSuggestions: !senha,
+            autocorrect: !senha,
+            style: TextoApp.corpo.copyWith(color: CoresApp.texto),
+            onChanged: widget.onChanged,
+            onFieldSubmitted: widget.onSubmitted,
+            validator: widget.validator,
+            forceErrorText: widget.erro,
+            errorBuilder: (context, texto) => _ErroInline(texto),
+            decoration: InputDecoration(
+              hintText: widget.dica,
+              helper: widget.ajuda == null
+                  ? null
+                  : Text(widget.ajuda!, style: TextoApp.secundario),
+              suffixIcon: senha
+                  ? IconButton(
+                      tooltip: _senhaVisivel
+                          ? 'Ocultar senha'
+                          : 'Mostrar senha',
+                      icon: Icon(
+                        _senhaVisivel
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () =>
+                          setState(() => _senhaVisivel = !_senhaVisivel),
+                    )
+                  : null,
+            ),
           ),
         ),
       ],
@@ -121,21 +130,28 @@ class _ErroInline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(top: 1),
-          child: Icon(Icons.error_outline, size: 16, color: CoresApp.destrutivo),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            texto,
-            style: TextoApp.secundario.copyWith(color: CoresApp.destrutivo),
+    return Semantics(
+      liveRegion: true,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(
+              Icons.error_outline,
+              size: 16,
+              color: CoresApp.destrutivo,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              texto,
+              style: TextoApp.secundario.copyWith(color: CoresApp.destrutivo),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

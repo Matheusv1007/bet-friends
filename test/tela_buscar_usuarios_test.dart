@@ -34,9 +34,11 @@ class _FakeSearchRepository implements UserSearchRepository {
     }
     final lower = termo.toLowerCase().replaceFirst(RegExp(r'^@'), '');
     return database
-        .where((u) =>
-            u.displayName.toLowerCase().contains(lower) ||
-            u.username.toLowerCase().contains(lower))
+        .where(
+          (u) =>
+              u.displayName.toLowerCase().contains(lower) ||
+              u.username.toLowerCase().contains(lower),
+        )
         .where((u) => u.userId != usuarioAtualUid)
         .toList();
   }
@@ -52,7 +54,9 @@ class _FakeFriendshipRepoForWidget implements FriendshipRepository {
   String? errorMessage;
 
   @override
-  Future<ResultadoEnvioAmizade> enviarSolicitacaoAmizade(String toUserId) async {
+  Future<ResultadoEnvioAmizade> enviarSolicitacaoAmizade(
+    String toUserId,
+  ) async {
     if (throwError) {
       throw FriendshipException(
         FriendshipErrorCode.alreadyFriends,
@@ -74,7 +78,9 @@ class _FakeFriendshipRepoForWidget implements FriendshipRepository {
   }
 
   @override
-  Future<ResultadoAceiteAmizade> aceitarSolicitacaoAmizade(String identificador) async {
+  Future<ResultadoAceiteAmizade> aceitarSolicitacaoAmizade(
+    String identificador,
+  ) async {
     if (throwError) {
       throw FriendshipException(
         FriendshipErrorCode.alreadyResolved,
@@ -90,7 +96,9 @@ class _FakeFriendshipRepoForWidget implements FriendshipRepository {
   }
 
   @override
-  Future<ResultadoRecusaAmizade> recusarSolicitacaoAmizade(String identificador) async {
+  Future<ResultadoRecusaAmizade> recusarSolicitacaoAmizade(
+    String identificador,
+  ) async {
     if (throwError) {
       throw FriendshipException(
         FriendshipErrorCode.alreadyResolved,
@@ -126,51 +134,78 @@ void main() {
     setUp(() {
       authService = FakeAuthService(usuarioInicial: FakeUser(meuUid));
       repository = _FakeSearchRepository([
-        const UsuarioPublico(userId: 'uid-amigo-1', displayName: 'Juliana Paes', username: 'jupaes'),
-        const UsuarioPublico(userId: 'uid-amigo-2', displayName: 'Lucas Lima', username: 'lucaslima'),
+        const UsuarioPublico(
+          userId: 'uid-amigo-1',
+          displayName: 'Juliana Paes',
+          username: 'jupaes',
+        ),
+        const UsuarioPublico(
+          userId: 'uid-amigo-2',
+          displayName: 'Lucas Lima',
+          username: 'lucaslima',
+        ),
         // O próprio usuário com o mesmo nome que será pesquisado
-        const UsuarioPublico(userId: meuUid, displayName: 'Lucas Meu Nome', username: 'lucas_eu'),
+        const UsuarioPublico(
+          userId: meuUid,
+          displayName: 'Lucas Meu Nome',
+          username: 'lucas_eu',
+        ),
       ]);
-      searchService = UserSearchService(authService: authService, repository: repository);
+      searchService = UserSearchService(
+        authService: authService,
+        repository: repository,
+      );
     });
 
-    testWidgets('N-24: resposta antiga não substitui busca nova nem termo apagado', (tester) async {
-      repository.pendentes['Juliana'] = Completer<List<UsuarioPublico>>();
-      repository.pendentes['Lucas'] = Completer<List<UsuarioPublico>>();
-      await tester.pumpWidget(MaterialApp(home: TelaBuscarUsuarios(searchService: searchService)));
-      final campo = find.byKey(const Key('search_users_input'));
-      await tester.enterText(campo, 'Juliana');
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.enterText(campo, 'Lucas');
-      await tester.pump(const Duration(milliseconds: 350));
-      repository.pendentes['Lucas']!.complete([repository.database[1]]);
-      await tester.pumpAndSettle();
-      expect(find.text('Lucas Lima'), findsOneWidget);
-      await tester.enterText(campo, '');
-      repository.pendentes['Juliana']!.complete([repository.database[0]]);
-      await tester.pumpAndSettle();
-      expect(find.text('Juliana Paes'), findsNothing);
-      expect(find.text('Lucas Lima'), findsNothing);
-      expect(find.text('Encontre amigos no BetFriends'), findsOneWidget);
-    });
+    testWidgets(
+      'N-24: resposta antiga não substitui busca nova nem termo apagado',
+      (tester) async {
+        repository.pendentes['Juliana'] = Completer<List<UsuarioPublico>>();
+        repository.pendentes['Lucas'] = Completer<List<UsuarioPublico>>();
+        await tester.pumpWidget(
+          MaterialApp(home: TelaBuscarUsuarios(searchService: searchService)),
+        );
+        final campo = find.byKey(const Key('search_users_input'));
+        await tester.enterText(campo, 'Juliana');
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.enterText(campo, 'Lucas');
+        await tester.pump(const Duration(milliseconds: 350));
+        repository.pendentes['Lucas']!.complete([repository.database[1]]);
+        await tester.pumpAndSettle();
+        expect(find.text('Lucas Lima'), findsOneWidget);
+        await tester.enterText(campo, '');
+        repository.pendentes['Juliana']!.complete([repository.database[0]]);
+        await tester.pumpAndSettle();
+        expect(find.text('Juliana Paes'), findsNothing);
+        expect(find.text('Lucas Lima'), findsNothing);
+        expect(find.text('Encontre amigos no BetFriends'), findsOneWidget);
+      },
+    );
 
-    testWidgets('exibe tela inicial com campo de busca e orientações', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: TelaBuscarUsuarios(searchService: searchService),
-      ));
+    testWidgets('exibe tela inicial com campo de busca e orientações', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(home: TelaBuscarUsuarios(searchService: searchService)),
+      );
 
-      expect(find.text('Buscar Usuários'), findsOneWidget);
+      expect(find.text('Buscar usuários'), findsOneWidget);
       expect(find.byKey(const Key('search_users_input')), findsOneWidget);
       expect(find.text('Encontre amigos no BetFriends'), findsOneWidget);
     });
 
-    testWidgets('busca e exibe usuário existente com nome e @username', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: TelaBuscarUsuarios(searchService: searchService),
-      ));
+    testWidgets('busca e exibe usuário existente com nome e @username', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(home: TelaBuscarUsuarios(searchService: searchService)),
+      );
 
       // Digita 'Juliana'
-      await tester.enterText(find.byKey(const Key('search_users_input')), 'Juliana');
+      await tester.enterText(
+        find.byKey(const Key('search_users_input')),
+        'Juliana',
+      );
       // Aguarda o debounce de 300ms
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
@@ -186,31 +221,42 @@ void main() {
       expect(find.textContaining('saldo'), findsNothing);
     });
 
-    testWidgets('exclusão do próprio usuário: pesquisar nome compartilhado não lista o usuário logado (RN-FRD-002)', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: TelaBuscarUsuarios(searchService: searchService),
-      ));
+    testWidgets(
+      'exclusão do próprio usuário: pesquisar nome compartilhado não lista o usuário logado (RN-FRD-002)',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(home: TelaBuscarUsuarios(searchService: searchService)),
+        );
 
-      // 'Lucas' existe para o outro usuário e para o próprio usuário logado
-      await tester.enterText(find.byKey(const Key('search_users_input')), 'Lucas');
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.pumpAndSettle();
+        // 'Lucas' existe para o outro usuário e para o próprio usuário logado
+        await tester.enterText(
+          find.byKey(const Key('search_users_input')),
+          'Lucas',
+        );
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpAndSettle();
 
-      // Encontra apenas o outro usuário ('Lucas Lima')
-      expect(find.text('Lucas Lima'), findsOneWidget);
-      expect(find.text('@lucaslima'), findsOneWidget);
+        // Encontra apenas o outro usuário ('Lucas Lima')
+        expect(find.text('Lucas Lima'), findsOneWidget);
+        expect(find.text('@lucaslima'), findsOneWidget);
 
-      // O próprio usuário logado ('Lucas Meu Nome') NÃO deve ser exibido
-      expect(find.text('Lucas Meu Nome'), findsNothing);
-      expect(find.text('@lucas_eu'), findsNothing);
-    });
+        // O próprio usuário logado ('Lucas Meu Nome') NÃO deve ser exibido
+        expect(find.text('Lucas Meu Nome'), findsNothing);
+        expect(find.text('@lucas_eu'), findsNothing);
+      },
+    );
 
-    testWidgets('exibe estado vazio quando busca usuário inexistente', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: TelaBuscarUsuarios(searchService: searchService),
-      ));
+    testWidgets('exibe estado vazio quando busca usuário inexistente', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(home: TelaBuscarUsuarios(searchService: searchService)),
+      );
 
-      await tester.enterText(find.byKey(const Key('search_users_input')), 'usuario_inexistente_999');
+      await tester.enterText(
+        find.byKey(const Key('search_users_input')),
+        'usuario_inexistente_999',
+      );
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
 
@@ -218,149 +264,223 @@ void main() {
       expect(find.text('Nenhum usuário encontrado'), findsOneWidget);
     });
 
-    testWidgets('termo com menos de 3 caracteres não chama o backend e mantém a orientação (A-05)', (tester) async {
-      await tester.pumpWidget(MaterialApp(
-        home: TelaBuscarUsuarios(searchService: searchService),
-      ));
+    testWidgets(
+      'termo com menos de 3 caracteres não chama o backend e mantém a orientação (A-05)',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(home: TelaBuscarUsuarios(searchService: searchService)),
+        );
 
-      for (final curto in ['j', 'ju', '@ju']) {
-        await tester.enterText(find.byKey(const Key('search_users_input')), curto);
+        for (final curto in ['j', 'ju', '@ju']) {
+          await tester.enterText(
+            find.byKey(const Key('search_users_input')),
+            curto,
+          );
+          await tester.pump(const Duration(milliseconds: 350));
+          await tester.pumpAndSettle();
+        }
+
+        expect(repository.chamadas, 0);
+        expect(find.text('Encontre amigos no BetFriends'), findsOneWidget);
+        expect(find.byKey(const Key('search_users_empty')), findsNothing);
+
+        // com 3 caracteres a busca acontece
+        await tester.enterText(
+          find.byKey(const Key('search_users_input')),
+          'jul',
+        );
         await tester.pump(const Duration(milliseconds: 350));
         await tester.pumpAndSettle();
-      }
+        expect(repository.chamadas, 1);
+      },
+    );
 
-      expect(repository.chamadas, 0);
-      expect(find.text('Encontre amigos no BetFriends'), findsOneWidget);
-      expect(find.byKey(const Key('search_users_empty')), findsNothing);
+    testWidgets(
+      'exibe mensagem amigável e botão tentar novamente em caso de erro',
+      (tester) async {
+        repository.throwError = true;
 
-      // com 3 caracteres a busca acontece
-      await tester.enterText(find.byKey(const Key('search_users_input')), 'jul');
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.pumpAndSettle();
-      expect(repository.chamadas, 1);
-    });
+        await tester.pumpWidget(
+          MaterialApp(home: TelaBuscarUsuarios(searchService: searchService)),
+        );
 
-    testWidgets('exibe mensagem amigável e botão tentar novamente em caso de erro', (tester) async {
-      repository.throwError = true;
+        await tester.enterText(
+          find.byKey(const Key('search_users_input')),
+          'qualquer',
+        );
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(MaterialApp(
-        home: TelaBuscarUsuarios(searchService: searchService),
-      ));
+        expect(find.byKey(const Key('search_users_error')), findsOneWidget);
+        expect(
+          find.byKey(const Key('search_users_retry_button')),
+          findsOneWidget,
+        );
 
-      await tester.enterText(find.byKey(const Key('search_users_input')), 'qualquer');
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.pumpAndSettle();
+        // Desliga erro e clica em tentar novamente
+        repository.throwError = false;
+        await tester.tap(find.byKey(const Key('search_users_retry_button')));
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('search_users_error')), findsOneWidget);
-      expect(find.byKey(const Key('search_users_retry_button')), findsOneWidget);
+        expect(find.byKey(const Key('search_users_error')), findsNothing);
+      },
+    );
 
-      // Desliga erro e clica em tentar novamente
-      repository.throwError = false;
-      await tester.tap(find.byKey(const Key('search_users_retry_button')));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'envio de solicitação com sucesso exibe feedback e atualiza botão para Pendente (RF-005)',
+      (tester) async {
+        final friendRepo = _FakeFriendshipRepoForWidget();
+        final friendService = FriendshipService(
+          authService: authService,
+          repository: friendRepo,
+        );
 
-      expect(find.byKey(const Key('search_users_error')), findsNothing);
-    });
+        await tester.pumpWidget(
+          MaterialApp(
+            home: TelaBuscarUsuarios(
+              searchService: searchService,
+              friendshipService: friendService,
+            ),
+          ),
+        );
 
-    testWidgets('envio de solicitação com sucesso exibe feedback e atualiza botão para Pendente (RF-005)', (tester) async {
-      final friendRepo = _FakeFriendshipRepoForWidget();
-      final friendService = FriendshipService(authService: authService, repository: friendRepo);
+        await tester.enterText(
+          find.byKey(const Key('search_users_input')),
+          'Juliana',
+        );
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(MaterialApp(
-        home: TelaBuscarUsuarios(
-          searchService: searchService,
-          friendshipService: friendService,
-        ),
-      ));
+        final convidarBtn = find.byKey(const Key('btn_convidar_uid-amigo-1'));
+        expect(convidarBtn, findsOneWidget);
 
-      await tester.enterText(find.byKey(const Key('search_users_input')), 'Juliana');
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.pumpAndSettle();
+        await tester.tap(convidarBtn);
+        await tester.pumpAndSettle();
 
-      final convidarBtn = find.byKey(const Key('btn_convidar_uid-amigo-1'));
-      expect(convidarBtn, findsOneWidget);
+        expect(
+          find.text('Solicitação de amizade enviada para Juliana Paes!'),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('btn_pendente_uid-amigo-1')),
+          findsOneWidget,
+        );
+      },
+    );
 
-      await tester.tap(convidarBtn);
-      await tester.pumpAndSettle();
+    testWidgets(
+      'solicitação cruzada: feedback de aceitação automática e estado Amigos (RN-FRD-005)',
+      (tester) async {
+        final friendRepo = _FakeFriendshipRepoForWidget()..crossRequest = true;
+        final friendService = FriendshipService(
+          authService: authService,
+          repository: friendRepo,
+        );
 
-      expect(find.text('Solicitação de amizade enviada para Juliana Paes!'), findsOneWidget);
-      expect(find.byKey(const Key('btn_pendente_uid-amigo-1')), findsOneWidget);
-    });
+        await tester.pumpWidget(
+          MaterialApp(
+            home: TelaBuscarUsuarios(
+              searchService: searchService,
+              friendshipService: friendService,
+            ),
+          ),
+        );
 
-    testWidgets('solicitação cruzada: feedback de aceitação automática e estado Amigos (RN-FRD-005)', (tester) async {
-      final friendRepo = _FakeFriendshipRepoForWidget()..crossRequest = true;
-      final friendService = FriendshipService(authService: authService, repository: friendRepo);
+        await tester.enterText(
+          find.byKey(const Key('search_users_input')),
+          'Juliana',
+        );
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(MaterialApp(
-        home: TelaBuscarUsuarios(
-          searchService: searchService,
-          friendshipService: friendService,
-        ),
-      ));
+        final convidarBtn = find.byKey(const Key('btn_convidar_uid-amigo-1'));
+        await tester.tap(convidarBtn);
+        await tester.pumpAndSettle();
 
-      await tester.enterText(find.byKey(const Key('search_users_input')), 'Juliana');
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.pumpAndSettle();
+        expect(
+          find.text('Amizade aceita automaticamente com Juliana Paes!'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('btn_amigos_uid-amigo-1')), findsOneWidget);
+      },
+    );
 
-      final convidarBtn = find.byKey(const Key('btn_convidar_uid-amigo-1'));
-      await tester.tap(convidarBtn);
-      await tester.pumpAndSettle();
+    testWidgets(
+      'exibe botão Aceitar e confirma amizade ao aceitar solicitação recebida (RF-005, RN-FRD-001)',
+      (tester) async {
+        final friendRepo = _FakeFriendshipRepoForWidget();
+        final friendService = FriendshipService(
+          authService: authService,
+          repository: friendRepo,
+        );
 
-      expect(find.text('Amizade aceita automaticamente com Juliana Paes!'), findsOneWidget);
-      expect(find.byKey(const Key('btn_amigos_uid-amigo-1')), findsOneWidget);
-    });
+        await tester.pumpWidget(
+          MaterialApp(
+            home: TelaBuscarUsuarios(
+              searchService: searchService,
+              friendshipService: friendService,
+              solicitacoesRecebidas: const {'uid-amigo-1'},
+            ),
+          ),
+        );
 
-    testWidgets('exibe botão Aceitar e confirma amizade ao aceitar solicitação recebida (RF-005, RN-FRD-001)', (tester) async {
-      final friendRepo = _FakeFriendshipRepoForWidget();
-      final friendService = FriendshipService(authService: authService, repository: friendRepo);
+        await tester.enterText(
+          find.byKey(const Key('search_users_input')),
+          'Juliana',
+        );
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(MaterialApp(
-        home: TelaBuscarUsuarios(
-          searchService: searchService,
-          friendshipService: friendService,
-          solicitacoesRecebidas: const {'uid-amigo-1'},
-        ),
-      ));
+        // Botão Aceitar deve ser exibido para o usuário que enviou a solicitação
+        final aceitarBtn = find.byKey(const Key('btn_aceitar_uid-amigo-1'));
+        expect(aceitarBtn, findsOneWidget);
+        expect(find.text('Aceitar'), findsOneWidget);
 
-      await tester.enterText(find.byKey(const Key('search_users_input')), 'Juliana');
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.pumpAndSettle();
+        await tester.tap(aceitarBtn);
+        await tester.pumpAndSettle();
 
-      // Botão Aceitar deve ser exibido para o usuário que enviou a solicitação
-      final aceitarBtn = find.byKey(const Key('btn_aceitar_uid-amigo-1'));
-      expect(aceitarBtn, findsOneWidget);
-      expect(find.text('Aceitar'), findsOneWidget);
+        // Mensagem de sucesso e botão muda para Amigos
+        expect(
+          find.text('Agora você e Juliana Paes são amigos!'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('btn_amigos_uid-amigo-1')), findsOneWidget);
+      },
+    );
 
-      await tester.tap(aceitarBtn);
-      await tester.pumpAndSettle();
+    testWidgets(
+      'exibe erro no SnackBar se falhar ao enviar solicitação (RN-FRD-003)',
+      (tester) async {
+        final friendRepo = _FakeFriendshipRepoForWidget()
+          ..throwError = true
+          ..errorMessage = 'Vocês já são amigos.';
+        final friendService = FriendshipService(
+          authService: authService,
+          repository: friendRepo,
+        );
 
-      // Mensagem de sucesso e botão muda para Amigos
-      expect(find.text('Agora você e Juliana Paes são amigos!'), findsOneWidget);
-      expect(find.byKey(const Key('btn_amigos_uid-amigo-1')), findsOneWidget);
-    });
+        await tester.pumpWidget(
+          MaterialApp(
+            home: TelaBuscarUsuarios(
+              searchService: searchService,
+              friendshipService: friendService,
+            ),
+          ),
+        );
 
-    testWidgets('exibe erro no SnackBar se falhar ao enviar solicitação (RN-FRD-003)', (tester) async {
-      final friendRepo = _FakeFriendshipRepoForWidget()
-        ..throwError = true
-        ..errorMessage = 'Vocês já são amigos.';
-      final friendService = FriendshipService(authService: authService, repository: friendRepo);
+        await tester.enterText(
+          find.byKey(const Key('search_users_input')),
+          'Juliana',
+        );
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpAndSettle();
 
-      await tester.pumpWidget(MaterialApp(
-        home: TelaBuscarUsuarios(
-          searchService: searchService,
-          friendshipService: friendService,
-        ),
-      ));
+        final convidarBtn = find.byKey(const Key('btn_convidar_uid-amigo-1'));
+        await tester.tap(convidarBtn);
+        await tester.pumpAndSettle();
 
-      await tester.enterText(find.byKey(const Key('search_users_input')), 'Juliana');
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.pumpAndSettle();
-
-      final convidarBtn = find.byKey(const Key('btn_convidar_uid-amigo-1'));
-      await tester.tap(convidarBtn);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Vocês já são amigos.'), findsOneWidget);
-    });
+        expect(find.text('Vocês já são amigos.'), findsOneWidget);
+      },
+    );
   });
 }

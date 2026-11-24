@@ -5,13 +5,28 @@ import 'package:betfriends/widgets_home_page/menu_da_conta_home.dart';
 import 'package:flutter/material.dart';
 
 const _diasDaSemana = [
-  'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira',
-  'Sexta-feira', 'Sábado', 'Domingo',
+  'Segunda-feira',
+  'Terça-feira',
+  'Quarta-feira',
+  'Quinta-feira',
+  'Sexta-feira',
+  'Sábado',
+  'Domingo',
 ];
 
 const _meses = [
-  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
-  'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+  'janeiro',
+  'fevereiro',
+  'março',
+  'abril',
+  'maio',
+  'junho',
+  'julho',
+  'agosto',
+  'setembro',
+  'outubro',
+  'novembro',
+  'dezembro',
 ];
 
 /// "Domingo, 23 de novembro".
@@ -41,7 +56,9 @@ class CabecalhoHome extends StatelessWidget {
       stream: perfil,
       builder: (context, snapshot) {
         // Sem perfil, sem conexão ou com erro, uma saudação neutra
-        final nome = snapshot.hasError ? null : snapshot.data?.perfil?.displayName;
+        final nome = snapshot.hasError
+            ? null
+            : snapshot.data?.perfil?.displayName;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -56,8 +73,6 @@ class CabecalhoHome extends StatelessWidget {
             Text(
               nome == null ? 'Olá!' : 'Olá, $nome',
               key: const Key('home_saudacao'),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
               style: TextoApp.tituloDeTela.copyWith(color: CoresApp.texto),
             ),
             Text(

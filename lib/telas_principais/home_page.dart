@@ -274,11 +274,6 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
                       onRecarregar: () => context
                           .read<PartidasProvider>()
                           .carregarPartidas(forcar: true),
-                      onAlternarPartidas: () {
-                        setState(() {
-                          _mostrarTodas = !_mostrarTodas;
-                        });
-                      },
                     );
                   },
                 ),

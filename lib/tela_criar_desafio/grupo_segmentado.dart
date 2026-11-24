@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../tema/tema.dart';
-import '../widgets/texto_sem_corte.dart';
 
 /// Uma opção do [GrupoSegmentado].
 class OpcaoSegmentada<T> {
@@ -14,7 +13,7 @@ class OpcaoSegmentada<T> {
 
 /// Grupo segmentado de Criar Desafio (palpite e valor): segmentos de mesma
 /// largura e altura numa moldura de superfície 1; o escolhido fica em verde.
-/// Rótulos em até 2 linhas, sem quebrar palavra.
+/// Em larguras pequenas ou texto ampliado, empilha as opções sem reduzir a fonte.
 class GrupoSegmentado<T> extends StatelessWidget {
   final List<OpcaoSegmentada<T>> opcoes;
   final T selecionado;
@@ -37,7 +36,8 @@ class GrupoSegmentado<T> extends StatelessWidget {
   TextStyle _estilo(bool escolhido) {
     final cor = escolhido ? CoresApp.sobrePrimario : CoresApp.texto;
     return numerico
-        ? TextoApp.tabular(TextoApp.corpoForte).copyWith(fontSize: 17, color: cor)
+        ? TextoApp.tabular(TextoApp.corpoForte)
+              .copyWith(fontSize: 17, color: cor)
         : TextoApp.corpo.copyWith(
             fontWeight: escolhido ? FontWeight.w600 : FontWeight.w500,
             color: cor,
@@ -57,28 +57,22 @@ class GrupoSegmentado<T> extends StatelessWidget {
         padding: const EdgeInsets.all(_moldura),
         child: LayoutBuilder(
           builder: (context, restricoes) {
-            final largura = restricoes.maxWidth / opcoes.length - 2 * _respiro;
-            // Tamanho medido aqui, fora do Row: o IntrinsicHeight, que iguala
-            // a altura dos segmentos, não atravessa um LayoutBuilder.
-            return IntrinsicHeight(
-              child: Row(
+            final escala = MediaQuery.textScalerOf(context).scale(1);
+            final empilhar =
+                restricoes.maxWidth / escala < (numerico ? 240 : 440);
+            if (empilhar) {
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final o in opcoes)
-                    Expanded(
-                      child: _segmento(
-                        o,
-                        o.valor == selecionado,
-                        TextoSemCorte.tamanhoQueCabe(
-                          context,
-                          o.rotulo,
-                          _estilo(o.valor == selecionado),
-                          largura,
-                        ),
-                      ),
-                    ),
+                  for (final o in opcoes) _segmento(o, o.valor == selecionado),
                 ],
-              ),
+              );
+            }
+            return Row(
+              children: [
+                for (final o in opcoes)
+                  Expanded(child: _segmento(o, o.valor == selecionado)),
+              ],
             );
           },
         ),
@@ -86,28 +80,30 @@ class GrupoSegmentado<T> extends StatelessWidget {
     );
   }
 
-  Widget _segmento(OpcaoSegmentada<T> opcao, bool escolhido, double tamanho) {
+  Widget _segmento(OpcaoSegmentada<T> opcao, bool escolhido) {
     return Material(
       color: escolhido ? CoresApp.primario : Colors.transparent,
       borderRadius: RaiosApp.bordaChip,
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        key: opcao.chave,
-        onTap: () => onChanged(opcao.valor),
-        child: Container(
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(
-            horizontal: _respiro,
-            vertical: EspacosApp.e8,
-          ),
-          child: Text(
-            opcao.rotulo,
-            textAlign: TextAlign.center,
-            textScaler: TextScaler.noScaling,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: _estilo(escolhido).copyWith(fontSize: tamanho),
+      child: Semantics(
+        selected: escolhido,
+        button: true,
+        inMutuallyExclusiveGroup: true,
+        child: InkWell(
+          key: opcao.chave,
+          onTap: () => onChanged(opcao.valor),
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(
+              horizontal: _respiro,
+              vertical: EspacosApp.e8,
+            ),
+            child: Text(
+              opcao.rotulo,
+              textAlign: TextAlign.center,
+              style: _estilo(escolhido),
+            ),
           ),
         ),
       ),
